@@ -29,6 +29,8 @@ interface CartState {
   customer_id: number | null;
   billing_state: number | null;
   discount_percentage: number;
+  discount_amount: number;
+  discount_type: 'percentage' | 'amount';
 }
 
 const QuickSale: React.FC = () => {
@@ -48,6 +50,8 @@ const QuickSale: React.FC = () => {
     customer_id: null,
     billing_state: null,
     discount_percentage: 0,
+    discount_amount: 0,
+    discount_type: 'amount',
   });
   const [selectedCustomer, setSelectedCustomer] = useState<any>(null);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -166,9 +170,32 @@ const QuickSale: React.FC = () => {
         }
 
         // Recalculate unit price (base price before tax) if tax is included
-        const newUnitPrice = item.tax_included
-           ? newSellingPrice / (1 + item.gst_rate / 100)
-           : newSellingPrice;
+        let newUnitPrice = newSellingPrice;
+
+        if (item.tax_included) {
+          // Ensure gst_rate is valid and positive
+          const gstRate = item.gst_rate || 0;
+          if (gstRate > 0 && gstRate < 100) {
+            const divisor = 1 + (gstRate / 100);
+            newUnitPrice = newSellingPrice / divisor;
+          } else {
+            // If GST rate is invalid, use selling price as unit price
+            console.warn(`Invalid GST rate for ${item.name}: ${gstRate}. Using selling price as unit price.`);
+            newUnitPrice = newSellingPrice;
+          }
+        }
+
+        // Validate the calculated unit price
+        if (isNaN(newUnitPrice) || !isFinite(newUnitPrice) || newUnitPrice > 9999999999.99 || newUnitPrice < 0) {
+          console.error(`Invalid unit_price calculated for ${item.name}:`, {
+            newUnitPrice,
+            newSellingPrice,
+            gst_rate: item.gst_rate,
+            tax_included: item.tax_included
+          });
+          // Fallback to original selling price
+          newUnitPrice = baseSellingPrice;
+        }
 
         return {
           ...item,
@@ -199,17 +226,46 @@ const QuickSale: React.FC = () => {
         )
       }));
     } else {
-      const basePrice = product.tax_included
-        ? effectivePrice / (1 + parseFloat(product.gst_rate) / 100)
-        : effectivePrice;
+      // Calculate base price (unit_price before tax)
+      let basePrice = effectivePrice;
+
+      if (product.tax_included) {
+        const gstRate = parseFloat(product.gst_rate) || 0;
+        if (gstRate > 0 && gstRate < 100) {
+          const divisor = 1 + (gstRate / 100);
+          basePrice = effectivePrice / divisor;
+        } else {
+          console.warn(`Invalid GST rate for ${product.name}: ${gstRate}. Using selling price as unit price.`);
+          basePrice = effectivePrice;
+        }
+      }
+
+      // Validate the calculated base price
+      if (isNaN(basePrice) || !isFinite(basePrice) || basePrice > 9999999999.99 || basePrice < 0) {
+        console.error(`Invalid unit_price calculated for ${product.name}:`, {
+          basePrice,
+          effectivePrice,
+          gst_rate: product.gst_rate,
+          tax_included: product.tax_included
+        });
+        dispatch(addNotification({
+          message: `Error: Invalid price for ${product.name}. Please check product settings.`,
+          type: 'error'
+        }));
+        return;
+      }
+
+      // Round to 2 decimal places to prevent excessive precision
+      const roundedBasePrice = parseFloat(basePrice.toFixed(2));
+      const roundedEffectivePrice = parseFloat(effectivePrice.toFixed(2));
 
       const newItem: CartItem = {
         id: Date.now(),
         product_id: product.id,
         name: product.name,
         sku: product.sku,
-        unit_price: basePrice,
-        selling_price: effectivePrice,
+        unit_price: roundedBasePrice,
+        selling_price: roundedEffectivePrice,
         quantity: 1,
         gst_rate: parseFloat(product.gst_rate),
         hsn_code: product.hsn_code,
@@ -318,7 +374,9 @@ const QuickSale: React.FC = () => {
       }
     });
 
-    const discount = (subtotal * cart.discount_percentage) / 100;
+    const discount = cart.discount_type === 'percentage'
+      ? (subtotal * cart.discount_percentage) / 100
+      : cart.discount_amount;
     const grossTotal = subtotal + totalGst - discount;
     const grandTotal = Math.round(grossTotal);
     const roundOff = grandTotal - grossTotal;
@@ -343,36 +401,64 @@ const QuickSale: React.FC = () => {
     setIsProcessing(true);
 
     try {
-      // If no customer selected, create guest or use null depending on backend req
-      // POS.tsx used Guest Name inputs. We'll simplify to 'Walk-in Customer' or null if allowed.
-      // Or we can just default to null and backend handles it?
-      // POS.tsx created a guest customer if name was provided.
-      // User said "One click".
-      // We'll proceed with null customer (Walk-in) if none selected.
+      // Debug: Log cart items to identify the issue
+      console.log("=== DEBUG: Cart Items Before Payment ===");
+      cart.items.forEach((item, idx) => {
+        console.log(`Item ${idx}:`, {
+          name: item.name,
+          quantity: item.quantity,
+          unit_price: item.unit_price,
+          selling_price: item.selling_price,
+          gst_rate: item.gst_rate,
+          tax_included: item.tax_included,
+          original_selling_price: item.original_selling_price
+        });
+
+        // Validate unit_price
+        if (item.unit_price > 9999999999.99) {
+          console.error(`ERROR: Item ${item.name} has invalid unit_price: ${item.unit_price}`);
+        }
+      });
+      console.log("=" + "=".repeat(39));
 
       const saleData = {
         order_number: `QS-${Date.now()}`,
         customer: cart.customer_id,
         payment_method: method,
         payment_status: 'paid',
-        billing_state: cart.billing_state, // Default?
+        billing_state: cart.billing_state,
         place_of_supply: cart.billing_state,
-        discount_percentage: cart.discount_percentage,
-        items: cart.items.map(item => ({
+        discount_percentage: cart.discount_type === 'percentage' ? cart.discount_percentage : 0,
+        discount_amount: cart.discount_type === 'amount' ? cart.discount_amount : 0,
+        items: cart.items.map(item => {
+          // Round unit_price to 2 decimal places and ensure it's a valid number
+          const validUnitPrice = parseFloat(item.unit_price.toFixed(2));
+
+          // Additional validation
+          if (isNaN(validUnitPrice) || validUnitPrice > 9999999999.99) {
+            console.error(`Invalid unit_price for ${item.name}: ${item.unit_price}`);
+            throw new Error(`Invalid price for ${item.name}. Please check the product pricing.`);
+          }
+
+          return {
             product: item.product_id,
             quantity: item.quantity,
-            unit_price: item.unit_price,
+            unit_price: validUnitPrice,
             gst_rate: item.gst_rate,
             hsn_code: item.hsn_code,
-        }))
+          };
+        })
       };
+
+      console.log("=== DEBUG: Sale Data Being Sent ===", saleData);
 
       const sale = await saleService.create(saleData);
       setCompletedSale(sale);
       setShowInvoice(true);
       dispatch(addNotification({ message: 'Sale Completed', type: 'success' }));
     } catch (err: any) {
-      dispatch(addNotification({ message: err?.response?.data?.error || 'Payment Failed', type: 'error' }));
+      console.error("Payment Error:", err);
+      dispatch(addNotification({ message: err?.response?.data?.error || err?.message || 'Payment Failed', type: 'error' }));
     } finally {
       setIsProcessing(false);
     }
@@ -385,7 +471,9 @@ const QuickSale: React.FC = () => {
       items: [],
       customer_id: null,
       billing_state: null,
-      discount_percentage: 0
+      discount_percentage: 0,
+      discount_amount: 0,
+      discount_type: 'amount'
     });
     setSelectedCustomer(null);
     setSearchTerm('');
@@ -550,6 +638,45 @@ const QuickSale: React.FC = () => {
                 <span>Subtotal</span>
                 <span>₹{totals.subtotal.toFixed(2)}</span>
               </div>
+
+              {/* Discount Input */}
+              <div className="flex justify-between items-center py-2 border-b border-dashed border-gray-200">
+                <span className="text-gray-600 font-medium">Discount</span>
+                <div className="flex items-center gap-2">
+                  <div className="flex bg-gray-200 rounded p-0.5">
+                    <button
+                      onClick={() => setCart(prev => ({ ...prev, discount_type: 'percentage' }))}
+                      className={`px-2 py-0.5 text-xs font-semibold rounded ${cart.discount_type === 'percentage' ? 'bg-white shadow text-gray-800' : 'text-gray-500'}`}
+                    >%</button>
+                    <button
+                      onClick={() => setCart(prev => ({ ...prev, discount_type: 'amount' }))}
+                      className={`px-2 py-0.5 text-xs font-semibold rounded ${cart.discount_type === 'amount' ? 'bg-white shadow text-gray-800' : 'text-gray-500'}`}
+                    >₹</button>
+                  </div>
+                  <input
+                    type="number"
+                    min="0"
+                    value={cart.discount_type === 'percentage' ? (cart.discount_percentage || '') : (cart.discount_amount || '')}
+                    onChange={(e) => {
+                      const val = parseFloat(e.target.value) || 0;
+                      if (cart.discount_type === 'percentage') {
+                        setCart(prev => ({ ...prev, discount_percentage: val > 100 ? 100 : val }));
+                      } else {
+                        setCart(prev => ({ ...prev, discount_amount: val }));
+                      }
+                    }}
+                    className="w-20 text-right p-1 border rounded text-sm outline-none focus:border-primary-400"
+                    placeholder="0"
+                  />
+                </div>
+              </div>
+
+              {totals.discount > 0 && (
+                <div className="flex justify-between py-1">
+                  <span>Discount Applied</span>
+                  <span>-₹{totals.discount.toFixed(2)}</span>
+                </div>
+              )}
 
               {/* GST Breakdown */}
               {Object.entries(totals.taxBreakdown).sort(([a], [b]) => Number(b) - Number(a)).map(([rate, breakdown]) => (

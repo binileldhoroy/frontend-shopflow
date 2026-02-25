@@ -28,6 +28,8 @@ interface CartState {
   customer_id: number | null;
   billing_state: number | null;
   discount_percentage: number;
+  discount_amount: number;
+  discount_type: 'percentage' | 'amount';
 }
 
 const POS: React.FC = () => {
@@ -52,6 +54,8 @@ const POS: React.FC = () => {
     customer_id: null,
     billing_state: null,
     discount_percentage: 0,
+    discount_amount: 0,
+    discount_type: 'amount',
   });
 
   // Fetch initial data
@@ -117,20 +121,23 @@ const POS: React.FC = () => {
 
         const newSellingPrice = calculateEffectivePrice(product);
 
-        // Improve tax logic: if tax included, unit_price needs recalc too?
-        // Usually unit_price means base price (excl tax) in this codebase context?
-        // Looking at handleAddToCart below:
-        // const basePrice = product.tax_included ? ... : ...
-        // We need to keep unit_price and selling_price consistent.
+        // Calculate base price with proper GST handling
+        let newBasePrice = newSellingPrice;
+        if (product.tax_included) {
+          const gstRate = parseFloat(product.gst_rate) || 0;
+          if (gstRate > 0 && gstRate < 100) {
+            newBasePrice = newSellingPrice / (1 + gstRate / 100);
+          }
+        }
 
-        const newBasePrice = product.tax_included
-           ? newSellingPrice / (1 + parseFloat(product.gst_rate) / 100)
-           : newSellingPrice;
+        // Round to 2 decimal places to prevent excessive precision
+        const roundedBasePrice = parseFloat(newBasePrice.toFixed(2));
+        const roundedSellingPrice = parseFloat(newSellingPrice.toFixed(2));
 
         return {
           ...item,
-          selling_price: newSellingPrice,
-          unit_price: newBasePrice
+          selling_price: roundedSellingPrice,
+          unit_price: roundedBasePrice
         };
       })
     }));
@@ -162,17 +169,26 @@ const POS: React.FC = () => {
         ),
       }));
     } else {
-      const basePrice = product.tax_included
-        ? effectivePrice / (1 + parseFloat(product.gst_rate) / 100)
-        : effectivePrice;
+      // Calculate base price with proper GST handling
+      let basePrice = effectivePrice;
+      if (product.tax_included) {
+        const gstRate = parseFloat(product.gst_rate) || 0;
+        if (gstRate > 0 && gstRate < 100) {
+          basePrice = effectivePrice / (1 + gstRate / 100);
+        }
+      }
+
+      // Round to 2 decimal places to prevent excessive precision
+      const roundedBasePrice = parseFloat(basePrice.toFixed(2));
+      const roundedEffectivePrice = parseFloat(effectivePrice.toFixed(2));
 
       const newItem: CartItem = {
         id: Date.now(),
         product_id: product.id,
         name: product.name,
         sku: product.sku,
-        unit_price: basePrice,
-        selling_price: effectivePrice,
+        unit_price: roundedBasePrice,
+        selling_price: roundedEffectivePrice,
         quantity: 1,
         gst_rate: parseFloat(product.gst_rate),
         hsn_code: product.hsn_code,
@@ -250,7 +266,9 @@ const POS: React.FC = () => {
       }
     });
 
-    const discount = (subtotal * cart.discount_percentage) / 100;
+    const discount = cart.discount_type === 'percentage'
+      ? (subtotal * cart.discount_percentage) / 100
+      : cart.discount_amount;
     const grossTotal = subtotal + totalGst - discount;
     const grandTotal = Math.round(grossTotal);
     const roundOff = grandTotal - grossTotal;
@@ -305,14 +323,19 @@ const POS: React.FC = () => {
         payment_status: 'paid',
         billing_state: cart.billing_state,
         place_of_supply: cart.billing_state,
-        discount_percentage: cart.discount_percentage,
-        items: cart.items.map(item => ({
-          product: item.product_id,
-          quantity: item.quantity,
-          unit_price: item.unit_price,
-          gst_rate: item.gst_rate,
-          hsn_code: item.hsn_code,
-        })),
+        discount_percentage: cart.discount_type === 'percentage' ? cart.discount_percentage : 0,
+        discount_amount: cart.discount_type === 'amount' ? cart.discount_amount : 0,
+        items: cart.items.map(item => {
+          // Ensure unit_price is rounded to 2 decimal places
+          const validUnitPrice = parseFloat(item.unit_price.toFixed(2));
+          return {
+            product: item.product_id,
+            quantity: item.quantity,
+            unit_price: validUnitPrice,
+            gst_rate: item.gst_rate,
+            hsn_code: item.hsn_code,
+          };
+        }),
       };
 
       const sale = await saleService.create(saleData);
@@ -335,6 +358,8 @@ const POS: React.FC = () => {
       customer_id: null,
       billing_state: null,
       discount_percentage: 0,
+      discount_amount: 0,
+      discount_type: 'amount',
     });
     setGuestName('');
     setGuestPhone('');
@@ -537,6 +562,50 @@ const POS: React.FC = () => {
 
           {cart.items.length > 0 && (
             <div className="mt-4 pt-4 border-t space-y-2">
+              <div className="flex justify-between text-sm pt-1">
+                <span>Subtotal</span>
+                <span>₹{totals.subtotal.toFixed(2)}</span>
+              </div>
+
+              {/* Discount Input */}
+              <div className="flex justify-between items-center py-2 border-b border-dashed border-gray-200">
+                <span className="text-sm font-medium text-gray-700">Discount</span>
+                <div className="flex items-center gap-2">
+                  <div className="flex bg-gray-200 rounded p-0.5">
+                    <button
+                      onClick={() => setCart(prev => ({ ...prev, discount_type: 'percentage' }))}
+                      className={`px-2 py-0.5 text-xs font-semibold rounded ${cart.discount_type === 'percentage' ? 'bg-white shadow text-gray-800' : 'text-gray-500'}`}
+                    >%</button>
+                    <button
+                      onClick={() => setCart(prev => ({ ...prev, discount_type: 'amount' }))}
+                      className={`px-2 py-0.5 text-xs font-semibold rounded ${cart.discount_type === 'amount' ? 'bg-white shadow text-gray-800' : 'text-gray-500'}`}
+                    >₹</button>
+                  </div>
+                  <input
+                    type="number"
+                    min="0"
+                    value={cart.discount_type === 'percentage' ? (cart.discount_percentage || '') : (cart.discount_amount || '')}
+                    onChange={(e) => {
+                      const val = parseFloat(e.target.value) || 0;
+                      if (cart.discount_type === 'percentage') {
+                        setCart(prev => ({ ...prev, discount_percentage: val > 100 ? 100 : val }));
+                      } else {
+                        setCart(prev => ({ ...prev, discount_amount: val }));
+                      }
+                    }}
+                    className="w-20 text-right p-1 border rounded text-sm outline-none focus:border-primary-400"
+                    placeholder="0"
+                  />
+                </div>
+              </div>
+
+              {totals.discount > 0 && (
+                <div className="flex justify-between text-sm py-1">
+                  <span>Discount Applied</span>
+                  <span>-₹{totals.discount.toFixed(2)}</span>
+                </div>
+              )}
+
               {/* GST Breakdown */}
               {Object.entries(totals.taxBreakdown).sort(([a], [b]) => Number(b) - Number(a)).map(([rate, breakdown]) => (
                 <div key={rate} className="space-y-1 py-1 border-t border-dashed border-gray-200">
