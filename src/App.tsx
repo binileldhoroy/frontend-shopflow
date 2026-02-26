@@ -21,6 +21,7 @@ import POS from './pages/POS/POS';
 import QuickSale from './pages/QuickSale/QuickSale';
 import Sales from './pages/Sales/Sales';
 import Customers from './pages/Customers/Customers';
+import CustomerLedger from './pages/Customers/CustomerLedger';
 import Inventory from './pages/Inventory/Inventory';
 import Purchases from './pages/Purchases/Purchases';
 import Suppliers from './pages/Suppliers/Suppliers';
@@ -153,6 +154,17 @@ function App() {
               <RoleBasedRoute allowedRoles={[UserRole.ADMIN, UserRole.MANAGER, UserRole.CASHIER]}>
                 <Layout>
                   <Customers />
+                </Layout>
+              </RoleBasedRoute>
+            }
+          />
+
+          <Route
+            path="/customers/:id/ledger"
+            element={
+              <RoleBasedRoute allowedRoles={[UserRole.ADMIN, UserRole.MANAGER, UserRole.CASHIER]}>
+                <Layout>
+                  <CustomerLedger />
                 </Layout>
               </RoleBasedRoute>
             }

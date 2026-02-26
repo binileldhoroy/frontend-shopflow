@@ -1,18 +1,21 @@
 import React from 'react';
-import { X, Banknote, CreditCard, Smartphone, Building2 } from 'lucide-react';
+import { X, Banknote, CreditCard, Smartphone, Building2, BookOpenCheck } from 'lucide-react';
 
 interface PaymentModalProps {
   total: number;
+  isEligibleForCredit?: boolean;
+  canAffordCredit?: boolean;
   onSelectPayment: (method: string) => void;
   onClose: () => void;
 }
 
-const PaymentModal: React.FC<PaymentModalProps> = ({ total, onSelectPayment, onClose }) => {
+const PaymentModal: React.FC<PaymentModalProps> = ({ total, isEligibleForCredit = false, canAffordCredit = false, onSelectPayment, onClose }) => {
   const paymentMethods = [
     { id: 'cash', label: 'Cash', icon: Banknote, color: 'bg-green-500' },
     { id: 'card', label: 'Card', icon: CreditCard, color: 'bg-blue-500' },
     { id: 'upi', label: 'UPI/GPay', icon: Smartphone, color: 'bg-purple-500' },
     { id: 'net_banking', label: 'Net Banking', icon: Building2, color: 'bg-cyan-500' },
+    { id: 'credit', label: 'Credit', icon: BookOpenCheck, color: 'bg-orange-500' },
   ];
 
   return (
@@ -37,10 +40,12 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ total, onSelectPayment, onC
               return (
                 <button
                   key={method.id}
+                  disabled={method.id === 'credit' && (!isEligibleForCredit || !canAffordCredit)}
+                  title={method.id === 'credit' && !isEligibleForCredit ? 'Only for registered customers' : method.id === 'credit' && !canAffordCredit ? 'Credit limit exceeded' : ''}
                   onClick={() => onSelectPayment(method.id)}
-                  className="w-full flex items-center gap-4 p-4 border-2 border-gray-200 rounded-lg hover:border-primary-500 hover:bg-primary-50 transition-all group"
+                  className="w-full flex items-center gap-4 p-4 border-2 border-gray-200 rounded-lg hover:border-primary-500 hover:bg-primary-50 transition-all group disabled:opacity-50 disabled:hover:border-gray-200 disabled:hover:bg-white"
                 >
-                  <div className={`${method.color} p-3 rounded-lg text-white group-hover:scale-110 transition-transform`}>
+                  <div className={`${method.color} p-3 rounded-lg text-white group-hover:scale-110 transition-transform ${method.id === 'credit' && (!isEligibleForCredit || !canAffordCredit) ? 'group-hover:scale-100' : ''}`}>
                     <Icon className="w-6 h-6" />
                   </div>
                   <div className="flex-1 text-left">

@@ -10,6 +10,8 @@ export interface Customer {
   pincode?: string;
   company: number;
   is_guest: boolean;
+  credit_limit?: string;
+  outstanding_balance?: string;
   is_active: boolean;
   created_at: string;
   updated_at: string;

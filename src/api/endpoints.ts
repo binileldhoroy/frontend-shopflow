@@ -46,6 +46,8 @@ export const API_ENDPOINTS = {
     LIST: '/api/customers/',
     DETAIL: (id: number) => `/api/customers/${id}/`,
     GUEST: '/api/customers/guest/',
+    LEDGER: (id: number) => `/api/customers/${id}/ledger/`,
+    SETTLE_CREDIT: (id: number) => `/api/customers/${id}/settle-credit/`,
   },
 
   // Suppliers

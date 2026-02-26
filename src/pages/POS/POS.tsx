@@ -5,7 +5,7 @@ import { customerService } from '@api/services/customer.service';
 import { saleService } from '@api/services/sale.service';
 import { priceTierService, PriceTier, ProductTierPrice } from '@api/services/priceTier.service';
 import { addNotification } from '@store/slices/uiSlice';
-import { Search, Plus, Minus, Trash2, ShoppingCart, User, Package, Tag } from 'lucide-react';
+import { Search, Plus, Minus, Trash2, ShoppingCart, Package, Tag } from 'lucide-react';
 import PaymentModal from '../../components/pos/PaymentModal';
 import InvoicePreview from '../../components/pos/InvoicePreview';
 
@@ -36,16 +36,18 @@ const POS: React.FC = () => {
   const dispatch = useAppDispatch();
   const [productSearch, setProductSearch] = useState('');
   const [products, setProducts] = useState<any[]>([]);
-  const [customers, setCustomers] = useState<any[]>([]);
   const [priceTiers, setPriceTiers] = useState<PriceTier[]>([]);
   const [productRules, setProductRules] = useState<ProductTierPrice[]>([]);
   const [selectedTierId, setSelectedTierId] = useState<number | null>(null);
 
-  const [showCustomerSelect, setShowCustomerSelect] = useState(false);
-  const [guestName, setGuestName] = useState('');
-  const [guestPhone, setGuestPhone] = useState('');
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [showInvoice, setShowInvoice] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+
+  const [guestName, setGuestName] = useState('');
+  const [guestPhone, setGuestPhone] = useState('');
+  const [currentCustomerObj, setCurrentCustomerObj] = useState<any>(null);
+
   const [completedSale, setCompletedSale] = useState<any>(null);
   const [isProcessing, setIsProcessing] = useState(false);
 
@@ -58,20 +60,45 @@ const POS: React.FC = () => {
     discount_type: 'amount',
   });
 
+  // Auto-select if phone matches exactly
+  useEffect(() => {
+    const searchCustomer = async () => {
+      if (guestPhone && guestPhone.length === 10) {
+        setIsLoading(true);
+        try {
+          const response = await customerService.search(guestPhone);
+          const results = response.results || response;
+          const exactMatch = results.find((c: any) => c.phone === guestPhone);
+
+          if (exactMatch) {
+            setCart(prev => ({ ...prev, customer_id: exactMatch.id }));
+            setCurrentCustomerObj(exactMatch);
+            setGuestPhone('');
+            setGuestName('');
+          }
+        } catch (error) {
+          console.error('Error searching customer by phone:', error);
+        } finally {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    searchCustomer();
+  }, [guestPhone]);
+
   // Fetch initial data
   useEffect(() => {
     const fetchInitialData = async () => {
       try {
-        const [productsData, customersData, tiersData, rulesData] = await Promise.all([
+        const [productsData, tiersData, rulesData] = await Promise.all([
           productService.getAll(),
-          customerService.getAll(),
           priceTierService.getAllTiers(),
           priceTierService.getProductRules()
         ]);
 
         const pData = productsData.results || productsData;
         setProducts(pData.filter((p: any) => p.stock_quantity > 0));
-        setCustomers(customersData);
         setPriceTiers(tiersData.filter((t: PriceTier) => t.is_active));
         setProductRules(rulesData);
       } catch (error) {
@@ -143,7 +170,9 @@ const POS: React.FC = () => {
     }));
   }, [selectedTierId, products, productRules]); // Dependent on these changes
 
-  const selectedCustomer = customers.find((c: any) => c.id === cart.customer_id);
+  // Credit Eligibility Check
+  const currentCustomer = currentCustomerObj;
+  const isEligibleForCredit = currentCustomer && !currentCustomer.is_guest;
 
   const handleAddToCart = (product: any) => {
     if (!product.stock_quantity || product.stock_quantity <= 0) {
@@ -287,6 +316,14 @@ const POS: React.FC = () => {
 
   const totals = calculateTotals();
 
+  // Credit Eligibility Check
+  const creditLimit = currentCustomer?.credit_limit ? parseFloat(currentCustomer.credit_limit) : 0;
+  const outstandingBalance = currentCustomer?.outstanding_balance ? parseFloat(currentCustomer.outstanding_balance) : 0;
+
+  const hasCreditLimit = creditLimit > 0;
+  const availableCredit = hasCreditLimit ? creditLimit - outstandingBalance : Infinity;
+  const canAffordCredit = availableCredit >= totals.grandTotal;
+
   const filteredProducts = products.filter((p: any) =>
     p.name.toLowerCase().includes(productSearch.toLowerCase()) ||
     p.sku.toLowerCase().includes(productSearch.toLowerCase())
@@ -302,18 +339,30 @@ const POS: React.FC = () => {
   };
 
   const handlePaymentSelect = async (paymentMethod: string) => {
+    if (guestPhone && guestPhone.length !== 10) {
+      dispatch(addNotification({ message: 'Phone number must be exactly 10 digits', type: 'error' }));
+      return;
+    }
+
     setShowPaymentModal(false);
     setIsProcessing(true);
 
     try {
       let customerId = cart.customer_id;
 
-      if (!customerId && guestName) {
-        const guest = await customerService.create({
-          name: guestName,
-          phone: guestPhone || '',
-        });
-        customerId = guest.id;
+      if (!customerId && (guestName || guestPhone)) {
+        if (currentCustomerObj && currentCustomerObj.phone === guestPhone) {
+          customerId = currentCustomerObj.id;
+        } else {
+          const payload: any = {
+            name: guestName || 'Walk-in Customer',
+          };
+          if (guestPhone) payload.phone = guestPhone;
+          // Create customer in DB
+          const guest = await customerService.create(payload);
+          customerId = guest.id;
+          setCurrentCustomerObj(guest);
+        }
       }
 
       const saleData = {
@@ -339,6 +388,11 @@ const POS: React.FC = () => {
       };
 
       const sale = await saleService.create(saleData);
+
+      // Attach customer data for InvoicePreview
+      const printCustomer = currentCustomerObj || { name: guestName || 'Walk-in Customer', phone: guestPhone };
+      sale.customer = printCustomer;
+
       dispatch(addNotification({ message: 'Sale completed successfully!', type: 'success' }));
       setCompletedSale(sale);
       setShowInvoice(true);
@@ -363,6 +417,7 @@ const POS: React.FC = () => {
     });
     setGuestName('');
     setGuestPhone('');
+    setCurrentCustomerObj(null);
   };
 
   return (
@@ -445,17 +500,34 @@ const POS: React.FC = () => {
 
       {/* Right Panel - Cart */}
       <div className="w-96 space-y-4">
-        {/* Customer Selection */}
-        <div className="card">
+        <div className="card flex flex-col">
           <h3 className="font-semibold mb-3">Customer</h3>
-          {selectedCustomer ? (
+          {cart.customer_id ? (
             <div className="flex items-center justify-between p-3 bg-primary-50 rounded-lg">
               <div>
-                <div className="font-medium">{selectedCustomer.name}</div>
-                <div className="text-sm text-gray-600">{selectedCustomer.phone}</div>
+                <div className="font-medium">{currentCustomerObj?.name}</div>
+                <div className="text-sm text-gray-600">{currentCustomerObj?.phone}</div>
+                {isEligibleForCredit && (
+                  <div className="mt-1 text-xs">
+                    <span className="text-gray-500">Balance: </span>
+                    <span className={outstandingBalance > 0 ? 'text-danger-600 font-medium' : 'text-success-600 font-medium'}>
+                      ₹{outstandingBalance.toFixed(2)}
+                    </span>
+                    {hasCreditLimit && (
+                      <>
+                        <span className="mx-1 text-gray-300">|</span>
+                        <span className="text-gray-500">Limit: </span>
+                        <span className="text-gray-700 font-medium">₹{creditLimit.toFixed(2)}</span>
+                      </>
+                    )}
+                  </div>
+                )}
               </div>
               <button
-                onClick={() => setCart(prev => ({ ...prev, customer_id: null }))}
+                onClick={() => {
+                   setCart(prev => ({ ...prev, customer_id: null }));
+                   setCurrentCustomerObj(null);
+                }}
                 className="text-danger-600 hover:bg-danger-50 p-2 rounded"
               >
                 <Trash2 className="w-4 h-4" />
@@ -464,43 +536,22 @@ const POS: React.FC = () => {
           ) : (
             <div className="space-y-2">
               <input
+                type="tel"
+                placeholder="Customer Phone (10 digits)"
+                value={guestPhone}
+                onChange={(e) => {
+                  const val = e.target.value.replace(/\D/g, '').slice(0, 10);
+                  setGuestPhone(val);
+                }}
+                className="input-field"
+              />
+              <input
                 type="text"
-                placeholder="Guest Name"
+                placeholder="Customer Name (optional)"
                 value={guestName}
                 onChange={(e) => setGuestName(e.target.value)}
                 className="input-field"
               />
-              <input
-                type="tel"
-                placeholder="Guest Phone (optional)"
-                value={guestPhone}
-                onChange={(e) => setGuestPhone(e.target.value)}
-                className="input-field"
-              />
-              <button
-                onClick={() => setShowCustomerSelect(!showCustomerSelect)}
-                className="btn btn-secondary w-full flex items-center justify-center gap-2"
-              >
-                <User className="w-4 h-4" />
-                Select Registered Customer
-              </button>
-              {showCustomerSelect && (
-                <div className="mt-2 max-h-40 overflow-y-auto border rounded-lg">
-                  {customers.map((customer: any) => (
-                    <button
-                      key={customer.id}
-                      onClick={() => {
-                        setCart(prev => ({ ...prev, customer_id: customer.id }));
-                        setShowCustomerSelect(false);
-                      }}
-                      className="w-full text-left p-2 hover:bg-gray-50"
-                    >
-                      <div className="font-medium">{customer.name}</div>
-                      <div className="text-sm text-gray-600">{customer.phone}</div>
-                    </button>
-                  ))}
-                </div>
-              )}
             </div>
           )}
         </div>
@@ -668,6 +719,8 @@ const POS: React.FC = () => {
       {showPaymentModal && (
         <PaymentModal
           total={totals.grandTotal}
+          isEligibleForCredit={isEligibleForCredit}
+          canAffordCredit={canAffordCredit}
           onSelectPayment={handlePaymentSelect}
           onClose={() => setShowPaymentModal(false)}
         />

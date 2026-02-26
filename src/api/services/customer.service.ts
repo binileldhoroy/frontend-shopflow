@@ -52,4 +52,16 @@ export const customerService = {
   delete: async (id: number): Promise<void> => {
     await axiosInstance.delete(API_ENDPOINTS.CUSTOMERS.DETAIL(id));
   },
+
+  // Get customer ledger entries
+  getLedger: async (id: number): Promise<any> => {
+    const response = await axiosInstance.get(API_ENDPOINTS.CUSTOMERS.LEDGER(id));
+    return response.data;
+  },
+
+  // Settle customer credit
+  settleCredit: async (id: number, data: { amount: number, payment_method: string, notes?: string }): Promise<any> => {
+    const response = await axiosInstance.post(API_ENDPOINTS.CUSTOMERS.SETTLE_CREDIT(id), data);
+    return response.data;
+  },
 };

@@ -6,7 +6,7 @@ import { saleService } from '@api/services/sale.service';
 import { customerService } from '@api/services/customer.service';
 import { priceTierService, PriceTier, ProductTierPrice } from '@api/services/priceTier.service';
 import { addNotification } from '@store/slices/uiSlice';
-import { Search, ShoppingCart, Trash2, CreditCard, Banknote, User, Package, Plus, Minus, Receipt, Smartphone, Building2, Tag } from 'lucide-react';
+import { Search, ShoppingCart, Trash2, CreditCard, Banknote, Package, Plus, Minus, Receipt, Smartphone, Building2, Tag, BookOpenCheck } from 'lucide-react';
 import InvoicePreview from '../../components/pos/InvoicePreview';
 
 interface CartItem {
@@ -53,11 +53,45 @@ const QuickSale: React.FC = () => {
     discount_amount: 0,
     discount_type: 'amount',
   });
-  const [selectedCustomer, setSelectedCustomer] = useState<any>(null);
+
   const [isProcessing, setIsProcessing] = useState(false);
   const [completedSale, setCompletedSale] = useState<any>(null);
   const [showInvoice, setShowInvoice] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+
+  const [guestName, setGuestName] = useState('');
+  const [guestPhone, setGuestPhone] = useState('');
+  const [currentCustomerObj, setCurrentCustomerObj] = useState<any>(null);
+
+  // Auto-select if phone matches exactly
+  useEffect(() => {
+    const searchCustomer = async () => {
+      if (guestPhone && guestPhone.length === 10) {
+        setIsLoading(true);
+        try {
+          const response = await customerService.search(guestPhone);
+          const results = response.results || response;
+          const exactMatch = results.find((c: any) => c.phone === guestPhone);
+
+          if (exactMatch) {
+            setCart(prev => ({ ...prev, customer_id: exactMatch.id }));
+
+            // Set the active customer to state so we have their details without reloading all customers
+            setCurrentCustomerObj(exactMatch);
+
+            setGuestPhone('');
+            setGuestName('');
+          }
+        } catch (error) {
+          console.error('Error searching customer by phone:', error);
+        } finally {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    searchCustomer();
+  }, [guestPhone]);
 
   // Fetch Tiers & Rules on Mount
   useEffect(() => {
@@ -70,7 +104,7 @@ const QuickSale: React.FC = () => {
             setPriceTiers(tiersData.filter((t: PriceTier) => t.is_active));
             setProductRules(rulesData);
         } catch (error) {
-            console.error('Error fetching pricing data:', error);
+            console.error('Error fetching data:', error);
         }
     };
     fetchPricingData();
@@ -395,12 +429,47 @@ const QuickSale: React.FC = () => {
 
   const totals = calculateTotals();
 
+  // Credit Eligibility Check
+  const currentCustomer = currentCustomerObj;
+  const isEligibleForCredit = currentCustomer && !currentCustomer.is_guest;
+  const creditLimit = currentCustomer?.credit_limit ? parseFloat(currentCustomer.credit_limit) : 0;
+  const outstandingBalance = currentCustomer?.outstanding_balance ? parseFloat(currentCustomer.outstanding_balance) : 0;
+
+  const hasCreditLimit = creditLimit > 0;
+  const availableCredit = hasCreditLimit ? creditLimit - outstandingBalance : Infinity;
+  const canAffordCredit = availableCredit >= totals.grandTotal;
+
   // Payment
   const processPayment = async (method: string) => {
     if (cart.items.length === 0) return;
+
+    if (guestPhone && guestPhone.length !== 10) {
+      dispatch(addNotification({ message: 'Phone number must be exactly 10 digits', type: 'error' }));
+      return;
+    }
+
     setIsProcessing(true);
 
     try {
+      // Setup customer
+      let customerId = cart.customer_id;
+
+      if (!customerId && (guestName || guestPhone)) {
+        // If there's an exact phone match in the current retrieved obj, use that instead of creating
+        if (currentCustomerObj && currentCustomerObj.phone === guestPhone) {
+          customerId = currentCustomerObj.id;
+        } else {
+          const payload: any = {
+            name: guestName || 'Walk-in Customer',
+          };
+          if (guestPhone) payload.phone = guestPhone;
+          // Create customer in DB
+          const guest = await customerService.create(payload);
+          customerId = guest.id;
+          setCurrentCustomerObj(guest);
+        }
+      }
+
       // Debug: Log cart items to identify the issue
       console.log("=== DEBUG: Cart Items Before Payment ===");
       cart.items.forEach((item, idx) => {
@@ -423,7 +492,7 @@ const QuickSale: React.FC = () => {
 
       const saleData = {
         order_number: `QS-${Date.now()}`,
-        customer: cart.customer_id,
+        customer: customerId,
         payment_method: method,
         payment_status: 'paid',
         billing_state: cart.billing_state,
@@ -453,6 +522,11 @@ const QuickSale: React.FC = () => {
       console.log("=== DEBUG: Sale Data Being Sent ===", saleData);
 
       const sale = await saleService.create(saleData);
+
+      // Attach customer data for InvoicePreview
+      const printCustomer = currentCustomerObj || { name: guestName || 'Walk-in Customer', phone: guestPhone };
+      sale.customer = printCustomer;
+
       setCompletedSale(sale);
       setShowInvoice(true);
       dispatch(addNotification({ message: 'Sale Completed', type: 'success' }));
@@ -475,7 +549,9 @@ const QuickSale: React.FC = () => {
       discount_amount: 0,
       discount_type: 'amount'
     });
-    setSelectedCustomer(null);
+    setGuestName('');
+    setGuestPhone('');
+    setCurrentCustomerObj(null);
     setSearchTerm('');
     if (searchInputRef.current) searchInputRef.current.focus(); // Refocus for next sale
   };
@@ -590,17 +666,60 @@ const QuickSale: React.FC = () => {
              </div>
            </div>
 
-           {/* Customer Selector (Simplified) */}
-           <div className="relative">
-             <button
-                onClick={() => setSelectedCustomer(null)} // Reset logic if needed or open modal
-                className="w-full flex items-center justify-between p-2 bg-white border rounded-lg hover:border-primary-300"
-             >
-                <span className="flex items-center gap-2 text-gray-700">
-                   <User className="w-4 h-4"/>
-                   {selectedCustomer ? selectedCustomer.name : 'Walk-in Customer'}
-                </span>
-             </button>
+           {/* Customer Details */}
+           <div className="space-y-2">
+            {cart.customer_id ? (
+              <div className="flex items-center justify-between p-3 bg-primary-50 rounded-lg border border-primary-100">
+                <div>
+                  <div className="font-medium text-primary-900">{currentCustomerObj?.name}</div>
+                  <div className="text-sm text-primary-700">{currentCustomerObj?.phone}</div>
+                  {isEligibleForCredit && (
+                    <div className="mt-1 text-xs font-semibold">
+                      <span className="text-primary-600">Balance: </span>
+                      <span className={outstandingBalance > 0 ? 'text-danger-600' : 'text-success-600'}>
+                        ₹{outstandingBalance.toFixed(2)}
+                      </span>
+                      {hasCreditLimit && (
+                        <>
+                          <span className="mx-1 text-primary-300">|</span>
+                          <span className="text-primary-600">Limit: </span>
+                          <span className="text-primary-800">₹{creditLimit.toFixed(2)}</span>
+                        </>
+                      )}
+                    </div>
+                  )}
+                </div>
+                <button
+                  onClick={() => {
+                     setCart(prev => ({ ...prev, customer_id: null }));
+                     setCurrentCustomerObj(null);
+                  }}
+                  className="text-danger-600 hover:bg-white p-2 rounded transition-colors shadow-sm"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              </div>
+            ) : (
+              <>
+                <input
+                  type="tel"
+                  placeholder="Customer Phone (10 digits)"
+                  value={guestPhone}
+                  onChange={(e) => {
+                    const val = e.target.value.replace(/\D/g, '').slice(0, 10);
+                    setGuestPhone(val);
+                  }}
+                  className="w-full text-sm outline-none bg-white border rounded-lg p-2 focus:border-primary-400"
+                />
+                <input
+                  type="text"
+                  placeholder="Customer Name (optional)"
+                  value={guestName}
+                  onChange={(e) => setGuestName(e.target.value)}
+                  className="w-full text-sm outline-none bg-white border rounded-lg p-2 focus:border-primary-400"
+                />
+              </>
+            )}
            </div>
         </div>
 
@@ -726,7 +845,7 @@ const QuickSale: React.FC = () => {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
               <button
                 disabled={isProcessing || cart.items.length === 0}
                 onClick={() => processPayment('cash')}
@@ -758,6 +877,15 @@ const QuickSale: React.FC = () => {
               >
                 <Building2 className="w-5 h-5 mb-1"/>
                 <span className="font-bold text-sm">NET BANKING</span>
+              </button>
+              <button
+                disabled={isProcessing || cart.items.length === 0 || !isEligibleForCredit || !canAffordCredit}
+                onClick={() => processPayment('credit')}
+                title={!isEligibleForCredit ? 'Only for registered customers' : !canAffordCredit ? 'Credit limit exceeded' : 'Pay via Credit'}
+                className="flex flex-col items-center justify-center py-3 bg-orange-500 hover:bg-orange-600 text-white rounded-lg shadow-md transition-all active:scale-95 disabled:opacity-50 disabled:active:scale-100"
+              >
+                <BookOpenCheck className="w-5 h-5 mb-1"/>
+                <span className="font-bold text-sm">CREDIT</span>
               </button>
             </div>
         </div>

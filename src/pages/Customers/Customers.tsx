@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useAppDispatch } from '@hooks/useRedux';
 import { customerService } from '@api/services/customer.service';
 import { addNotification } from '@store/slices/uiSlice';
-import { Plus, Search, Edit, Trash2, Users, UserCheck, Mail, Phone } from 'lucide-react';
+import { Plus, Search, Edit, Trash2, Users, UserCheck, Mail, Phone, Receipt } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import CustomerFormModal from '../../components/features/customers/CustomerFormModal';
 import DeleteConfirmModal from '../../components/common/DeleteConfirmModal/DeleteConfirmModal';
 
@@ -17,10 +18,13 @@ interface Customer {
   pincode: string;
   gstin: string;
   is_guest: boolean;
+  outstanding_balance?: string;
+  credit_limit?: string;
 }
 
 const Customers: React.FC = () => {
   const dispatch = useAppDispatch();
+  const navigate = useNavigate();
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -307,6 +311,15 @@ const Customers: React.FC = () => {
                     </td>
                     <td className="py-3 px-4">
                       <div className="flex items-center justify-end gap-2">
+                        {!customer.is_guest && (
+                          <button
+                            onClick={() => navigate(`/customers/${customer.id}/ledger`)}
+                            className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                            title="Credit Ledger"
+                          >
+                            <Receipt className="w-4 h-4" />
+                          </button>
+                        )}
                         <button
                           onClick={() => {
                             setSelectedCustomer(customer);
@@ -350,17 +363,16 @@ const Customers: React.FC = () => {
       )}
 
       {/* Delete Confirmation Modal */}
-      {showDeleteModal && selectedCustomer && (
-        <DeleteConfirmModal
-          title="Delete Customer"
-          message={`Are you sure you want to delete "${selectedCustomer.name}"? This action cannot be undone.`}
-          onConfirm={handleDelete}
-          onCancel={() => {
-            setShowDeleteModal(false);
-            setSelectedCustomer(null);
-          }}
-        />
-      )}
+      <DeleteConfirmModal
+        show={showDeleteModal}
+        title="Delete Customer"
+        message={selectedCustomer ? `Are you sure you want to delete "${selectedCustomer.name}"? This action cannot be undone.` : ''}
+        onConfirm={handleDelete}
+        onHide={() => {
+          setShowDeleteModal(false);
+          setSelectedCustomer(null);
+        }}
+      />
     </div>
   );
 };
