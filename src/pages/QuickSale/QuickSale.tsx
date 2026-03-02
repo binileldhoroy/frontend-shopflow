@@ -1,13 +1,16 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useAppDispatch } from '@hooks/useRedux';
+import { useAppDispatch, useAppSelector } from '@hooks/useRedux';
 import { useDebounce } from '@hooks/useDebounce';
 import { productService } from '@api/services/product.service';
 import { saleService } from '@api/services/sale.service';
 import { customerService } from '@api/services/customer.service';
 import { priceTierService, PriceTier, ProductTierPrice } from '@api/services/priceTier.service';
 import { addNotification } from '@store/slices/uiSlice';
-import { Search, ShoppingCart, Trash2, CreditCard, Banknote, Package, Plus, Minus, Receipt, Smartphone, Building2, Tag, BookOpenCheck } from 'lucide-react';
+import { fetchCurrentSession } from '@store/slices/sessionSlice';
+import { Search, ShoppingCart, Trash2, CreditCard, Banknote, Package, Plus, Minus, Receipt, Smartphone, Building2, Tag, BookOpenCheck, Lock, Flag } from 'lucide-react';
 import InvoicePreview from '../../components/pos/InvoicePreview';
+import OpeningBalanceModal from '../../components/pos/OpeningBalanceModal';
+import CloseRegisterModal from '../../components/pos/CloseRegisterModal';
 
 interface CartItem {
   id: number;
@@ -57,7 +60,10 @@ const QuickSale: React.FC = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [completedSale, setCompletedSale] = useState<any>(null);
   const [showInvoice, setShowInvoice] = useState(false);
+  const [showCloseModal, setShowCloseModal] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+
+  const { needsSessionSetup, currentSession, loading: sessionLoading } = useAppSelector((state) => state.session);
 
   const [guestName, setGuestName] = useState('');
   const [guestPhone, setGuestPhone] = useState('');
@@ -109,6 +115,11 @@ const QuickSale: React.FC = () => {
     };
     fetchPricingData();
   }, []);
+
+  // Fetch Session State
+  useEffect(() => {
+    dispatch(fetchCurrentSession());
+  }, [dispatch]);
 
   // Server-side search effect
   useEffect(() => {
@@ -578,16 +589,38 @@ const QuickSale: React.FC = () => {
            </div>
         </div>
 
-        {/* Results List */}
+      {/* Block UI if session is locked */}
+      {needsSessionSetup && !sessionLoading ? (
+        <div className="flex-1 flex flex-col items-center justify-center bg-white rounded-xl shadow-sm border border-gray-100">
+           <Lock className="w-16 h-16 text-gray-300 mb-4" />
+           <h3 className="text-xl font-bold text-gray-800">Register Closed</h3>
+           <p className="text-gray-500 mt-2">Open a register session on the right to start making sales.</p>
+        </div>
+      ) : (
         <div className="flex-1 bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden flex flex-col">
           <div className="p-4 border-b bg-gray-50 flex justify-between items-center">
             <h2 className="font-semibold text-gray-700 flex items-center gap-2">
               <Package className="w-5 h-5"/>
               Available Products
             </h2>
-            <span className="text-sm text-gray-500">
-              {products.length} results
-            </span>
+            <div className="flex items-center gap-4">
+              {currentSession && (
+                <div className="flex items-center border border-green-200 rounded-full overflow-hidden shadow-sm">
+                  <span className="px-3 py-1 bg-green-50 text-green-700 text-xs font-semibold">
+                    Session Active
+                  </span>
+                  <button
+                    onClick={() => setShowCloseModal(true)}
+                    className="px-3 py-1 bg-white hover:bg-red-50 text-red-600 text-xs font-semibold border-l border-green-200 flex items-center gap-1 transition-colors"
+                  >
+                    <Flag className="w-3 h-3" /> Close Register
+                  </button>
+                </div>
+              )}
+              <span className="text-sm text-gray-500">
+                {products.length} results
+              </span>
+            </div>
           </div>
 
           <div className="overflow-y-auto flex-1 p-2 space-y-2">
@@ -600,7 +633,7 @@ const QuickSale: React.FC = () => {
               <button
                 key={product.id}
                 onClick={() => handleAddToCart(product)}
-                className="w-full flex items-center justify-between p-4 hover:bg-primary-50 border border-transparent hover:border-primary-100 rounded-lg group transition-all"
+                className="w-full flex items-center justify-between p-4 hover:bg-blue-50 border border-transparent hover:border-blue-100 rounded-lg group transition-all"
               >
                 <div className="text-left">
                   <div className="font-bold text-gray-800 text-lg">{product.name}</div>
@@ -610,10 +643,10 @@ const QuickSale: React.FC = () => {
                   </div>
                 </div>
                 <div className="text-right">
-                   <div className={`font-bold text-xl ${isDiscounted ? 'text-success-600' : isPremium ? 'text-warning-600' : 'text-primary-600'}`}>
+                   <div className={`font-bold text-xl ${isDiscounted ? 'text-green-600' : isPremium ? 'text-yellow-600' : 'text-blue-600'}`}>
                        ₹{effectivePrice.toFixed(2)}
                    </div>
-                   <div className="text-sm font-medium text-success-600">
+                   <div className="text-sm font-medium text-green-600">
                      {product.stock_quantity} available
                    </div>
                 </div>
@@ -631,9 +664,15 @@ const QuickSale: React.FC = () => {
             )}
           </div>
         </div>
+      )}
       </div>
 
       {/* Right Panel: Receipt / Cart */}
+      {needsSessionSetup ? (
+        <div className="w-[450px]">
+          <OpeningBalanceModal />
+        </div>
+      ) : (
       <div className="w-[450px] bg-white rounded-xl shadow-lg border border-gray-200 flex flex-col h-full">
         {/* Header */}
         <div className="p-4 border-b border-gray-100 bg-gray-50 rounded-t-xl space-y-3">
@@ -890,11 +929,15 @@ const QuickSale: React.FC = () => {
             </div>
         </div>
       </div>
+      )}
 
       {/* Invisible Invoice for Printing (or Modal if preferred) */}
       {showInvoice && completedSale && (
         <InvoicePreview sale={completedSale} onClose={handleCloseInvoice} />
       )}
+
+      {/* Session Management Modals */}
+      {showCloseModal && <CloseRegisterModal onClose={() => setShowCloseModal(false)} />}
     </div>
   );
 };

@@ -20,6 +20,7 @@ import {
   UserCog,
   Settings,
   Zap,
+  Wallet,
 } from 'lucide-react';
 
 const iconMap: Record<string, React.ElementType> = {
@@ -39,6 +40,7 @@ const iconMap: Record<string, React.ElementType> = {
   'person-badge': UserCog,
   gear: Settings,
   zap: Zap,
+  wallet: Wallet,
 };
 
 const Sidebar: React.FC = () => {
@@ -87,6 +89,12 @@ const Sidebar: React.FC = () => {
       icon: 'cart-check',
       label: 'Sales',
       roles: [UserRole.SUPER_USER, UserRole.ADMIN, UserRole.MANAGER, UserRole.CASHIER],
+    },
+    {
+      path: '/register-sessions',
+      icon: 'wallet',
+      label: 'Daily Balances',
+      roles: [UserRole.SUPER_USER, UserRole.ADMIN, UserRole.MANAGER],
     },
     {
       path: '/customers',

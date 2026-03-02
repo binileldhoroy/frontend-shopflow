@@ -66,6 +66,16 @@ export const API_ENDPOINTS = {
     INVOICE_DETAIL: (id: number) => `/api/sales/invoices/${id}/`,
   },
 
+  // Sessions
+  SESSIONS: {
+    LIST: '/api/sales/sessions/',
+    DETAIL: (id: number) => `/api/sales/sessions/${id}/`,
+    CURRENT: '/api/sales/sessions/current/',
+    OPEN: '/api/sales/sessions/open/',
+    CLOSE: (id: number) => `/api/sales/sessions/${id}/close/`,
+    PREVIOUS_CLOSED: '/api/sales/sessions/previous_closed_session/',
+  },
+
   // Purchases
   PURCHASES: {
     LIST: '/api/purchases/',

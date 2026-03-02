@@ -1,13 +1,16 @@
 import React, { useState, useEffect } from 'react';
-import { useAppDispatch } from '@hooks/useRedux';
+import { useAppDispatch, useAppSelector } from '@hooks/useRedux';
 import { productService } from '@api/services/product.service';
 import { customerService } from '@api/services/customer.service';
 import { saleService } from '@api/services/sale.service';
 import { priceTierService, PriceTier, ProductTierPrice } from '@api/services/priceTier.service';
 import { addNotification } from '@store/slices/uiSlice';
-import { Search, Plus, Minus, Trash2, ShoppingCart, Package, Tag } from 'lucide-react';
+import { fetchCurrentSession } from '@store/slices/sessionSlice';
+import { Search, Plus, Minus, Trash2, ShoppingCart, Package, Tag, Lock, Flag } from 'lucide-react';
 import PaymentModal from '../../components/pos/PaymentModal';
 import InvoicePreview from '../../components/pos/InvoicePreview';
+import OpeningBalanceModal from '../../components/pos/OpeningBalanceModal';
+import CloseRegisterModal from '../../components/pos/CloseRegisterModal';
 
 interface CartItem {
   id: number;
@@ -42,7 +45,10 @@ const POS: React.FC = () => {
 
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [showInvoice, setShowInvoice] = useState(false);
+  const [showCloseModal, setShowCloseModal] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+
+  const { needsSessionSetup, currentSession, loading: sessionLoading } = useAppSelector((state) => state.session);
 
   const [guestName, setGuestName] = useState('');
   const [guestPhone, setGuestPhone] = useState('');
@@ -107,6 +113,11 @@ const POS: React.FC = () => {
       }
     };
     fetchInitialData();
+  }, [dispatch]);
+
+  // Handle Session State
+  useEffect(() => {
+    dispatch(fetchCurrentSession());
   }, [dispatch]);
 
   const calculateEffectivePrice = (product: any) => {
@@ -426,7 +437,22 @@ const POS: React.FC = () => {
       <div className="flex-1 space-y-4">
         <div className="card">
           <div className="flex justify-between items-center mb-4">
-             <h2 className="text-lg font-semibold">Products</h2>
+             <div className="flex items-center gap-3">
+               <h2 className="text-lg font-semibold">Products</h2>
+               {currentSession && (
+                 <div className="flex items-center border border-green-200 rounded-full overflow-hidden shadow-sm">
+                   <span className="px-3 py-1 bg-green-50 text-green-700 text-xs font-semibold">
+                     Session Active
+                   </span>
+                   <button
+                     onClick={() => setShowCloseModal(true)}
+                     className="px-3 py-1 bg-white hover:bg-red-50 text-red-600 text-xs font-semibold border-l border-green-200 flex items-center gap-1 transition-colors"
+                   >
+                     <Flag className="w-3 h-3" /> Close Register
+                   </button>
+                 </div>
+               )}
+             </div>
 
              {/* Tier Selection */}
              <div className="flex items-center gap-2">
@@ -458,6 +484,15 @@ const POS: React.FC = () => {
           </div>
         </div>
 
+      {/* Block UI if session is locked */}
+      {needsSessionSetup && !sessionLoading ? (
+        <div className="flex-1 flex flex-col items-center justify-center bg-white rounded-xl shadow-sm border border-gray-100">
+           <Lock className="w-16 h-16 text-gray-300 mb-4" />
+           <h3 className="text-xl font-bold text-gray-800">Register Closed</h3>
+           <p className="text-gray-500 mt-2">Open a register session on the right to start making sales.</p>
+        </div>
+      ) : (
+      <>
         <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
           {filteredProducts.slice(0, 12).map((product: any) => {
              const effectivePrice = calculateEffectivePrice(product);
@@ -473,7 +508,7 @@ const POS: React.FC = () => {
               <div className="font-medium text-gray-900">{product.name}</div>
               <div className="text-sm text-gray-500 mt-1">{product.sku}</div>
               <div className="mt-2 flex items-baseline gap-2">
-                 <div className={`text-lg font-bold ${isDiscounted ? 'text-success-600' : isPremium ? 'text-warning-600' : 'text-primary-600'}`}>
+                 <div className={`text-lg font-bold ${isDiscounted ? 'text-green-600' : isPremium ? 'text-yellow-600' : 'text-blue-600'}`}>
                    ₹{effectivePrice.toFixed(2)}
                  </div>
                  {effectivePrice !== parseFloat(product.selling_price) && (
@@ -483,7 +518,7 @@ const POS: React.FC = () => {
                  )}
               </div>
               <div className="text-xs text-gray-500">GST: {product.gst_rate}%</div>
-              <div className="text-xs font-medium text-success-600 mt-1">
+              <div className="text-xs font-medium text-green-600 mt-1">
                 Stock: {product.stock_quantity} {product.unit}
               </div>
             </button>
@@ -496,11 +531,18 @@ const POS: React.FC = () => {
              <p>No products found or out of stock</p>
            </div>
          )}
+      </>
+      )}
       </div>
 
       {/* Right Panel - Cart */}
-      <div className="w-96 space-y-4">
-        <div className="card flex flex-col">
+      {needsSessionSetup ? (
+        <div className="w-96 h-[calc(100vh-8rem)]">
+          <OpeningBalanceModal />
+        </div>
+      ) : (
+      <div className="w-96 flex flex-col space-y-4 h-[calc(100vh-8rem)]">
+        <div className="card shrink-0 flex flex-col">
           <h3 className="font-semibold mb-3">Customer</h3>
           {cart.customer_id ? (
             <div className="flex items-center justify-between p-3 bg-primary-50 rounded-lg">
@@ -714,6 +756,7 @@ const POS: React.FC = () => {
           )}
         </div>
       </div>
+      )}
 
       {/* Payment Modal */}
       {showPaymentModal && (
@@ -733,6 +776,9 @@ const POS: React.FC = () => {
           onClose={handleCloseInvoice}
         />
       )}
+
+      {/* Session Management Modals */}
+      {showCloseModal && <CloseRegisterModal onClose={() => setShowCloseModal(false)} />}
     </div>
   );
 };

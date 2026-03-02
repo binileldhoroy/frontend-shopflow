@@ -3,6 +3,7 @@ import authReducer from './slices/authSlice';
 import companyReducer from './slices/companySlice';
 import uiReducer from './slices/uiSlice';
 import cartReducer from './slices/cartSlice';
+import sessionReducer from './slices/sessionSlice';
 
 export const store = configureStore({
   reducer: {
@@ -10,6 +11,7 @@ export const store = configureStore({
     company: companyReducer,
     ui: uiReducer,
     cart: cartReducer,
+    session: sessionReducer,
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({

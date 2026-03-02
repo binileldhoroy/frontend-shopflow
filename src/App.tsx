@@ -20,6 +20,7 @@ import Categories from './pages/Categories/Categories';
 import POS from './pages/POS/POS';
 import QuickSale from './pages/QuickSale/QuickSale';
 import Sales from './pages/Sales/Sales';
+import RegisterSessions from './pages/Sales/RegisterSessions';
 import Customers from './pages/Customers/Customers';
 import CustomerLedger from './pages/Customers/CustomerLedger';
 import Inventory from './pages/Inventory/Inventory';
@@ -143,6 +144,17 @@ function App() {
               <RoleBasedRoute allowedRoles={[UserRole.ADMIN, UserRole.MANAGER, UserRole.CASHIER]}>
                 <Layout>
                   <Sales />
+                </Layout>
+              </RoleBasedRoute>
+            }
+          />
+
+          <Route
+            path="/register-sessions"
+            element={
+              <RoleBasedRoute allowedRoles={[UserRole.ADMIN, UserRole.MANAGER]}>
+                <Layout>
+                  <RegisterSessions />
                 </Layout>
               </RoleBasedRoute>
             }
