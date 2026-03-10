@@ -376,7 +376,7 @@ const GSTRDisplay = ({ data }: { data: any }) => (
         <h3 className="font-bold text-lg mb-4 text-green-800 border-b pb-2">GSTR-2 (Purchases / Inward Supplies)</h3>
         <div className="flex gap-4 mb-4">
              <button
-                onClick={() => documentService.getGSTRReport({ ...data.filters, type: 'GSTR2' }).then((res: any) => window.location.reload()) }
+                onClick={() => documentService.getGSTRReport({ ...data.filters, type: 'GSTR2' }).then(() => window.location.reload()) }
                 className="text-sm bg-gray-100 hover:bg-gray-200 px-3 py-1 rounded"
              >
                 Load GSTR-2 Data

@@ -222,20 +222,13 @@ const Invoices: React.FC = () => {
     if (customer) {
       setSelectedCustomer(customerId);
 
-      // Match customer state string to state ID if possible
-      let matchedStateId: number | undefined;
-      if (customer.state) {
-        const matchedState = states.find(s => s.name.toLowerCase() === customer.state?.toLowerCase());
-        if (matchedState) matchedStateId = matchedState.id;
-      }
-
       setCustomerDetails({
         customer_name: customer.name,
-        customer_gstin: customer.gstin || '',
-        customer_address: customer.billing_address_line1 || customer.address_line1 || '',
-        customer_city: customer.billing_city || customer.city || '',
-        customer_state: matchedStateId,
-        customer_pincode: customer.billing_pincode || customer.pincode || '',
+        customer_gstin: (customer as any).gstin || '',
+        customer_address: (customer as any).billing_address_line1 || (customer as any).address_line1 || '',
+        customer_city: (customer as any).billing_city || (customer as any).city || '',
+        customer_state: Number((customer as any).state) || 0,
+        customer_pincode: (customer as any).billing_pincode || (customer as any).pincode || '',
         customer_phone: customer.phone || '',
         customer_email: customer.email || '',
       });

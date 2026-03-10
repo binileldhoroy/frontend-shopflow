@@ -30,6 +30,7 @@ const CompanySettings: React.FC = () => {
     account_number: '',
     ifsc_code: '',
     branch: '',
+    upi_id: '',
     invoice_prefix: 'INV',
     terms_and_conditions: '',
     authorized_signatory_name: '',
@@ -69,6 +70,7 @@ const CompanySettings: React.FC = () => {
         account_number: currentCompany.account_number || '',
         ifsc_code: currentCompany.ifsc_code || '',
         branch: currentCompany.branch || '',
+        upi_id: currentCompany.upi_id || '',
         invoice_prefix: currentCompany.invoice_prefix || 'INV',
         terms_and_conditions: currentCompany.terms_and_conditions || '',
         authorized_signatory_name: currentCompany.authorized_signatory_name || '',
@@ -225,6 +227,10 @@ const CompanySettings: React.FC = () => {
             <div className="md:col-span-2">
               <label className="block text-sm font-medium text-gray-700 mb-2">Branch</label>
               <input type="text" name="branch" value={formData.branch} onChange={handleChange} className="input-field w-full px-4 py-2 rounded-lg border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition-all" />
+            </div>
+            <div className="md:col-span-2">
+              <label className="block text-sm font-medium text-gray-700 mb-2">UPI ID</label>
+              <input type="text" name="upi_id" value={formData.upi_id} onChange={handleChange} className="input-field w-full px-4 py-2 rounded-lg border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition-all" placeholder="e.g. yourname@upi" />
             </div>
           </div>
         </div>

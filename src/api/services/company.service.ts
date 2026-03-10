@@ -1,6 +1,6 @@
 import axiosInstance from '../axios';
 import { API_ENDPOINTS } from '../endpoints';
-import { Company, CompanyFormData } from '@types/company.types';
+import { Company, CompanyFormData } from '../../types/company.types';
 
 export const companyService = {
   // Get all companies (super user only)

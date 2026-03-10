@@ -2,7 +2,7 @@ import React from 'react';
 import { NavLink } from 'react-router-dom';
 import { useAppSelector } from '@hooks/useRedux';
 import { useAuth } from '@hooks/useAuth';
-import { UserRole } from '@types/auth.types';
+import { UserRole } from '../../../types/auth.types';
 import {
   LayoutDashboard,
   Building2,
@@ -21,6 +21,7 @@ import {
   Settings,
   Zap,
   Wallet,
+  FileClock,
 } from 'lucide-react';
 
 const iconMap: Record<string, React.ElementType> = {
@@ -41,6 +42,7 @@ const iconMap: Record<string, React.ElementType> = {
   gear: Settings,
   zap: Zap,
   wallet: Wallet,
+  'file-clock': FileClock,
 };
 
 const Sidebar: React.FC = () => {
@@ -88,6 +90,12 @@ const Sidebar: React.FC = () => {
       path: '/sales',
       icon: 'cart-check',
       label: 'Sales',
+      roles: [UserRole.SUPER_USER, UserRole.ADMIN, UserRole.MANAGER, UserRole.CASHIER],
+    },
+    {
+      path: '/advance-invoices',
+      icon: 'file-clock',
+      label: 'Advance Invoices',
       roles: [UserRole.SUPER_USER, UserRole.ADMIN, UserRole.MANAGER, UserRole.CASHIER],
     },
     {

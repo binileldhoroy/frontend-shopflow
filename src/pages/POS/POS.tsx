@@ -46,7 +46,7 @@ const POS: React.FC = () => {
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [showInvoice, setShowInvoice] = useState(false);
   const [showCloseModal, setShowCloseModal] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
+  const [, setIsLoading] = useState(false);
 
   const { needsSessionSetup, currentSession, loading: sessionLoading } = useAppSelector((state) => state.session);
 
@@ -432,21 +432,21 @@ const POS: React.FC = () => {
   };
 
   return (
-    <div className="h-full flex gap-6">
+    <div className="h-full flex gap-4 p-2">
       {/* Left Panel - Products */}
-      <div className="flex-1 space-y-4">
-        <div className="card">
-          <div className="flex justify-between items-center mb-4">
+      <div className="flex-1 flex flex-col space-y-3">
+        <div className="card shadow-sm p-3">
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
              <div className="flex items-center gap-3">
-               <h2 className="text-lg font-semibold">Products</h2>
+               <h2 className="text-lg font-bold text-gray-800">Products</h2>
                {currentSession && (
                  <div className="flex items-center border border-green-200 rounded-full overflow-hidden shadow-sm">
-                   <span className="px-3 py-1 bg-green-50 text-green-700 text-xs font-semibold">
+                   <span className="px-2 py-0.5 bg-green-50 text-green-700 text-xs font-semibold">
                      Session Active
                    </span>
                    <button
                      onClick={() => setShowCloseModal(true)}
-                     className="px-3 py-1 bg-white hover:bg-red-50 text-red-600 text-xs font-semibold border-l border-green-200 flex items-center gap-1 transition-colors"
+                     className="px-2 py-0.5 bg-white hover:bg-red-50 text-red-600 text-xs font-semibold border-l border-green-200 flex items-center gap-1 transition-colors"
                    >
                      <Flag className="w-3 h-3" /> Close Register
                    </button>
@@ -454,33 +454,35 @@ const POS: React.FC = () => {
                )}
              </div>
 
-             {/* Tier Selection */}
-             <div className="flex items-center gap-2">
-                <Tag className="w-4 h-4 text-gray-500" />
-                <select
-                  value={selectedTierId || ''}
-                  onChange={(e) => setSelectedTierId(e.target.value ? Number(e.target.value) : null)}
-                  className="input-field py-1 px-3 text-sm w-48"
-                >
-                  <option value="">Standard Price</option>
-                  {priceTiers.map(tier => (
-                    <option key={tier.id} value={tier.id}>
-                      {tier.name} ({tier.default_percentage > 0 ? '+' : ''}{tier.default_percentage}%)
-                    </option>
-                  ))}
-                </select>
-             </div>
-          </div>
+             <div className="flex flex-1 max-w-lg items-center gap-3">
+               <div className="relative flex-1">
+                 <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                 <input
+                   type="text"
+                   placeholder="Search products..."
+                   value={productSearch}
+                   onChange={(e) => setProductSearch(e.target.value)}
+                   className="input-field pl-8 py-1.5 text-sm"
+                 />
+               </div>
 
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-            <input
-              type="text"
-              placeholder="Search products..."
-              value={productSearch}
-              onChange={(e) => setProductSearch(e.target.value)}
-              className="input-field pl-10"
-            />
+               {/* Tier Selection */}
+               <div className="flex items-center gap-2 bg-gray-50 rounded border border-gray-200 px-2 py-1">
+                  <Tag className="w-3.5 h-3.5 text-gray-500" />
+                  <select
+                    value={selectedTierId || ''}
+                    onChange={(e) => setSelectedTierId(e.target.value ? Number(e.target.value) : null)}
+                    className="bg-transparent border-none text-xs focus:ring-0 outline-none w-28 text-gray-700 cursor-pointer"
+                  >
+                    <option value="">Standard Price</option>
+                    {priceTiers.map(tier => (
+                      <option key={tier.id} value={tier.id}>
+                        {tier.name} ({tier.default_percentage > 0 ? '+' : ''}{tier.default_percentage}%)
+                      </option>
+                    ))}
+                  </select>
+               </div>
+             </div>
           </div>
         </div>
 
@@ -493,8 +495,8 @@ const POS: React.FC = () => {
         </div>
       ) : (
       <>
-        <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
-          {filteredProducts.slice(0, 12).map((product: any) => {
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-3 overflow-y-auto pb-4 pr-1">
+          {filteredProducts.map((product: any) => {
              const effectivePrice = calculateEffectivePrice(product);
              const isDiscounted = effectivePrice < parseFloat(product.selling_price);
              const isPremium = effectivePrice > parseFloat(product.selling_price);
@@ -503,32 +505,42 @@ const POS: React.FC = () => {
             <button
               key={product.id}
               onClick={() => handleAddToCart(product)}
-              className="card hover:shadow-lg transition-shadow text-left p-4"
+              className="card p-3 hover:border-blue-300 hover:shadow-md transition-all text-left flex flex-col h-full border border-gray-100 group relative overflow-hidden bg-white"
             >
-              <div className="font-medium text-gray-900">{product.name}</div>
-              <div className="text-sm text-gray-500 mt-1">{product.sku}</div>
-              <div className="mt-2 flex items-baseline gap-2">
-                 <div className={`text-lg font-bold ${isDiscounted ? 'text-green-600' : isPremium ? 'text-yellow-600' : 'text-blue-600'}`}>
-                   ₹{effectivePrice.toFixed(2)}
+              <div className="absolute inset-0 bg-blue-50/70 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center pointer-events-none z-10 backdrop-blur-[1px]">
+                 <div className="bg-blue-600 text-white rounded-full p-2.5 shadow-lg transform translate-y-4 group-hover:translate-y-0 transition-transform duration-200">
+                   <Plus className="w-5 h-5" />
                  </div>
-                 {effectivePrice !== parseFloat(product.selling_price) && (
-                   <div className="text-xs text-gray-400 line-through">
-                      ₹{product.selling_price}
-                   </div>
-                 )}
               </div>
-              <div className="text-xs text-gray-500">GST: {product.gst_rate}%</div>
-              <div className="text-xs font-medium text-green-600 mt-1">
-                Stock: {product.stock_quantity} {product.unit}
+
+              <div className="flex-1">
+                <div className="font-semibold text-gray-800 text-sm line-clamp-2 leading-snug">{product.name}</div>
+                <div className="text-[11px] text-gray-400 mt-1">{product.sku}</div>
+              </div>
+              <div className="mt-2 pt-2 border-t border-gray-50 flex items-end justify-between">
+                 <div className="flex flex-col">
+                   {effectivePrice !== parseFloat(product.selling_price) && (
+                     <span className="text-[10px] text-gray-400 line-through">₹{product.selling_price}</span>
+                   )}
+                   <span className={`text-sm font-bold leading-none ${isDiscounted ? 'text-green-600' : isPremium ? 'text-yellow-600' : 'text-blue-600'}`}>
+                     ₹{effectivePrice.toFixed(2)}
+                   </span>
+                 </div>
+                 <div className="text-right flex flex-col items-end gap-0.5">
+                   <span className="text-[9px] text-gray-400">GST: {product.gst_rate}%</span>
+                   <span className="text-[10px] font-medium text-green-700 bg-green-50 px-1.5 rounded-sm border border-green-100">
+                     {product.stock_quantity}
+                   </span>
+                 </div>
               </div>
             </button>
           )})}
         </div>
 
         {filteredProducts.length === 0 && (
-           <div className="card text-center py-8 text-gray-500">
+           <div className="card text-center py-8 text-gray-500 shadow-sm">
              <Package className="w-12 h-12 mx-auto mb-2 text-gray-300" />
-             <p>No products found or out of stock</p>
+             <p className="text-sm">No products found or out of stock</p>
            </div>
          )}
       </>
@@ -537,22 +549,26 @@ const POS: React.FC = () => {
 
       {/* Right Panel - Cart */}
       {needsSessionSetup ? (
-        <div className="w-96 h-[calc(100vh-8rem)]">
+        <div className="w-[350px] lg:w-[400px] h-[calc(100vh-6rem)]">
           <OpeningBalanceModal />
         </div>
       ) : (
-      <div className="w-96 flex flex-col space-y-4 h-[calc(100vh-8rem)]">
-        <div className="card shrink-0 flex flex-col">
-          <h3 className="font-semibold mb-3">Customer</h3>
+      <div className="w-[350px] lg:w-[400px] flex flex-col space-y-3 h-[calc(100vh-4rem)]">
+        <div className="card shrink-0 shadow-sm p-3">
+          <div className="flex justify-between items-center mb-2">
+            <h3 className="text-sm font-semibold text-gray-700 flex items-center gap-1.5 border-l-2 border-blue-500 pl-2 -ml-3">
+              Customer Details
+            </h3>
+          </div>
           {cart.customer_id ? (
-            <div className="flex items-center justify-between p-3 bg-primary-50 rounded-lg">
-              <div>
-                <div className="font-medium">{currentCustomerObj?.name}</div>
-                <div className="text-sm text-gray-600">{currentCustomerObj?.phone}</div>
+            <div className="flex items-center justify-between p-2 bg-blue-50/50 border border-blue-100 rounded-lg">
+              <div className="flex-1 min-w-0 pr-2">
+                <div className="font-semibold text-sm text-gray-800 truncate">{currentCustomerObj?.name}</div>
+                <div className="text-[11px] text-gray-500">{currentCustomerObj?.phone}</div>
                 {isEligibleForCredit && (
-                  <div className="mt-1 text-xs">
-                    <span className="text-gray-500">Balance: </span>
-                    <span className={outstandingBalance > 0 ? 'text-danger-600 font-medium' : 'text-success-600 font-medium'}>
+                  <div className="mt-0.5 text-[10px]">
+                    <span className="text-gray-500">Bal: </span>
+                    <span className={outstandingBalance > 0 ? 'text-red-500 font-medium' : 'text-green-600 font-medium'}>
                       ₹{outstandingBalance.toFixed(2)}
                     </span>
                     {hasCreditLimit && (
@@ -570,81 +586,87 @@ const POS: React.FC = () => {
                    setCart(prev => ({ ...prev, customer_id: null }));
                    setCurrentCustomerObj(null);
                 }}
-                className="text-danger-600 hover:bg-danger-50 p-2 rounded"
+                className="text-red-500 hover:bg-red-50 p-1.5 rounded transition-colors"
+                title="Remove Customer"
               >
                 <Trash2 className="w-4 h-4" />
               </button>
             </div>
           ) : (
-            <div className="space-y-2">
+            <div className="flex gap-2">
               <input
                 type="tel"
-                placeholder="Customer Phone (10 digits)"
+                placeholder="Phone No."
                 value={guestPhone}
                 onChange={(e) => {
                   const val = e.target.value.replace(/\D/g, '').slice(0, 10);
                   setGuestPhone(val);
                 }}
-                className="input-field"
+                className="input-field py-1.5 px-2.5 text-xs flex-1 border-gray-200"
               />
               <input
                 type="text"
-                placeholder="Customer Name (optional)"
+                placeholder="Name (opt)"
                 value={guestName}
                 onChange={(e) => setGuestName(e.target.value)}
-                className="input-field"
+                className="input-field py-1.5 px-2.5 text-xs flex-1 border-gray-200"
               />
             </div>
           )}
         </div>
 
         {/* Cart Items */}
-        <div className="card flex-1 overflow-hidden flex flex-col">
-          <h3 className="font-semibold mb-3 flex items-center gap-2">
-            <ShoppingCart className="w-5 h-5" />
-            Cart ({cart.items.length})
-          </h3>
+        <div className="card flex-1 overflow-hidden flex flex-col shadow-sm p-0">
+          <div className="p-3 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
+            <h3 className="font-semibold text-gray-800 flex items-center gap-2 text-sm border-l-2 border-blue-500 pl-2 -ml-3">
+              <ShoppingCart className="w-4 h-4" />
+              Current Sale
+            </h3>
+            {cart.items.length > 0 && (
+              <span className="text-[10px] font-medium bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">
+                {cart.items.reduce((acc, item) => acc + item.quantity, 0)} Items
+              </span>
+            )}
+          </div>
 
-          <div className="flex-1 overflow-y-auto space-y-2">
+          <div className="flex-1 overflow-y-auto p-2 space-y-1.5 bg-gray-50/30">
             {cart.items.length === 0 ? (
-              <div className="text-center py-8 text-gray-500">
-                Cart is empty
+              <div className="flex flex-col items-center justify-center h-full text-gray-400 space-y-2">
+                <ShoppingCart className="w-10 h-10 opacity-20" />
+                <span className="text-sm">Cart is empty</span>
               </div>
             ) : (
               cart.items.map((item) => (
-                <div key={item.id} className="p-3 bg-gray-50 rounded-lg">
-                  <div className="flex items-start justify-between mb-2">
-                    <div className="flex-1">
-                      <div className="font-medium text-sm">{item.name}</div>
-                      <div className="text-xs text-gray-500">₹{item.unit_price.toFixed(2)} × {item.quantity}</div>
-                      {item.stock_quantity && (
-                        <div className="text-xs text-success-600 mt-1">
-                          Stock: {item.stock_quantity} available
-                        </div>
-                      )}
+                <div key={item.id} className="p-2 border border-gray-100 rounded-lg hover:border-gray-200 transition-colors bg-white group shadow-sm">
+                  <div className="flex justify-between items-start mb-1.5">
+                    <div className="flex-1 pr-2">
+                      <div className="font-medium text-xs text-gray-800 leading-tight">{item.name}</div>
+                      <div className="text-[10px] text-gray-400 mt-0.5">₹{item.unit_price.toFixed(2)} / unit</div>
                     </div>
                     <button
                       onClick={() => handleRemoveItem(item.id)}
-                      className="text-danger-600 hover:bg-danger-50 p-1 rounded"
+                      className="text-gray-300 hover:text-red-500 hover:bg-red-50 p-1 rounded transition-colors opacity-0 group-hover:opacity-100"
                     >
-                      <Trash2 className="w-4 h-4" />
+                      <Trash2 className="w-3.5 h-3.5" />
                     </button>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => handleQuantityChange(item.id, Math.max(1, item.quantity - 1))}
-                      className="p-1 bg-white rounded hover:bg-gray-100"
-                    >
-                      <Minus className="w-4 h-4" />
-                    </button>
-                    <span className="w-12 text-center font-medium">{item.quantity}</span>
-                    <button
-                      onClick={() => handleQuantityChange(item.id, item.quantity + 1)}
-                      className="p-1 bg-white rounded hover:bg-gray-100"
-                    >
-                      <Plus className="w-4 h-4" />
-                    </button>
-                    <div className="ml-auto font-medium">
+                  <div className="flex items-center justify-between pt-1.5 border-t border-gray-50">
+                    <div className="flex items-center bg-gray-50 rounded border border-gray-200 shadow-[0_1px_2px_rgba(0,0,0,0.02)] overflow-hidden">
+                      <button
+                        onClick={() => handleQuantityChange(item.id, Math.max(1, item.quantity - 1))}
+                        className="px-2 py-0.5 hover:bg-gray-200 text-gray-600 transition-colors"
+                      >
+                        <Minus className="w-3 h-3" />
+                      </button>
+                      <span className="w-8 text-center text-xs font-semibold bg-white py-0.5">{item.quantity}</span>
+                      <button
+                        onClick={() => handleQuantityChange(item.id, item.quantity + 1)}
+                        className="px-2 py-0.5 hover:bg-gray-200 text-gray-600 transition-colors"
+                      >
+                        <Plus className="w-3 h-3" />
+                      </button>
+                    </div>
+                    <div className="font-bold text-gray-800 text-sm">
                       ₹{(item.selling_price * item.quantity).toFixed(2)}
                     </div>
                   </div>
@@ -654,101 +676,89 @@ const POS: React.FC = () => {
           </div>
 
           {cart.items.length > 0 && (
-            <div className="mt-4 pt-4 border-t space-y-2">
-              <div className="flex justify-between text-sm pt-1">
-                <span>Subtotal</span>
-                <span>₹{totals.subtotal.toFixed(2)}</span>
-              </div>
-
-              {/* Discount Input */}
-              <div className="flex justify-between items-center py-2 border-b border-dashed border-gray-200">
-                <span className="text-sm font-medium text-gray-700">Discount</span>
-                <div className="flex items-center gap-2">
-                  <div className="flex bg-gray-200 rounded p-0.5">
-                    <button
-                      onClick={() => setCart(prev => ({ ...prev, discount_type: 'percentage' }))}
-                      className={`px-2 py-0.5 text-xs font-semibold rounded ${cart.discount_type === 'percentage' ? 'bg-white shadow text-gray-800' : 'text-gray-500'}`}
-                    >%</button>
-                    <button
-                      onClick={() => setCart(prev => ({ ...prev, discount_type: 'amount' }))}
-                      className={`px-2 py-0.5 text-xs font-semibold rounded ${cart.discount_type === 'amount' ? 'bg-white shadow text-gray-800' : 'text-gray-500'}`}
-                    >₹</button>
-                  </div>
-                  <input
-                    type="number"
-                    min="0"
-                    value={cart.discount_type === 'percentage' ? (cart.discount_percentage || '') : (cart.discount_amount || '')}
-                    onChange={(e) => {
-                      const val = parseFloat(e.target.value) || 0;
-                      if (cart.discount_type === 'percentage') {
-                        setCart(prev => ({ ...prev, discount_percentage: val > 100 ? 100 : val }));
-                      } else {
-                        setCart(prev => ({ ...prev, discount_amount: val }));
-                      }
-                    }}
-                    className="w-20 text-right p-1 border rounded text-sm outline-none focus:border-primary-400"
-                    placeholder="0"
-                  />
+            <div className="bg-white border-t border-gray-100 p-3 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
+              <div className="space-y-1 mb-3">
+                <div className="flex justify-between text-xs text-gray-500">
+                  <span>Subtotal</span>
+                  <span className="font-medium text-gray-700">₹{totals.subtotal.toFixed(2)}</span>
                 </div>
-              </div>
 
-              {totals.discount > 0 && (
-                <div className="flex justify-between text-sm py-1">
-                  <span>Discount Applied</span>
-                  <span>-₹{totals.discount.toFixed(2)}</span>
-                </div>
-              )}
-
-              {/* GST Breakdown */}
-              {Object.entries(totals.taxBreakdown).sort(([a], [b]) => Number(b) - Number(a)).map(([rate, breakdown]) => (
-                <div key={rate} className="space-y-1 py-1 border-t border-dashed border-gray-200">
-                  <div className="flex justify-between text-sm font-medium">
-                    <span>Taxable Amount ({rate}%)</span>
-                    <span>₹{breakdown.taxableAmount.toFixed(2)}</span>
-                  </div>
-                  <div className="flex justify-between text-xs text-gray-600 pl-4">
-                    <span>CGST @{Number(rate)/2}%</span>
-                    <span>₹{breakdown.cgst.toFixed(2)}</span>
-                  </div>
-                  <div className="flex justify-between text-xs text-gray-600 pl-4">
-                    <span>SGST @{Number(rate)/2}%</span>
-                    <span>₹{breakdown.sgst.toFixed(2)}</span>
+                <div className="flex justify-between items-center text-xs text-gray-500 gap-2 overflow-visible">
+                  <span>Discount</span>
+                  <div className="flex items-center gap-1">
+                    <div className="flex bg-gray-100 rounded p-0.5 border border-gray-200">
+                      <button
+                        onClick={() => setCart(prev => ({ ...prev, discount_type: 'percentage' }))}
+                        className={`px-1.5 py-0.5 text-[10px] font-semibold rounded ${cart.discount_type === 'percentage' ? 'bg-white shadow-sm text-gray-800' : 'text-gray-500'}`}
+                      >%</button>
+                      <button
+                        onClick={() => setCart(prev => ({ ...prev, discount_type: 'amount' }))}
+                        className={`px-1.5 py-0.5 text-[10px] font-semibold rounded ${cart.discount_type === 'amount' ? 'bg-white shadow-sm text-gray-800' : 'text-gray-500'}`}
+                      >₹</button>
+                    </div>
+                    <input
+                      type="number"
+                      min="0"
+                      value={cart.discount_type === 'percentage' ? (cart.discount_percentage || '') : (cart.discount_amount || '')}
+                      onChange={(e) => {
+                        const val = parseFloat(e.target.value) || 0;
+                        if (cart.discount_type === 'percentage') {
+                          setCart(prev => ({ ...prev, discount_percentage: val > 100 ? 100 : val }));
+                        } else {
+                          setCart(prev => ({ ...prev, discount_amount: val }));
+                        }
+                      }}
+                      className="w-16 text-right p-0.5 border border-gray-200 rounded text-xs outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400 transition-all font-medium text-gray-700"
+                      placeholder="0"
+                    />
                   </div>
                 </div>
-              ))}
 
-              {totals.exemptedAmount > 0 && (
-                <div className="flex justify-between text-sm py-1 border-t border-dashed border-gray-200">
-                  <span>Exempted Amount (0%)</span>
-                  <span>₹{totals.exemptedAmount.toFixed(2)}</span>
+                {totals.discount > 0 && (
+                  <div className="flex justify-between text-xs text-green-600 font-medium">
+                    <span>Discount Applied</span>
+                    <span>-₹{totals.discount.toFixed(2)}</span>
+                  </div>
+                )}
+
+                <div className="flex justify-between text-xs text-gray-500">
+                  <div className="group relative flex items-center gap-1 cursor-help">
+                    <span className="border-b border-dashed border-gray-300 pointer-events-auto">Total Tax</span>
+                    <div className="hidden group-hover:block absolute bottom-full left-0 mb-1 w-48 bg-gray-800 text-white p-2 text-[10px] rounded shadow-lg z-50">
+                      {Object.entries(totals.taxBreakdown).length > 0 ? Object.entries(totals.taxBreakdown).sort(([a], [b]) => Number(b) - Number(a)).map(([rate, breakdown]) => (
+                         <div key={rate} className="flex justify-between mb-0.5">
+                            <span>GST @ {rate}%:</span>
+                            <span>₹{breakdown.taxAmount.toFixed(2)}</span>
+                         </div>
+                      )) : "No tax applicable"}
+                      {totals.exemptedAmount > 0 && (
+                         <div className="flex justify-between text-gray-300 mt-1 border-t border-gray-600 pt-1">
+                            <span>Exempted 0%:</span>
+                            <span>₹{totals.exemptedAmount.toFixed(2)}</span>
+                         </div>
+                      )}
+                    </div>
+                  </div>
+                  <span className="font-medium text-gray-700">₹{totals.totalGst.toFixed(2)}</span>
                 </div>
-              )}
 
-              <div className="flex justify-between text-sm font-semibold border-t border-gray-300 pt-2">
-                <span>Total GST</span>
-                <span>₹{totals.totalGst.toFixed(2)}</span>
+                {totals.roundOff !== 0 && (
+                  <div className="flex justify-between text-[11px] text-gray-400">
+                    <span>Round Off</span>
+                    <span>{totals.roundOff > 0 ? '+' : ''}₹{totals.roundOff.toFixed(2)}</span>
+                  </div>
+                )}
               </div>
 
-              <div className="flex justify-between text-sm pt-1">
-                <span>Gross Total</span>
-                <span>₹{totals.grossTotal.toFixed(2)}</span>
+              <div className="flex justify-between items-end pt-2 border-t border-gray-100 mb-3 bg-blue-50/50 -mx-3 px-3 py-2 rounded">
+                <span className="font-bold text-gray-700 text-sm">Grand Total</span>
+                <span className="text-xl font-bold text-blue-600 leading-none">₹{totals.grandTotal.toFixed(2)}</span>
               </div>
 
-              {totals.roundOff !== 0 && (
-                <div className="flex justify-between text-sm text-gray-600">
-                  <span>Round Off</span>
-                  <span>{totals.roundOff > 0 ? '+' : ''}₹{totals.roundOff.toFixed(2)}</span>
-                </div>
-              )}
-
-              <div className="flex justify-between text-lg font-bold pt-2 border-t border-gray-800">
-                <span>Grand Total</span>
-                <span>₹{totals.grandTotal.toFixed(2)}</span>
-              </div>
               <button
                 onClick={handleInitiateCheckout}
                 disabled={isProcessing}
-                className="btn btn-primary w-full mt-4"
+                className="btn btn-primary w-full py-2.5 shadow-md flex justify-center items-center font-bold tracking-wide"
               >
                 {isProcessing ? 'Processing...' : 'Complete Sale'}
               </button>

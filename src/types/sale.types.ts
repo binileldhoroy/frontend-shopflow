@@ -19,6 +19,8 @@ export interface SaleOrder {
   customer_name: string;
   sale_date: string;
   status: string;
+  is_advance_invoice: boolean;
+  advance_status: 'draft' | 'sent' | 'payment_pending' | 'payment_received' | 'product_released' | null;
   payment_method: string;
   payment_status: string;
   subtotal: number;

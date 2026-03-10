@@ -1,6 +1,6 @@
 import axiosInstance from '../axios';
 import { API_ENDPOINTS } from '../endpoints';
-import { Product, ProductFormData, Category, CategoryFormData } from '@types/product.types';
+import { Product, ProductFormData, Category, CategoryFormData } from '../../types/product.types';
 
 export const productService = {
   // Products

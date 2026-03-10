@@ -64,6 +64,9 @@ export const API_ENDPOINTS = {
     TREND: '/api/sales/trend/',
     INVOICES: '/api/sales/invoices/',
     INVOICE_DETAIL: (id: number) => `/api/sales/invoices/${id}/`,
+    ADVANCE_INVOICES: '/api/sales/advance-invoices/',
+    ADVANCE_INVOICE_DETAIL: (id: number) => `/api/sales/advance-invoices/${id}/`,
+    ADVANCE_INVOICE_STATUS: (id: number) => `/api/sales/advance-invoices/${id}/update_status/`,
   },
 
   // Sessions

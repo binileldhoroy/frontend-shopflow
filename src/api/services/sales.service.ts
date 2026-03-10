@@ -1,6 +1,6 @@
 import axiosInstance from '../axios';
 import { API_ENDPOINTS } from '../endpoints';
-import { SaleOrder, SaleFormData } from '@types/sale.types';
+import { SaleOrder, SaleFormData } from '../../types/sale.types';
 
 export const salesService = {
   getAll: async (params?: { start_date?: string; end_date?: string }): Promise<SaleOrder[]> => {

@@ -38,7 +38,7 @@ const StockAdjustmentModal: React.FC<StockAdjustmentModalProps> = ({
     onSubmit({
       ...formData,
       product: product?.product || 0,
-      quantity: formData.quantity === '' ? 0 : Number(formData.quantity),
+      quantity: String(formData.quantity) === '' ? 0 : Number(formData.quantity),
     });
   };
 

@@ -1,6 +1,7 @@
 import React from 'react';
 import { SaleOrder } from '../../types/sale.types';
 import { useAppSelector } from '@hooks/useRedux';
+import QRCode from 'react-qr-code';
 
 interface InvoiceTemplateProps {
   saleOrder: SaleOrder;
@@ -123,8 +124,8 @@ const InvoiceTemplate: React.FC<InvoiceTemplateProps> = ({
         // Use the GST rate from the item. If strictly IGST was stored, we might need to be careful,
         // but usually gst_rate holds the total tax percent.
         const itemGstRate = Number(item.gst_rate) ||
-                            (Number(item.cgst_rate) + Number(item.sgst_rate)) ||
-                            Number(item.igst_rate) || 0;
+                            (Number((item as any).cgst_rate) + Number((item as any).sgst_rate)) ||
+                            Number((item as any).igst_rate) || 0;
 
         if (itemGstRate === 0) {
           exemptedAmount += lineTotal;
@@ -157,8 +158,30 @@ const InvoiceTemplate: React.FC<InvoiceTemplateProps> = ({
   }, [saleOrder, customerDetails?.state, currentCompany]);
 
   return (
+    <>
+      <style>
+        {`
+          @media print {
+            @page {
+              size: A4;
+              margin: 8mm;
+            }
+            body {
+              -webkit-print-color-adjust: exact;
+              print-color-adjust: exact;
+              margin: 0;
+            }
+            #invoice-print-container {
+              width: 100%;
+              box-sizing: border-box;
+            }
+          }
+        `}
+      </style>
     <div
+      id="invoice-print-container"
       style={{
+        width: '100%',
         maxWidth: '210mm',
         margin: '0 auto',
         padding: '16px',
@@ -199,7 +222,7 @@ const InvoiceTemplate: React.FC<InvoiceTemplateProps> = ({
           style={{
             textAlign: 'center',
             padding: '8px',
-            backgroundColor: '#f8f9fa',
+            backgroundColor: '#ffffffff',
             borderBottom: '2px solid black',
           }}
         >
@@ -279,7 +302,7 @@ const InvoiceTemplate: React.FC<InvoiceTemplateProps> = ({
         {/* Items Table */}
         <table style={{ width: '100%', fontSize: '13px', borderCollapse: 'collapse' }}>
           <thead>
-            <tr style={{ borderBottom: '2px solid black', backgroundColor: '#f8f9fa' }}>
+            <tr style={{ borderBottom: '2px solid black', backgroundColor: '#ffffffff' }}>
               <th style={{ padding: '8px', textAlign: 'left', width: '50px', borderRight: '1px solid black' }}>
                 S.No
               </th>
@@ -294,6 +317,9 @@ const InvoiceTemplate: React.FC<InvoiceTemplateProps> = ({
               </th>
               <th style={{ padding: '8px', textAlign: 'center', width: '60px', borderRight: '1px solid black' }}>
                 Qty
+              </th>
+              <th style={{ padding: '8px', textAlign: 'center', width: '60px', borderRight: '1px solid black' }}>
+                Unit
               </th>
               <th style={{ padding: '8px', textAlign: 'right', width: '100px', borderRight: '1px solid black' }}>
                 Rate
@@ -321,6 +347,9 @@ const InvoiceTemplate: React.FC<InvoiceTemplateProps> = ({
                 <td style={{ padding: '8px', textAlign: 'center', borderRight: '1px solid black' }}>
                   {item.quantity}
                 </td>
+                <td style={{ padding: '8px', textAlign: 'center', borderRight: '1px solid black' }}>
+                  {(item as any).unit || 'Nos'}
+                </td>
                 <td style={{ padding: '8px', textAlign: 'right', borderRight: '1px solid black' }}>
                   ₹{Number(item.unit_price).toFixed(2)}
                 </td>
@@ -332,7 +361,7 @@ const InvoiceTemplate: React.FC<InvoiceTemplateProps> = ({
 
             {/* Spacer rows */}
             {saleOrder.items && saleOrder.items.length < 5 &&
-              Array.from({ length: 5 - saleOrder.items.length }).map((_, i) => (
+              Array.from({ length: 2 - saleOrder.items.length }).map((_, i) => (
                 <tr key={`spacer-${i}`} style={{ borderBottom: '1px solid black' }}>
                   <td style={{ padding: '8px', borderRight: '1px solid black' }}>&nbsp;</td>
                   <td style={{ padding: '8px', borderRight: '1px solid black' }}>&nbsp;</td>
@@ -340,14 +369,15 @@ const InvoiceTemplate: React.FC<InvoiceTemplateProps> = ({
                   <td style={{ padding: '8px', borderRight: '1px solid black' }}>&nbsp;</td>
                   <td style={{ padding: '8px', borderRight: '1px solid black' }}>&nbsp;</td>
                   <td style={{ padding: '8px', borderRight: '1px solid black' }}>&nbsp;</td>
-                  <td style={{ padding: '8px' }}>&nbsp;</td>
+                  <td style={{ padding: '8px', borderRight: '1px solid black' }}>&nbsp;</td>
+                  <td style={{ padding: '8px', borderRight: '1px solid black' }}>&nbsp;</td>
                 </tr>
               ))}
 
             {/* Totals Section */}
             <tr style={{ borderBottom: '1px solid black' }}>
               <td
-                colSpan={6}
+                colSpan={7}
                 style={{ padding: '8px', textAlign: 'right', fontWeight: '600', borderRight: '1px solid black' }}
               >
                 Subtotal:
@@ -361,7 +391,7 @@ const InvoiceTemplate: React.FC<InvoiceTemplateProps> = ({
             {Object.entries(taxDetails.taxBreakdown).sort(([a], [b]) => Number(b) - Number(a)).map(([rate, breakdown]) => (
                <React.Fragment key={rate}>
                  <tr style={{ borderBottom: '1px solid #e5e7eb' }}>
-                   <td colSpan={6} style={{ padding: '4px 8px', textAlign: 'right', borderRight: '1px solid black', fontSize: '12px' }}>
+                   <td colSpan={7} style={{ padding: '4px 8px', textAlign: 'right', borderRight: '1px solid black', fontSize: '12px' }}>
                      Taxable Amount ({rate}%):
                    </td>
                    <td style={{ padding: '4px 8px', textAlign: 'right', fontSize: '12px' }}>
@@ -370,7 +400,7 @@ const InvoiceTemplate: React.FC<InvoiceTemplateProps> = ({
                  </tr>
                  {taxDetails.isInterstate ? (
                    <tr style={{ borderBottom: '1px solid black' }}>
-                     <td colSpan={6} style={{ padding: '4px 8px', textAlign: 'right', borderRight: '1px solid black', fontSize: '11px', color: '#4b5563' }}>
+                     <td colSpan={7} style={{ padding: '4px 8px', textAlign: 'right', borderRight: '1px solid black', fontSize: '11px', color: '#4b5563' }}>
                        IGST @ {rate}%:
                      </td>
                      <td style={{ padding: '4px 8px', textAlign: 'right', fontSize: '11px', color: '#4b5563' }}>
@@ -380,7 +410,7 @@ const InvoiceTemplate: React.FC<InvoiceTemplateProps> = ({
                  ) : (
                    <>
                      <tr style={{ borderBottom: '1px solid #e5e7eb' }}>
-                       <td colSpan={6} style={{ padding: '4px 8px', textAlign: 'right', borderRight: '1px solid black', fontSize: '11px', color: '#4b5563' }}>
+                       <td colSpan={7} style={{ padding: '4px 8px', textAlign: 'right', borderRight: '1px solid black', fontSize: '11px', color: '#4b5563' }}>
                          CGST @ {Number(rate)/2}%:
                        </td>
                        <td style={{ padding: '4px 8px', textAlign: 'right', fontSize: '11px', color: '#4b5563' }}>
@@ -388,7 +418,7 @@ const InvoiceTemplate: React.FC<InvoiceTemplateProps> = ({
                        </td>
                      </tr>
                      <tr style={{ borderBottom: '1px solid black' }}>
-                       <td colSpan={6} style={{ padding: '4px 8px', textAlign: 'right', borderRight: '1px solid black', fontSize: '11px', color: '#4b5563' }}>
+                       <td colSpan={7} style={{ padding: '4px 8px', textAlign: 'right', borderRight: '1px solid black', fontSize: '11px', color: '#4b5563' }}>
                          SGST @ {Number(rate)/2}%:
                        </td>
                        <td style={{ padding: '4px 8px', textAlign: 'right', fontSize: '11px', color: '#4b5563' }}>
@@ -402,7 +432,7 @@ const InvoiceTemplate: React.FC<InvoiceTemplateProps> = ({
 
             {taxDetails.exemptedAmount > 0 && (
               <tr style={{ borderBottom: '1px solid black' }}>
-                <td colSpan={6} style={{ padding: '8px', textAlign: 'right', borderRight: '1px solid black' }}>
+                <td colSpan={7} style={{ padding: '8px', textAlign: 'right', borderRight: '1px solid black' }}>
                   Exempted Amount (0%):
                 </td>
                 <td style={{ padding: '8px', textAlign: 'right' }}>
@@ -412,7 +442,7 @@ const InvoiceTemplate: React.FC<InvoiceTemplateProps> = ({
             )}
 
             <tr style={{ borderBottom: '1px solid black' }}>
-              <td colSpan={6} style={{ padding: '8px', textAlign: 'right', fontWeight: '600', borderRight: '1px solid black' }}>
+              <td colSpan={7} style={{ padding: '8px', textAlign: 'right', fontWeight: '600', borderRight: '1px solid black' }}>
                 Total GST:
               </td>
               <td style={{ padding: '8px', textAlign: 'right', fontWeight: '600' }}>
@@ -422,7 +452,7 @@ const InvoiceTemplate: React.FC<InvoiceTemplateProps> = ({
 
             {saleOrder.discount_amount > 0 && (
               <tr style={{ borderBottom: '1px solid black' }}>
-                <td colSpan={6} style={{ padding: '8px', textAlign: 'right', borderRight: '1px solid black' }}>
+                <td colSpan={7} style={{ padding: '8px', textAlign: 'right', borderRight: '1px solid black' }}>
                   Discount ({saleOrder.discount_percentage}%):
                 </td>
                 <td style={{ padding: '8px', textAlign: 'right', color: '#10b981' }}>
@@ -433,7 +463,7 @@ const InvoiceTemplate: React.FC<InvoiceTemplateProps> = ({
 
             {saleOrder.round_off !== 0 && (
               <tr style={{ borderBottom: '1px solid black' }}>
-                <td colSpan={6} style={{ padding: '8px', textAlign: 'right', borderRight: '1px solid black' }}>
+                <td colSpan={7} style={{ padding: '8px', textAlign: 'right', borderRight: '1px solid black' }}>
                   Round Off:
                 </td>
                 <td style={{ padding: '8px', textAlign: 'right' }}>
@@ -442,9 +472,9 @@ const InvoiceTemplate: React.FC<InvoiceTemplateProps> = ({
               </tr>
             )}
 
-            <tr style={{ borderBottom: '2px solid black', backgroundColor: '#f8f9fa' }}>
+            <tr style={{ borderBottom: '2px solid black', backgroundColor: '#ffffffff' }}>
               <td
-                colSpan={6}
+                colSpan={7}
                 style={{ padding: '8px', textAlign: 'right', fontWeight: 'bold', fontSize: '16px', borderRight: '1px solid black' }}
               >
                 Grand Total:
@@ -496,15 +526,28 @@ const InvoiceTemplate: React.FC<InvoiceTemplateProps> = ({
           </div>
         </div>
 
-        {/* Signature */}
-        <div style={{ padding: '16px', textAlign: 'right' }}>
-          <p style={{ fontWeight: '600', marginBottom: '60px' }}>For {currentCompany.company_name}</p>
-          <p style={{ display: 'inline-block', borderTop: '1px solid black', paddingLeft: '16px', paddingRight: '16px', paddingTop: '4px', marginBottom: '4px' }}>
-            Authorized Signatory
-          </p>
-          <p style={{ fontSize: '13px', marginBottom: 0 }}>
-            {currentCompany.authorized_signatory_name || ''}
-          </p>
+        {/* Signature & QR Code */}
+        <div style={{ display: 'flex', padding: '16px' }}>
+          <div style={{ flex: 1, textAlign: 'left' }}>
+            {currentCompany.upi_id ? (
+              <div style={{ display: 'inline-block', textAlign: 'center' }}>
+                 <QRCode
+                    value={`upi://pay?pa=${currentCompany.upi_id}&pn=${encodeURIComponent(currentCompany.company_name)}&am=${saleOrder.total_amount}&cu=INR&tr=${saleOrder.order_number}`}
+                    size={80}
+                 />
+                 <p style={{ marginTop: '4px', fontSize: '10px', fontWeight: 'bold' }}>Scan to Pay via UPI</p>
+              </div>
+            ) : null}
+          </div>
+          <div style={{ flex: 1, textAlign: 'right' }}>
+            <p style={{ fontWeight: '600', marginBottom: '60px' }}>For {currentCompany.company_name}</p>
+            <p style={{ display: 'inline-block', borderTop: '1px solid black', paddingLeft: '16px', paddingRight: '16px', paddingTop: '4px', marginBottom: '4px' }}>
+              Authorized Signatory
+            </p>
+            <p style={{ fontSize: '13px', marginBottom: 0 }}>
+              {currentCompany.authorized_signatory_name || ''}
+            </p>
+          </div>
         </div>
       </div>
 
@@ -515,6 +558,7 @@ const InvoiceTemplate: React.FC<InvoiceTemplateProps> = ({
         </p>
       </div>
     </div>
+    </>
   );
 };
 

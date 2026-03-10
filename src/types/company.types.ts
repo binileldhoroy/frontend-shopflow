@@ -18,6 +18,7 @@ export interface Company {
   account_number?: string;
   ifsc_code?: string;
   branch?: string;
+  upi_id?: string;
   invoice_prefix?: string;
   terms_and_conditions?: string;
   authorized_signatory_name?: string;
@@ -48,6 +49,7 @@ export interface CompanyFormData {
   account_number?: string;
   ifsc_code?: string;
   branch?: string;
+  upi_id?: string;
   invoice_prefix?: string;
   terms_and_conditions?: string;
   authorized_signatory_name?: string;

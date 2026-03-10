@@ -2,7 +2,9 @@ import axios, { AxiosInstance, AxiosError, InternalAxiosRequestConfig, AxiosResp
 
 // Create axios instance
 const axiosInstance: AxiosInstance = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:8000',
+    baseURL:
+      // @ts-ignore
+      import.meta.env.VITE_API_URL || 'http://localhost:8000',
   timeout: 10000,
   headers: {
     'Content-Type': 'application/json',
@@ -39,7 +41,7 @@ axiosInstance.interceptors.response.use(
         const refreshToken = localStorage.getItem('refreshToken');
         if (refreshToken) {
           // Try to refresh the token
-          const response = await axios.post(`${import.meta.env.VITE_API_URL}/api/auth/token/refresh/`, {
+          const response = await axios.post(`${(import.meta as any).env.VITE_API_URL}/api/auth/token/refresh/`, {
             refresh: refreshToken,
           });
 
@@ -82,7 +84,7 @@ axiosInstance.interceptors.response.use(
       console.error('Permission denied');
     } else if (error.response?.status === 404) {
       console.error('Resource not found');
-    } else if (error.response?.status >= 500) {
+    } else if (error.response && error.response.status >= 500) {
       console.error('Server error');
     }
 

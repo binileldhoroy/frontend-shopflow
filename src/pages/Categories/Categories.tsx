@@ -255,10 +255,11 @@ const Categories: React.FC = () => {
       {/* Delete Confirmation Modal */}
       {showDeleteModal && selectedCategory && (
         <DeleteConfirmModal
+          show={showDeleteModal}
           title="Delete Category"
           message={`Are you sure you want to delete "${selectedCategory.name}"? This action cannot be undone.`}
           onConfirm={handleConfirmDelete}
-          onCancel={() => {
+          onHide={() => {
             setShowDeleteModal(false);
             setSelectedCategory(null);
           }}

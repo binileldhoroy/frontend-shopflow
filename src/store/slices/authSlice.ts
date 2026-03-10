@@ -1,7 +1,6 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
-import { jwtDecode } from 'jwt-decode';
 import { authService } from '@api/services/auth.service';
-import { User, LoginCredentials, TokenPayload } from '../../types/auth.types';
+import { User, LoginCredentials } from '../../types/auth.types';
 
 interface AuthState {
   user: User | null;

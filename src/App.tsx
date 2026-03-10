@@ -1,4 +1,4 @@
-import React from 'react';
+// Core imports
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Provider } from 'react-redux';
 import { store } from './store';
@@ -20,6 +20,9 @@ import Categories from './pages/Categories/Categories';
 import POS from './pages/POS/POS';
 import QuickSale from './pages/QuickSale/QuickSale';
 import Sales from './pages/Sales/Sales';
+import AdvanceInvoices from './pages/Sales/AdvanceInvoices';
+import AdvanceInvoiceCreate from './pages/Sales/AdvanceInvoiceCreate';
+import AdvanceInvoiceDetail from './pages/Sales/AdvanceInvoiceDetail';
 import RegisterSessions from './pages/Sales/RegisterSessions';
 import Customers from './pages/Customers/Customers';
 import CustomerLedger from './pages/Customers/CustomerLedger';
@@ -144,6 +147,39 @@ function App() {
               <RoleBasedRoute allowedRoles={[UserRole.ADMIN, UserRole.MANAGER, UserRole.CASHIER]}>
                 <Layout>
                   <Sales />
+                </Layout>
+              </RoleBasedRoute>
+            }
+          />
+
+          <Route
+            path="/advance-invoices"
+            element={
+              <RoleBasedRoute allowedRoles={[UserRole.ADMIN, UserRole.MANAGER, UserRole.CASHIER]}>
+                <Layout>
+                  <AdvanceInvoices />
+                </Layout>
+              </RoleBasedRoute>
+            }
+          />
+
+          <Route
+            path="/advance-invoices/create"
+            element={
+              <RoleBasedRoute allowedRoles={[UserRole.ADMIN, UserRole.MANAGER, UserRole.CASHIER]}>
+                <Layout>
+                  <AdvanceInvoiceCreate />
+                </Layout>
+              </RoleBasedRoute>
+            }
+          />
+
+          <Route
+            path="/advance-invoices/:id"
+            element={
+              <RoleBasedRoute allowedRoles={[UserRole.ADMIN, UserRole.MANAGER, UserRole.CASHIER]}>
+                <Layout>
+                  <AdvanceInvoiceDetail />
                 </Layout>
               </RoleBasedRoute>
             }

@@ -6,7 +6,7 @@ import { Calculator, ArrowRight } from 'lucide-react';
 
 const OpeningBalanceModal: React.FC = () => {
   const dispatch = useAppDispatch();
-  const { loading, previousClosedSession } = useAppSelector((state) => state.session);
+  const { loading } = useAppSelector((state) => state.session);
   const [balance, setBalance] = useState<string>('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 

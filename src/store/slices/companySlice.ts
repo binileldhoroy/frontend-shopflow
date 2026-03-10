@@ -1,6 +1,6 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import { companyService } from '@api/services/company.service';
-import { Company } from '@types/company.types';
+import { Company } from '../../types/company.types';
 
 interface CompanyState {
   currentCompany: Company | null;

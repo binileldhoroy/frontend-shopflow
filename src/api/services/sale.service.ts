@@ -68,4 +68,37 @@ export const saleService = {
   delete: async (id: number): Promise<void> => {
     await axiosInstance.delete(API_ENDPOINTS.SALES.DETAIL(id));
   },
+
+  // --- Advance Invoices ---
+
+  // Get all advance invoices with pagination
+  getAdvanceInvoices: async (page: number = 1, pageSize: number = 10, filters?: { status?: string }): Promise<PaginatedResponse<any>> => {
+    let url = `${API_ENDPOINTS.SALES.ADVANCE_INVOICES}?page=${page}&page_size=${pageSize}`;
+    if (filters?.status) url += `&advance_status=${filters.status}`;
+
+    const response = await axiosInstance.get<PaginatedResponse<any>>(url);
+    return response.data;
+  },
+
+  // Get advance invoice by ID
+  getAdvanceInvoiceById: async (id: number): Promise<any> => {
+    const response = await axiosInstance.get(API_ENDPOINTS.SALES.ADVANCE_INVOICE_DETAIL(id));
+    return response.data;
+  },
+
+  // Create advance invoice
+  createAdvanceInvoice: async (data: SaleFormData): Promise<any> => {
+    const response = await axiosInstance.post(API_ENDPOINTS.SALES.ADVANCE_INVOICES, data);
+    return response.data;
+  },
+
+  // Update advance invoice status
+  updateAdvanceInvoiceStatus: async (id: number, status: string, paymentMethod?: string): Promise<any> => {
+    const payloads: any = { advance_status: status };
+    if (paymentMethod) {
+      payloads.payment_method = paymentMethod;
+    }
+    const response = await axiosInstance.post(API_ENDPOINTS.SALES.ADVANCE_INVOICE_STATUS(id), payloads);
+    return response.data;
+  },
 };
