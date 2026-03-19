@@ -64,4 +64,10 @@ export const customerService = {
     const response = await axiosInstance.post(API_ENDPOINTS.CUSTOMERS.SETTLE_CREDIT(id), data);
     return response.data;
   },
+
+  // Top up customer wallet
+  walletTopUp: async (id: number, data: { amount: number, payment_method: string, notes?: string }): Promise<any> => {
+    const response = await axiosInstance.post(API_ENDPOINTS.CUSTOMERS.WALLET_TOPUP(id), data);
+    return response.data;
+  },
 };

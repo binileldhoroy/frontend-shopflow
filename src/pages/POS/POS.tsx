@@ -6,7 +6,7 @@ import { saleService } from '@api/services/sale.service';
 import { priceTierService, PriceTier, ProductTierPrice } from '@api/services/priceTier.service';
 import { addNotification } from '@store/slices/uiSlice';
 import { fetchCurrentSession } from '@store/slices/sessionSlice';
-import { Search, Plus, Minus, Trash2, ShoppingCart, Package, Tag, Lock, Flag } from 'lucide-react';
+import { Search, Plus, Minus, Trash2, ShoppingCart, Package, Tag, Lock, Flag, Wallet } from 'lucide-react';
 import PaymentModal from '../../components/pos/PaymentModal';
 import InvoicePreview from '../../components/pos/InvoicePreview';
 import OpeningBalanceModal from '../../components/pos/OpeningBalanceModal';
@@ -330,6 +330,7 @@ const POS: React.FC = () => {
   // Credit Eligibility Check
   const creditLimit = currentCustomer?.credit_limit ? parseFloat(currentCustomer.credit_limit) : 0;
   const outstandingBalance = currentCustomer?.outstanding_balance ? parseFloat(currentCustomer.outstanding_balance) : 0;
+  const walletBalance = currentCustomer?.wallet_balance ? parseFloat(currentCustomer.wallet_balance) : 0;
 
   const hasCreditLimit = creditLimit > 0;
   const availableCredit = hasCreditLimit ? creditLimit - outstandingBalance : Infinity;
@@ -566,18 +567,24 @@ const POS: React.FC = () => {
                 <div className="font-semibold text-sm text-gray-800 truncate">{currentCustomerObj?.name}</div>
                 <div className="text-[11px] text-gray-500">{currentCustomerObj?.phone}</div>
                 {isEligibleForCredit && (
-                  <div className="mt-0.5 text-[10px]">
-                    <span className="text-gray-500">Bal: </span>
-                    <span className={outstandingBalance > 0 ? 'text-red-500 font-medium' : 'text-green-600 font-medium'}>
-                      ₹{outstandingBalance.toFixed(2)}
-                    </span>
-                    {hasCreditLimit && (
-                      <>
-                        <span className="mx-1 text-gray-300">|</span>
-                        <span className="text-gray-500">Limit: </span>
-                        <span className="text-gray-700 font-medium">₹{creditLimit.toFixed(2)}</span>
-                      </>
-                    )}
+                  <div className="mt-0.5 flex flex-wrap gap-1">
+                    <div className="text-[10px]">
+                      <span className="text-gray-500">Bal: </span>
+                      <span className={outstandingBalance > 0 ? 'text-red-500 font-medium' : 'text-green-600 font-medium'}>
+                        ₹{outstandingBalance.toFixed(2)}
+                      </span>
+                      {hasCreditLimit && (
+                        <>
+                          <span className="mx-1 text-gray-300">|</span>
+                          <span className="text-gray-500">Limit: </span>
+                          <span className="text-gray-700 font-medium">₹{creditLimit.toFixed(2)}</span>
+                        </>
+                      )}
+                    </div>
+                    <div className="text-[10px] font-medium bg-purple-50 px-1.5 py-0.5 rounded inline-flex items-center gap-0.5 border border-purple-100">
+                      <Wallet className="w-2.5 h-2.5 text-purple-500" />
+                      <span className="text-purple-600">₹{walletBalance.toFixed(2)}</span>
+                    </div>
                   </div>
                 )}
               </div>
@@ -774,6 +781,7 @@ const POS: React.FC = () => {
           total={totals.grandTotal}
           isEligibleForCredit={isEligibleForCredit}
           canAffordCredit={canAffordCredit}
+          walletBalance={walletBalance}
           onSelectPayment={handlePaymentSelect}
           onClose={() => setShowPaymentModal(false)}
         />
