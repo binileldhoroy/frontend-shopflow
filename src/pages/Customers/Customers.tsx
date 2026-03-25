@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useAppDispatch } from '@hooks/useRedux';
 import { customerService } from '@api/services/customer.service';
 import { addNotification } from '@store/slices/uiSlice';
@@ -29,19 +29,36 @@ const Customers: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterType, setFilterType] = useState<'all' | 'registered' | 'guest'>('all');
+
+  // Pagination State
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const [totalCount, setTotalCount] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
+
   const [showFormModal, setShowFormModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
 
-  useEffect(() => {
-    fetchCustomers();
-  }, []);
-
-  const fetchCustomers = async () => {
+  const fetchCustomers = useCallback(async () => {
     try {
       setLoading(true);
-      const data = await customerService.getAll();
-      setCustomers(data);
+      const params: any = {
+        page: currentPage,
+        page_size: pageSize
+      };
+      if (searchQuery) params.search = searchQuery;
+      if (filterType === 'guest') params.is_guest = true;
+      if (filterType === 'registered') params.is_guest = false;
+
+      const data = await customerService.getAll(params);
+
+      const results = data.results || data;
+      const count = data.count || (Array.isArray(results) ? results.length : 0);
+
+      setCustomers(Array.isArray(results) ? results : []);
+      setTotalCount(count);
+      setTotalPages(Math.ceil(count / pageSize));
     } catch (error) {
       console.error('Error fetching customers:', error);
       dispatch(addNotification({
@@ -51,6 +68,51 @@ const Customers: React.FC = () => {
     } finally {
       setLoading(false);
     }
+  }, [searchQuery, filterType, currentPage, pageSize, dispatch]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      fetchCustomers();
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [fetchCustomers]);
+
+  useEffect(() => {
+    if (currentPage !== 1) {
+      setCurrentPage(1);
+    }
+  }, [searchQuery, filterType, pageSize]);
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+  };
+
+  const getPageNumbers = () => {
+    const pages = [];
+    const maxVisible = 5;
+
+    if (totalPages <= maxVisible) {
+      for (let i = 1; i <= totalPages; i++) {
+        pages.push(i);
+      }
+    } else {
+      if (currentPage <= 3) {
+        for (let i = 1; i <= 4; i++) pages.push(i);
+        pages.push('...');
+        pages.push(totalPages);
+      } else if (currentPage >= totalPages - 2) {
+        pages.push(1);
+        pages.push('...');
+        for (let i = totalPages - 3; i <= totalPages; i++) pages.push(i);
+      } else {
+        pages.push(1);
+        pages.push('...');
+        for (let i = currentPage - 1; i <= currentPage + 1; i++) pages.push(i);
+        pages.push('...');
+        pages.push(totalPages);
+      }
+    }
+    return pages;
   };
 
   const handleSave = async (data: any) => {
@@ -99,21 +161,10 @@ const Customers: React.FC = () => {
     }
   };
 
-  const filteredCustomers = customers.filter(customer => {
-    const matchesSearch = customer.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      customer.email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      customer.phone?.toLowerCase().includes(searchQuery.toLowerCase());
-
-    const matchesFilter = filterType === 'all' ||
-      (filterType === 'registered' && !customer.is_guest) ||
-      (filterType === 'guest' && customer.is_guest);
-
-    return matchesSearch && matchesFilter;
-  });
-
-  const totalCustomers = filteredCustomers.length;
-  const registeredCustomers = filteredCustomers.filter(c => !c.is_guest).length;
-  const guestCustomers = filteredCustomers.filter(c => c.is_guest).length;
+  const totalCustomers = totalCount;
+  // Local counts for current page visuals since paginated backend does not provide aggregate counts per type easily
+  const registeredCustomers = customers.filter(c => !c.is_guest).length;
+  const guestCustomers = customers.filter(c => c.is_guest).length;
 
   return (
     <div className="space-y-6">
@@ -224,14 +275,14 @@ const Customers: React.FC = () => {
       </div>
 
       {/* Customers Table */}
-      <div className="card">
+      <div className="card flex flex-col min-h-0 overflow-hidden" style={{ height: 'calc(100vh - 200px)' }}>
         {loading ? (
-          <div className="text-center py-12">
+          <div className="text-center py-12 flex-1">
             <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
             <p className="text-gray-600 mt-4">Loading customers...</p>
           </div>
-        ) : filteredCustomers.length === 0 ? (
-          <div className="text-center py-12">
+        ) : customers.length === 0 ? (
+          <div className="text-center py-12 flex-1">
             <Users className="w-16 h-16 text-gray-300 mx-auto mb-4" />
             <p className="text-gray-600 mb-4">No customers found</p>
             <button
@@ -242,20 +293,21 @@ const Customers: React.FC = () => {
             </button>
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-gray-200">
-                  <th className="text-left py-3 px-4 font-medium text-gray-700">Name</th>
-                  <th className="text-left py-3 px-4 font-medium text-gray-700">Contact</th>
-                  <th className="text-left py-3 px-4 font-medium text-gray-700">Location</th>
-                  <th className="text-left py-3 px-4 font-medium text-gray-700">GSTIN</th>
-                  <th className="text-center py-3 px-4 font-medium text-gray-700">Type</th>
-                  <th className="text-right py-3 px-4 font-medium text-gray-700">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredCustomers.map((customer) => (
+          <>
+            <div className="flex-1 overflow-x-auto overflow-y-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b border-gray-200">
+                    <th className="text-left py-3 px-4 font-medium text-gray-700">Name</th>
+                    <th className="text-left py-3 px-4 font-medium text-gray-700">Contact</th>
+                    <th className="text-left py-3 px-4 font-medium text-gray-700">Location</th>
+                    <th className="text-left py-3 px-4 font-medium text-gray-700">GSTIN</th>
+                    <th className="text-center py-3 px-4 font-medium text-gray-700">Type</th>
+                    <th className="text-right py-3 px-4 font-medium text-gray-700">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {customers.map((customer) => (
                   <tr key={customer.id} className="border-b border-gray-100 hover:bg-gray-50">
                     <td className="py-3 px-4">
                       <div className="font-medium text-gray-900">{customer.name}</div>
@@ -344,9 +396,67 @@ const Customers: React.FC = () => {
                     </td>
                   </tr>
                 ))}
-              </tbody>
-            </table>
-          </div>
+                </tbody>
+              </table>
+            </div>
+
+            {/* Pagination */}
+            {totalCount > 0 && (
+              <div className="flex flex-wrap items-center justify-between gap-4 pt-4 mt-4 border-t border-gray-200 shrink-0 mx-4 mb-4">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-gray-600">Show</span>
+                  <select
+                    value={pageSize}
+                    onChange={(e) => setPageSize(Number(e.target.value))}
+                    className="input-field py-1 px-2 text-sm w-20"
+                  >
+                    <option value={10}>10</option>
+                    <option value={25}>25</option>
+                    <option value={50}>50</option>
+                    <option value={100}>100</option>
+                  </select>
+                  <span className="text-sm text-gray-600 whitespace-nowrap">
+                    entries (Showing {(currentPage - 1) * pageSize + 1}-{Math.min(currentPage * pageSize, totalCount)} of {totalCount})
+                  </span>
+                </div>
+
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => handlePageChange(currentPage - 1)}
+                    disabled={currentPage === 1}
+                    className="px-3 py-1 text-sm border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Previous
+                  </button>
+
+                  {getPageNumbers().map((page, index) => (
+                    <button
+                      key={index}
+                      onClick={() => typeof page === 'number' && handlePageChange(page)}
+                      disabled={page === '...'}
+                      className={`px-3 py-1 text-sm border rounded ${
+                        page === currentPage
+                          ? 'bg-primary-600 text-white border-primary-600'
+                          : page === '...'
+                          ? 'border-transparent cursor-default'
+                          : 'border-gray-300 hover:bg-gray-50'
+                      }`}
+                    >
+                      {page}
+                    </button>
+                  ))}
+
+                  <button
+                    onClick={() => handlePageChange(currentPage + 1)}
+                    disabled={currentPage === totalPages}
+                    className="px-3 py-1 text-sm border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Next
+                  </button>
+                </div>
+              </div>
+            )}
+          </>
         )}
       </div>
 

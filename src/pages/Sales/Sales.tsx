@@ -498,7 +498,7 @@ const Sales: React.FC = () => {
                 <option value={50}>50</option>
                 <option value={100}>100</option>
               </select>
-              <span className="text-sm text-gray-600">
+              <span className="text-sm text-gray-600 whitespace-nowrap">
                 entries (Showing {startIndex + 1}-{endIndex} of {totalCount})
               </span>
             </div>

@@ -4,7 +4,6 @@ import {
   StockItem,
   StockMovement,
   StockAdjustmentFormData,
-  StockMovementFilters,
 } from '../../types/inventory.types';
 
 export const inventoryService = {
@@ -23,8 +22,8 @@ export const inventoryService = {
   },
 
   // Get stock movements with optional filters
-  getStockMovements: async (filters?: StockMovementFilters): Promise<StockMovement[]> => {
-    const response = await axiosInstance.get<StockMovement[]>(
+  getStockMovements: async (filters?: any): Promise<any> => {
+    const response = await axiosInstance.get(
       API_ENDPOINTS.INVENTORY.MOVEMENTS,
       { params: filters }
     );

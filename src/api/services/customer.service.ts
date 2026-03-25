@@ -15,12 +15,13 @@ export interface CustomerFormData {
 
 export const customerService = {
   // Get all customers
-  getAll: async (): Promise<any[]> => {
-    const response = await axiosInstance.get(`${API_ENDPOINTS.CUSTOMERS.LIST}?page_size=1000`);
-    // Handle paginated response
-    if (response.data && response.data.results) {
-      return response.data.results;
+  getAll: async (params?: any): Promise<any> => {
+    if (!params) {
+      const response = await axiosInstance.get(`${API_ENDPOINTS.CUSTOMERS.LIST}?page_size=1000`);
+      if (response.data && response.data.results) return response.data.results;
+      return response.data;
     }
+    const response = await axiosInstance.get(API_ENDPOINTS.CUSTOMERS.LIST, { params });
     return response.data;
   },
 

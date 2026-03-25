@@ -23,6 +23,8 @@ const Invoices: React.FC = () => {
   // Pagination and search
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
+  const [pageSize, setPageSize] = useState(10);
   const [searchQuery, setSearchQuery] = useState('');
   const [saleSearchQuery, setSaleSearchQuery] = useState('');
   const [customerSearchQuery, setCustomerSearchQuery] = useState('');
@@ -32,8 +34,6 @@ const Invoices: React.FC = () => {
   const [salePage, setSalePage] = useState(1);
   const [saleTotalPages, setSaleTotalPages] = useState(1);
   const [loadingSales, setLoadingSales] = useState(false);
-
-  const pageSize = 10;
 
   // Modal states
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -64,7 +64,7 @@ const Invoices: React.FC = () => {
   useEffect(() => {
     fetchInvoices();
     fetchStates();
-  }, [currentPage, searchQuery]);
+  }, [currentPage, searchQuery, pageSize]);
 
 
   useEffect(() => {
@@ -127,19 +127,63 @@ const Invoices: React.FC = () => {
   const fetchInvoices = async () => {
     try {
       setLoading(true);
-      const filters: any = {};
+      const filters: any = {
+        page: currentPage,
+        page_size: pageSize
+      };
       if (searchQuery) {
         filters.invoice_number = searchQuery;
       }
 
       const data = await invoiceService.getInvoices(filters);
       setInvoices(data.results);
+      setTotalCount(data.count);
       setTotalPages(Math.ceil(data.count / pageSize));
     } catch (error) {
       console.error('Error fetching invoices:', error);
     } finally {
       setLoading(false);
     }
+  };
+
+  // Reset to page 1 when filters or page size change
+  useEffect(() => {
+    if (currentPage !== 1) {
+      setCurrentPage(1);
+    }
+  }, [searchQuery, pageSize]);
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const getPageNumbers = () => {
+    const pages = [];
+    const maxVisible = 5;
+
+    if (totalPages <= maxVisible) {
+      for (let i = 1; i <= totalPages; i++) {
+        pages.push(i);
+      }
+    } else {
+      if (currentPage <= 3) {
+        for (let i = 1; i <= 4; i++) pages.push(i);
+        pages.push('...');
+        pages.push(totalPages);
+      } else if (currentPage >= totalPages - 2) {
+        pages.push(1);
+        pages.push('...');
+        for (let i = totalPages - 3; i <= totalPages; i++) pages.push(i);
+      } else {
+        pages.push(1);
+        pages.push('...');
+        for (let i = currentPage - 1; i <= currentPage + 1; i++) pages.push(i);
+        pages.push('...');
+        pages.push(totalPages);
+      }
+    }
+    return pages;
   };
 
   const fetchSales = async () => {
@@ -370,9 +414,9 @@ const Invoices: React.FC = () => {
       </div>
 
       {/* Invoices Table */}
-      <div className="card flex-1 overflow-auto">
+      <div className="card flex-1 flex flex-col min-h-0 overflow-hidden">
         {invoices.length === 0 ? (
-          <div className="text-center py-12">
+          <div className="text-center py-12 flex-1">
             <FileText className="w-16 h-16 mx-auto text-gray-300 mb-4" />
             <p className="text-gray-500 mb-4">
               {searchQuery ? 'No invoices found matching your search' : 'No invoices generated yet'}
@@ -384,44 +428,47 @@ const Invoices: React.FC = () => {
             )}
           </div>
         ) : (
-          <>
-            <div className="table-container">
-              <table className="table">
+          <div className="flex flex-col h-full min-h-0">
+            <div className="flex-1 overflow-x-auto overflow-y-auto">
+              <table className="w-full">
                 <thead>
-                  <tr>
-                    <th>Invoice #</th>
-                    <th>Date</th>
-                    <th>Customer</th>
-                    <th>Sale Order</th>
-                    <th className="text-right">Amount</th>
-                    <th className="text-center">Status</th>
-                    <th className="text-center">Actions</th>
+                  <tr className="border-b border-gray-200">
+                    <th className="text-left py-3 px-4 font-medium text-gray-700">Invoice #</th>
+                    <th className="text-left py-3 px-4 font-medium text-gray-700">Date</th>
+                    <th className="text-left py-3 px-4 font-medium text-gray-700">Customer</th>
+                    <th className="text-left py-3 px-4 font-medium text-gray-700">Sale Order</th>
+                    <th className="text-right py-3 px-4 font-medium text-gray-700">Amount</th>
+                    <th className="text-center py-3 px-4 font-medium text-gray-700">Status</th>
+                    <th className="text-right py-3 px-4 font-medium text-gray-700">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   {invoices.map((invoice) => (
-                    <tr key={invoice.id}>
-                      <td className="font-medium">{invoice.invoice_number}</td>
-                      <td>{format(new Date(invoice.invoice_date), 'dd/MM/yyyy')}</td>
-                      <td>{invoice.customer_name}</td>
-                      <td>{invoice.sale_order_data?.order_number}</td>
-                      <td className="text-right">
+                    <tr key={invoice.id} className="border-b border-gray-100 hover:bg-gray-50">
+                      <td className="py-3 px-4 font-medium text-gray-900">{invoice.invoice_number}</td>
+                      <td className="py-3 px-4 text-gray-600">{format(new Date(invoice.invoice_date), 'dd/MM/yyyy')}</td>
+                      <td className="py-3 px-4 text-gray-600">{invoice.customer_name}</td>
+                      <td className="py-3 px-4 text-gray-600">{invoice.sale_order_data?.order_number}</td>
+                      <td className="py-3 px-4 text-right font-medium text-gray-900">
                         ₹{Math.round(invoice.sale_order_data?.total_amount || 0).toLocaleString()}
                       </td>
-                      <td className="text-center">
+                      <td className="py-3 px-4 text-center">
                         {invoice.is_cancelled ? (
                           <span className="badge badge-danger">Cancelled</span>
                         ) : (
                           <span className="badge badge-success">Active</span>
                         )}
                       </td>
-                      <td className="text-center">
-                        <button
-                          className="btn btn-secondary btn-sm"
-                          onClick={() => setViewingInvoice(invoice)}
-                        >
-                          <Eye className="w-4 h-4" />
-                        </button>
+                      <td className="py-3 px-4">
+                        <div className="flex items-center justify-end gap-2">
+                          <button
+                            className="p-2 text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
+                            onClick={() => setViewingInvoice(invoice)}
+                            title="View Invoice"
+                          >
+                            <Eye className="w-4 h-4" />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -430,30 +477,62 @@ const Invoices: React.FC = () => {
             </div>
 
             {/* Pagination */}
-            {totalPages > 1 && (
-              <div className="flex items-center justify-between mt-4 pt-4 border-t">
-                <p className="text-sm text-gray-600">
-                  Page {currentPage} of {totalPages}
-                </p>
-                <div className="flex gap-2">
+            {totalCount > 0 && (
+              <div className="flex flex-wrap items-center justify-between gap-4 pt-4 mt-4 border-t border-gray-200 shrink-0">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-gray-600">Show</span>
+                  <select
+                    value={pageSize}
+                    onChange={(e) => setPageSize(Number(e.target.value))}
+                    className="input-field py-1 px-2 text-sm w-20"
+                  >
+                    <option value={10}>10</option>
+                    <option value={25}>25</option>
+                    <option value={50}>50</option>
+                    <option value={100}>100</option>
+                  </select>
+                  <span className="text-sm text-gray-600 whitespace-nowrap">
+                    entries (Showing {(currentPage - 1) * pageSize + 1}-{Math.min(currentPage * pageSize, totalCount)} of {totalCount})
+                  </span>
+                </div>
+
+                <div className="flex items-center gap-1">
                   <button
-                    onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                    onClick={() => handlePageChange(currentPage - 1)}
                     disabled={currentPage === 1}
-                    className="btn btn-secondary btn-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="px-3 py-1 text-sm border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    <ChevronLeft className="w-4 h-4" />
+                    Previous
                   </button>
+
+                  {getPageNumbers().map((page, index) => (
+                    <button
+                      key={index}
+                      onClick={() => typeof page === 'number' && handlePageChange(page)}
+                      disabled={page === '...'}
+                      className={`px-3 py-1 text-sm border rounded ${
+                        page === currentPage
+                          ? 'bg-primary-600 text-white border-primary-600'
+                          : page === '...'
+                          ? 'border-transparent cursor-default'
+                          : 'border-gray-300 hover:bg-gray-50'
+                      }`}
+                    >
+                      {page}
+                    </button>
+                  ))}
+
                   <button
-                    onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                    onClick={() => handlePageChange(currentPage + 1)}
                     disabled={currentPage === totalPages}
-                    className="btn btn-secondary btn-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="px-3 py-1 text-sm border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    <ChevronRight className="w-4 h-4" />
+                    Next
                   </button>
                 </div>
               </div>
             )}
-          </>
+          </div>
         )}
       </div>
 

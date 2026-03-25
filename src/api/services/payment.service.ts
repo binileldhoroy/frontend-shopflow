@@ -3,11 +3,8 @@ import { API_ENDPOINTS } from '../endpoints';
 import { Payment, PaymentSearchParams } from '../../types/payment.types';
 
 export const paymentService = {
-  getAll: async (params?: PaymentSearchParams): Promise<Payment[]> => {
+  getAll: async (params?: PaymentSearchParams): Promise<any> => {
     const response = await axiosInstance.get(API_ENDPOINTS.PAYMENTS.LIST, { params });
-    if (response.data && response.data.results) {
-        return response.data.results;
-    }
     return response.data;
   },
 

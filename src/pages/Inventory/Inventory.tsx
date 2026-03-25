@@ -16,48 +16,109 @@ const Inventory: React.FC = () => {
   const [showMovements, setShowMovements] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
 
+  // Pagination State
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const [totalCount, setTotalCount] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
+
   // Modal states
   const [showAdjustmentModal, setShowAdjustmentModal] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<StockItem | null>(null);
   const [formLoading, setFormLoading] = useState(false);
 
+  const loadLowStockAlerts = useCallback(async () => {
+    try {
+      const data = await inventoryService.getLowStockAlerts();
+      setLowStockItems(data || []);
+    } catch (error) {
+      console.error('Failed to load low stock alerts', error);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadLowStockAlerts();
+  }, [loadLowStockAlerts]);
+
   const loadData = useCallback(async () => {
     try {
       setLoading(true);
 
-      // Build query params for API search
-      const params: any = {};
-      if (searchTerm) params.search = searchTerm;
+      const params: any = {
+        page: currentPage,
+        page_size: pageSize
+      };
 
-      const [stockResponse, lowStockData, movementsData] = await Promise.all([
-        inventoryService.getStock(params),
-        inventoryService.getLowStockAlerts(),
-        inventoryService.getStockMovements(),
-      ]);
+      if (showMovements) {
+        const data = await inventoryService.getStockMovements(params);
+        const results = data.results || data;
+        const count = data.count || (Array.isArray(results) ? results.length : 0);
 
-      // Handle paginated response
-      const stockData = stockResponse.results || stockResponse;
-      setStock(Array.isArray(stockData) ? stockData : []);
-      setLowStockItems(lowStockData);
-      setMovements(movementsData);
+        setMovements(Array.isArray(results) ? results : []);
+        setTotalCount(count);
+        setTotalPages(Math.ceil(count / pageSize));
+      } else {
+        if (searchTerm) params.search = searchTerm;
+        const data = await inventoryService.getStock(params);
+        const results = data.results || data;
+        const count = data.count || (Array.isArray(results) ? results.length : 0);
+
+        setStock(Array.isArray(results) ? results : []);
+        setTotalCount(count);
+        setTotalPages(Math.ceil(count / pageSize));
+      }
     } catch (error: any) {
       dispatch(addNotification({
-        message: error.response?.data?.message || 'Failed to load inventory data',
+        message: error.response?.data?.message || 'Failed to load data',
         type: 'error',
       }));
     } finally {
       setLoading(false);
     }
-  }, [searchTerm, dispatch]);
+  }, [searchTerm, showMovements, currentPage, pageSize, dispatch]);
 
-  // Debounced search effect
   useEffect(() => {
     const timer = setTimeout(() => {
       loadData();
     }, 300);
-
     return () => clearTimeout(timer);
-  }, [searchTerm, loadData]);
+  }, [loadData]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, showMovements, pageSize]);
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+  };
+
+  const getPageNumbers = () => {
+    const pages = [];
+    const maxVisible = 5;
+
+    if (totalPages <= maxVisible) {
+      for (let i = 1; i <= totalPages; i++) {
+        pages.push(i);
+      }
+    } else {
+      if (currentPage <= 3) {
+        for (let i = 1; i <= 4; i++) pages.push(i);
+        pages.push('...');
+        pages.push(totalPages);
+      } else if (currentPage >= totalPages - 2) {
+        pages.push(1);
+        pages.push('...');
+        for (let i = totalPages - 3; i <= totalPages; i++) pages.push(i);
+      } else {
+        pages.push(1);
+        pages.push('...');
+        for (let i = currentPage - 1; i <= currentPage + 1; i++) pages.push(i);
+        pages.push('...');
+        pages.push(totalPages);
+      }
+    }
+    return pages;
+  };
 
   const handleAdjustment = async (data: StockAdjustmentFormData) => {
     try {
@@ -168,52 +229,53 @@ const Inventory: React.FC = () => {
 
       {showMovements ? (
         /* Stock Movements Table */
-        <div className="card" style={{ height: 'calc(100vh - 320px)', display: 'flex', flexDirection: 'column' }}>
-          <h3 className="text-lg font-semibold mb-4">Stock Movements</h3>
+        <div className="card flex flex-col min-h-0 overflow-hidden" style={{ height: 'calc(100vh - 200px)' }}>
+          <h3 className="text-lg font-semibold mb-4 shrink-0">Stock Movements</h3>
           {loading ? (
-            <div className="flex justify-center items-center py-20">
+            <div className="flex justify-center items-center py-20 flex-1">
               <div className="w-16 h-16 border-4 border-primary-600 border-t-transparent rounded-full animate-spin"></div>
             </div>
           ) : movements.length === 0 ? (
-            <div className="text-center py-12">
+            <div className="text-center py-12 flex-1">
               <Inbox className="w-16 h-16 text-gray-300 mx-auto mb-4" />
               <p className="text-gray-500">No stock movements recorded</p>
             </div>
           ) : (
-            <div className="table-container" style={{ flex: 1, overflow: 'auto' }}>
-              <table className="table">
-                <thead>
-                  <tr>
-                    <th>Date</th>
-                    <th>Product</th>
-                    <th>Type</th>
-                    <th className="text-right">Quantity</th>
-                    <th>Reference</th>
-                    <th>Notes</th>
-                  </tr>
-                </thead>
-                <tbody>
+            <>
+              <div className="flex-1 overflow-x-auto overflow-y-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b border-gray-200">
+                      <th className="text-left py-3 px-4 font-medium text-gray-700">Date</th>
+                      <th className="text-left py-3 px-4 font-medium text-gray-700">Product</th>
+                      <th className="text-left py-3 px-4 font-medium text-gray-700">Type</th>
+                      <th className="text-right py-3 px-4 font-medium text-gray-700">Quantity</th>
+                      <th className="text-left py-3 px-4 font-medium text-gray-700">Reference</th>
+                      <th className="text-left py-3 px-4 font-medium text-gray-700">Notes</th>
+                    </tr>
+                  </thead>
+                  <tbody>
                   {movements.map((movement) => (
-                    <tr key={movement.id}>
-                      <td className="text-gray-600">
+                    <tr key={movement.id} className="border-b border-gray-100 hover:bg-gray-50">
+                      <td className="py-3 px-4 text-gray-600">
                         {new Date(movement.created_at).toLocaleDateString()}
                       </td>
-                      <td className="font-medium text-gray-900">
+                      <td className="py-3 px-4 font-medium text-gray-900">
                         {movement.product_name}
                       </td>
-                      <td>
+                      <td className="py-3 px-4">
                         <span className={`badge ${getMovementBadgeClass(movement.movement_type)} flex items-center gap-1 w-fit`}>
                           {getMovementIcon(movement.movement_type)}
                           {getMovementLabel(movement.movement_type)}
                         </span>
                       </td>
-                      <td className="text-right font-medium">
+                      <td className="py-3 px-4 text-right font-medium">
                         {getQuantityDisplay(movement)}
                       </td>
-                      <td className="text-gray-600">
+                      <td className="py-3 px-4 text-gray-600">
                         {movement.reference_number || '-'}
                       </td>
-                      <td className="text-gray-600">
+                      <td className="py-3 px-4 text-gray-600">
                         {movement.notes || '-'}
                       </td>
                     </tr>
@@ -221,41 +283,100 @@ const Inventory: React.FC = () => {
                 </tbody>
               </table>
             </div>
+
+            {/* Pagination for Movements */}
+            {totalCount > 0 && (
+              <div className="flex flex-wrap items-center justify-between gap-4 pt-4 mt-4 border-t border-gray-200 shrink-0 mx-4 mb-4">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-gray-600">Show</span>
+                  <select
+                    value={pageSize}
+                    onChange={(e) => setPageSize(Number(e.target.value))}
+                    className="input-field py-1 px-2 text-sm w-20"
+                  >
+                    <option value={10}>10</option>
+                    <option value={25}>25</option>
+                    <option value={50}>50</option>
+                    <option value={100}>100</option>
+                  </select>
+                  <span className="text-sm text-gray-600 whitespace-nowrap">
+                    entries (Showing {(currentPage - 1) * pageSize + 1}-{Math.min(currentPage * pageSize, totalCount)} of {totalCount})
+                  </span>
+                </div>
+
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => handlePageChange(currentPage - 1)}
+                    disabled={currentPage === 1}
+                    className="px-3 py-1 text-sm border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Previous
+                  </button>
+
+                  {getPageNumbers().map((page, index) => (
+                    <button
+                      key={index}
+                      onClick={() => typeof page === 'number' && handlePageChange(page)}
+                      disabled={page === '...'}
+                      className={`px-3 py-1 text-sm border rounded ${
+                        page === currentPage
+                          ? 'bg-primary-600 text-white border-primary-600'
+                          : page === '...'
+                          ? 'border-transparent cursor-default'
+                          : 'border-gray-300 hover:bg-gray-50'
+                      }`}
+                    >
+                      {page}
+                    </button>
+                  ))}
+
+                  <button
+                    onClick={() => handlePageChange(currentPage + 1)}
+                    disabled={currentPage === totalPages}
+                    className="px-3 py-1 text-sm border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Next
+                  </button>
+                </div>
+              </div>
+            )}
+          </>
           )}
         </div>
       ) : (
         /* Stock Levels Table */
-        <div className="card" style={{ height: 'calc(100vh - 320px)', display: 'flex', flexDirection: 'column' }}>
-          <h3 className="text-lg font-semibold mb-4">Stock Levels</h3>
+        <div className="card flex flex-col min-h-0 overflow-hidden" style={{ height: 'calc(100vh - 320px)' }}>
+          <h3 className="text-lg font-semibold mb-4 shrink-0">Stock Levels</h3>
           {loading ? (
-            <div className="flex justify-center items-center py-20">
+            <div className="flex justify-center items-center py-20 flex-1">
               <div className="w-16 h-16 border-4 border-primary-600 border-t-transparent rounded-full animate-spin"></div>
             </div>
           ) : stock.length === 0 ? (
-            <div className="text-center py-12">
+            <div className="text-center py-12 flex-1">
               <Package className="w-16 h-16 text-gray-300 mx-auto mb-4" />
               <p className="text-gray-500">No stock records found</p>
             </div>
           ) : (
-            <div className="table-container" style={{ flex: 1, overflow: 'auto' }}>
-              <table className="table">
-                <thead>
-                  <tr>
-                    <th>Product</th>
-                    <th className="text-right">Current Stock</th>
-                    <th className="text-right">Reorder Level</th>
-                    <th className="text-center">Status</th>
-                    <th className="text-right">Actions</th>
-                  </tr>
-                </thead>
+            <>
+              <div className="flex-1 overflow-x-auto overflow-y-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b border-gray-200">
+                      <th className="text-left py-3 px-4 font-medium text-gray-700">Product</th>
+                      <th className="text-right py-3 px-4 font-medium text-gray-700">Current Stock</th>
+                      <th className="text-right py-3 px-4 font-medium text-gray-700">Reorder Level</th>
+                      <th className="text-center py-3 px-4 font-medium text-gray-700">Status</th>
+                      <th className="text-right py-3 px-4 font-medium text-gray-700">Actions</th>
+                    </tr>
+                  </thead>
                 <tbody>
                   {stock.map((item) => (
-                    <tr key={item.id}>
-                      <td className="font-medium text-gray-900">
+                    <tr key={item.id} className="border-b border-gray-100 hover:bg-gray-50">
+                      <td className="py-3 px-4 font-medium text-gray-900">
                         {item.product_name}
-                        <div className="text-sm text-gray-500">{item.sku}</div>
+                        <div className="text-sm text-gray-500 font-normal">{item.sku}</div>
                       </td>
-                      <td className="text-right">
+                      <td className="py-3 px-4 text-right">
                         <span className={`font-medium ${
                           item.is_out_of_stock ? 'text-danger-600' :
                           item.is_low_stock ? 'text-warning-600' :
@@ -264,10 +385,10 @@ const Inventory: React.FC = () => {
                           {item.quantity}
                         </span>
                       </td>
-                      <td className="text-right text-gray-600">
+                      <td className="py-3 px-4 text-right text-gray-600">
                         {item.reorder_level}
                       </td>
-                      <td className="text-center">
+                      <td className="py-3 px-4 text-center">
                         {item.is_out_of_stock ? (
                           <span className="badge badge-danger">Out of Stock</span>
                         ) : item.is_low_stock ? (
@@ -276,7 +397,7 @@ const Inventory: React.FC = () => {
                           <span className="badge badge-success">In Stock</span>
                         )}
                       </td>
-                      <td>
+                      <td className="py-3 px-4">
                         <div className="flex items-center justify-end">
                           <button
                             onClick={() => {
@@ -295,6 +416,64 @@ const Inventory: React.FC = () => {
                 </tbody>
               </table>
             </div>
+
+            {/* Pagination for Stock Levels */}
+            {totalCount > 0 && (
+              <div className="flex flex-wrap items-center justify-between gap-4 pt-4 mt-4 border-t border-gray-200 shrink-0 mx-4 mb-4">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-gray-600">Show</span>
+                  <select
+                    value={pageSize}
+                    onChange={(e) => setPageSize(Number(e.target.value))}
+                    className="input-field py-1 px-2 text-sm w-20"
+                  >
+                    <option value={10}>10</option>
+                    <option value={25}>25</option>
+                    <option value={50}>50</option>
+                    <option value={100}>100</option>
+                  </select>
+                  <span className="text-sm text-gray-600 whitespace-nowrap">
+                    entries (Showing {(currentPage - 1) * pageSize + 1}-{Math.min(currentPage * pageSize, totalCount)} of {totalCount})
+                  </span>
+                </div>
+
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => handlePageChange(currentPage - 1)}
+                    disabled={currentPage === 1}
+                    className="px-3 py-1 text-sm border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Previous
+                  </button>
+
+                  {getPageNumbers().map((page, index) => (
+                    <button
+                      key={index}
+                      onClick={() => typeof page === 'number' && handlePageChange(page)}
+                      disabled={page === '...'}
+                      className={`px-3 py-1 text-sm border rounded ${
+                        page === currentPage
+                          ? 'bg-primary-600 text-white border-primary-600'
+                          : page === '...'
+                          ? 'border-transparent cursor-default'
+                          : 'border-gray-300 hover:bg-gray-50'
+                      }`}
+                    >
+                      {page}
+                    </button>
+                  ))}
+
+                  <button
+                    onClick={() => handlePageChange(currentPage + 1)}
+                    disabled={currentPage === totalPages}
+                    className="px-3 py-1 text-sm border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Next
+                  </button>
+                </div>
+              </div>
+            )}
+          </>
           )}
         </div>
       )}
