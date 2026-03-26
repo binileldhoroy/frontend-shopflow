@@ -23,16 +23,18 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   }, [dispatch, isSuperUser]);
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="h-screen overflow-hidden bg-gray-50 flex flex-col">
       <Header />
-      <Sidebar />
-      <main
-        className={`transition-all duration-300 pt-4 ${
-          sidebarOpen ? 'lg:ml-64' : 'lg:ml-20'
-        }`}
-      >
-        <div className="px-4 py-6 max-w-7xl mx-auto">{children}</div>
-      </main>
+      <div className="flex flex-1 min-h-0">
+        <Sidebar />
+        <main
+          className={`flex-1 min-h-0 overflow-hidden transition-all duration-300 ${
+            sidebarOpen ? 'lg:ml-64' : 'lg:ml-20'
+          }`}
+        >
+          <div className="h-full px-4 pt-4 pb-2 overflow-hidden">{children}</div>
+        </main>
+      </div>
       <ToastNotification />
     </div>
   );

@@ -50,12 +50,12 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({
         unit: product.unit || 'piece',
         cost_price: product.cost_price || 0,
         selling_price: product.selling_price || 0,
-        gst_rate: product.gst_rate || '18',
+        gst_rate: Number(product.gst_rate) || 0,
         tax_included: product.tax_included || false,
         stock_quantity: product.stock_quantity || 0,
         reorder_level: product.reorder_level || 0,
         description: product.description || '',
-        image: null,
+        image: product.image || null,
         is_active: product.is_active ?? true,
       });
     } else {
@@ -318,6 +318,18 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({
 
         <div>
           <label className="label">Product Image</label>
+          {/* Image Preview Area */}
+          {formData.image && (
+            <div style={{ marginBottom: '10px' }}>
+              <img
+                // Check if it's a File object (new upload) or a string (existing URL)
+                src={typeof formData.image === 'string' ? formData.image : URL.createObjectURL(formData.image)}
+                alt="Product Preview"
+                style={{ width: '120px', height: '120px', objectFit: 'cover', borderRadius: '4px' }}
+              />
+            </div>
+          )}
+
           <input
             type="file"
             name="image"

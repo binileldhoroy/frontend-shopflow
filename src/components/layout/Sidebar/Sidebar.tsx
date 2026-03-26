@@ -182,8 +182,8 @@ const Sidebar: React.FC = () => {
                   className={({ isActive }) =>
                     `flex items-center gap-3 px-4 py-3 mx-2 rounded-lg transition-all duration-200 group relative ${
                       isActive
-                        ? 'bg-primary-600 text-dark font-semibold shadow-md'
-                        : 'text-gray-700 hover:bg-gray-50 hover:text-primary-600'
+                        ? 'bg-gray-100/80 text-gray-900 font-semibold'
+                        : 'text-gray-500 hover:bg-gray-50 hover:text-gray-900'
                     } ${!sidebarOpen && 'lg:justify-center'}`
                   }
                 >

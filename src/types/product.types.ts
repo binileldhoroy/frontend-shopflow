@@ -54,7 +54,7 @@ export interface ProductFormData {
   tax_included?: boolean;
   stock_quantity: number | string;
   reorder_level: number | string;
-  image?: File | null;
+  image?: File | null | string;
   is_active?: boolean;
 }
 

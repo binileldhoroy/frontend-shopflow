@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useAppDispatch, useAppSelector } from '@hooks/useRedux';
 import { productService } from '@api/services/product.service';
 import { customerService } from '@api/services/customer.service';
@@ -42,6 +42,13 @@ const POS: React.FC = () => {
   const [priceTiers, setPriceTiers] = useState<PriceTier[]>([]);
   const [productRules, setProductRules] = useState<ProductTierPrice[]>([]);
   const [selectedTierId, setSelectedTierId] = useState<number | null>(null);
+
+  // Infinite scroll state
+  const [posPage, setPosPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const [posLoading, setPosLoading] = useState(false);
+  const sentinelRef = useRef<HTMLDivElement | null>(null);
+  const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [showInvoice, setShowInvoice] = useState(false);
@@ -93,32 +100,81 @@ const POS: React.FC = () => {
     searchCustomer();
   }, [guestPhone]);
 
-  // Fetch initial data
+  // Fetch products (paginated, appending)
+  const fetchProducts = useCallback(async (page: number, search: string, reset: boolean) => {
+    if (posLoading) return;
+    setPosLoading(true);
+    try {
+      const data = await productService.getAll({
+        page,
+        page_size: 25,
+        ...(search ? { search } : {}),
+      });
+      const results: any[] = data.results || data;
+      const totalCount = data.count ?? results.length;
+
+      const inStock = results.filter((p: any) => p.stock_quantity > 0);
+      setProducts(prev => reset ? inStock : [...prev, ...inStock]);
+      setHasMore(page * 25 < totalCount);
+      setPosPage(page);
+    } catch (error) {
+      console.error('Error fetching products:', error);
+    } finally {
+      setPosLoading(false);
+    }
+  }, []);
+
+  // Fetch initial data (tiers + rules once, products paginated)
   useEffect(() => {
     const fetchInitialData = async () => {
       try {
-        const [productsData, tiersData, rulesData] = await Promise.all([
-          productService.getAll(),
+        const [tiersData, rulesData] = await Promise.all([
           priceTierService.getAllTiers(),
           priceTierService.getProductRules()
         ]);
-
-        const pData = productsData.results || productsData;
-        setProducts(pData.filter((p: any) => p.stock_quantity > 0));
         setPriceTiers(tiersData.filter((t: PriceTier) => t.is_active));
         setProductRules(rulesData);
       } catch (error) {
-        console.error('Error fetching data:', error);
+        console.error('Error fetching tiers/rules:', error);
         dispatch(addNotification({ message: 'Failed to load POS data', type: 'error' }));
       }
     };
     fetchInitialData();
-  }, [dispatch]);
+    fetchProducts(1, '', true);
+  }, [dispatch, fetchProducts]);
 
   // Handle Session State
   useEffect(() => {
     dispatch(fetchCurrentSession());
   }, [dispatch]);
+
+  // IntersectionObserver: load next page when sentinel is visible
+  useEffect(() => {
+    if (!sentinelRef.current) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasMore && !posLoading) {
+          fetchProducts(posPage + 1, productSearch, false);
+        }
+      },
+      { threshold: 0.1 }
+    );
+    observer.observe(sentinelRef.current);
+    return () => observer.disconnect();
+  }, [hasMore, posLoading, posPage, productSearch, fetchProducts]);
+
+  // Debounce search → reset to page 1
+  useEffect(() => {
+    if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+    searchDebounceRef.current = setTimeout(() => {
+      setProducts([]);
+      setHasMore(true);
+      fetchProducts(1, productSearch, true);
+    }, 300);
+    return () => {
+      if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+    };
+  }, [productSearch]); // intentionally omit fetchProducts to avoid loop
 
   const calculateEffectivePrice = (product: any) => {
     const baseSellingPrice = parseFloat(product.selling_price);
@@ -336,10 +392,7 @@ const POS: React.FC = () => {
   const availableCredit = hasCreditLimit ? creditLimit - outstandingBalance : Infinity;
   const canAffordCredit = availableCredit >= totals.grandTotal;
 
-  const filteredProducts = products.filter((p: any) =>
-    p.name.toLowerCase().includes(productSearch.toLowerCase()) ||
-    p.sku.toLowerCase().includes(productSearch.toLowerCase())
-  );
+  const filteredProducts = products;
 
   const handleInitiateCheckout = () => {
     if (cart.items.length === 0) {
@@ -433,10 +486,11 @@ const POS: React.FC = () => {
   };
 
   return (
-    <div className="h-full flex gap-4 p-2">
+    <div className="h-full flex gap-4 overflow-hidden">
       {/* Left Panel - Products */}
-      <div className="flex-1 flex flex-col space-y-3">
-        <div className="card shadow-sm p-3">
+      <div className="flex-1 flex flex-col min-h-0 overflow-hidden py-2 pl-2">
+        {/* Fixed header bar */}
+        <div className="card shadow-sm p-3 shrink-0 mb-3">
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
              <div className="flex items-center gap-3">
                <h2 className="text-lg font-bold text-gray-800">Products</h2>
@@ -487,65 +541,104 @@ const POS: React.FC = () => {
           </div>
         </div>
 
-      {/* Block UI if session is locked */}
-      {needsSessionSetup && !sessionLoading ? (
-        <div className="flex-1 flex flex-col items-center justify-center bg-white rounded-xl shadow-sm border border-gray-100">
-           <Lock className="w-16 h-16 text-gray-300 mb-4" />
-           <h3 className="text-xl font-bold text-gray-800">Register Closed</h3>
-           <p className="text-gray-500 mt-2">Open a register session on the right to start making sales.</p>
-        </div>
-      ) : (
-      <>
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-3 overflow-y-auto pb-4 pr-1">
-          {filteredProducts.map((product: any) => {
-             const effectivePrice = calculateEffectivePrice(product);
-             const isDiscounted = effectivePrice < parseFloat(product.selling_price);
-             const isPremium = effectivePrice > parseFloat(product.selling_price);
+        {/* Scrollable product area */}
+        <div className="flex-1 min-h-0 overflow-y-auto pr-1">
 
-             return (
-            <button
-              key={product.id}
-              onClick={() => handleAddToCart(product)}
-              className="card p-3 hover:border-blue-300 hover:shadow-md transition-all text-left flex flex-col h-full border border-gray-100 group relative overflow-hidden bg-white"
-            >
-              <div className="absolute inset-0 bg-blue-50/70 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center pointer-events-none z-10 backdrop-blur-[1px]">
-                 <div className="bg-blue-600 text-white rounded-full p-2.5 shadow-lg transform translate-y-4 group-hover:translate-y-0 transition-transform duration-200">
-                   <Plus className="w-5 h-5" />
-                 </div>
-              </div>
+        {/* Block UI if session is locked */}
+        {needsSessionSetup && !sessionLoading ? (
+          <div className="h-full flex flex-col items-center justify-center bg-white rounded-xl shadow-sm border border-gray-100">
+             <Lock className="w-16 h-16 text-gray-300 mb-4" />
+             <h3 className="text-xl font-bold text-gray-800">Register Closed</h3>
+             <p className="text-gray-500 mt-2">Open a register session on the right to start making sales.</p>
+          </div>
+        ) : (
+          <>
+            <div className="grid grid-cols-4 gap-3 pb-4">
+              {filteredProducts.map((product: any) => {
+                 const effectivePrice = calculateEffectivePrice(product);
+                 const isDiscounted = effectivePrice < parseFloat(product.selling_price);
+                 const isPremium = effectivePrice > parseFloat(product.selling_price);
+                 const priceColor = isDiscounted ? 'text-green-600' : isPremium ? 'text-yellow-600' : 'text-blue-600';
 
-              <div className="flex-1">
-                <div className="font-semibold text-gray-800 text-sm line-clamp-2 leading-snug">{product.name}</div>
-                <div className="text-[11px] text-gray-400 mt-1">{product.sku}</div>
-              </div>
-              <div className="mt-2 pt-2 border-t border-gray-50 flex items-end justify-between">
-                 <div className="flex flex-col">
-                   {effectivePrice !== parseFloat(product.selling_price) && (
-                     <span className="text-[10px] text-gray-400 line-through">₹{product.selling_price}</span>
-                   )}
-                   <span className={`text-sm font-bold leading-none ${isDiscounted ? 'text-green-600' : isPremium ? 'text-yellow-600' : 'text-blue-600'}`}>
-                     ₹{effectivePrice.toFixed(2)}
-                   </span>
-                 </div>
-                 <div className="text-right flex flex-col items-end gap-0.5">
-                   <span className="text-[9px] text-gray-400">GST: {product.gst_rate}%</span>
-                   <span className="text-[10px] font-medium text-green-700 bg-green-50 px-1.5 rounded-sm border border-green-100">
-                     {product.stock_quantity}
-                   </span>
-                 </div>
-              </div>
-            </button>
-          )})}
-        </div>
+                 return (
+                <button
+                  key={product.id}
+                  onClick={() => handleAddToCart(product)}
+                  className="card p-0 hover:border-blue-400 hover:shadow-md active:scale-[0.98] transition-all text-left flex flex-row items-stretch border border-gray-100 group relative overflow-hidden bg-white"
+                >
+                  {/* Hover overlay */}
+                  <div className="absolute inset-0 bg-blue-50/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center pointer-events-none z-10">
+                     <div className="bg-blue-600 text-white rounded-full p-2 shadow-lg">
+                       <Plus className="w-4 h-4" />
+                     </div>
+                  </div>
 
-        {filteredProducts.length === 0 && (
-           <div className="card text-center py-8 text-gray-500 shadow-sm">
-             <Package className="w-12 h-12 mx-auto mb-2 text-gray-300" />
-             <p className="text-sm">No products found or out of stock</p>
-           </div>
-         )}
-      </>
-      )}
+                  {/* Thumbnail */}
+                  <div className="shrink-0 w-16 bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center overflow-hidden">
+                    {product.image ? (
+                      <img
+                        src={product.image}
+                        alt={product.name}
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).style.display = 'none';
+                          (e.target as HTMLImageElement).parentElement!.innerHTML = '<span class="text-2xl">📦</span>';
+                        }}
+                      />
+                    ) : (
+                      <Package className="w-7 h-7 text-gray-300" />
+                    )}
+                  </div>
+
+                  {/* Info */}
+                  <div className="flex-1 min-w-0 p-2.5 flex flex-col justify-between">
+                    <div>
+                      <div className="font-semibold text-gray-800 text-xs leading-tight">{product.name}</div>
+                      <div className="text-[10px] text-gray-400 mt-0.5">{product.sku}</div>
+                    </div>
+                    <div className="flex items-end justify-between mt-1.5 pt-1.5 border-t border-gray-100">
+                       <div className="flex flex-col">
+                         {effectivePrice !== parseFloat(product.selling_price) && (
+                           <span className="text-[9px] text-gray-400 line-through leading-none">₹{product.selling_price}</span>
+                         )}
+                         <span className={`text-sm font-bold leading-none ${priceColor}`}>
+                           ₹{effectivePrice.toFixed(2)}
+                         </span>
+                       </div>
+                       <div className="text-right">
+                         <div className="text-[9px] text-gray-400">GST {product.gst_rate}%</div>
+                         <span className="text-[9px] font-semibold text-green-700 bg-green-50 px-1 py-0.5 rounded border border-green-100 inline-block mt-0.5">
+                           {product.stock_quantity} pcs
+                         </span>
+                       </div>
+                    </div>
+                  </div>
+                </button>
+              )})}
+
+              {/* Sentinel: triggers next page when scrolled into view */}
+              <div ref={sentinelRef} className="col-span-full h-10 flex items-center justify-center">
+                {posLoading && (
+                  <div className="flex items-center gap-2 text-gray-400 text-xs">
+                    <div className="w-4 h-4 border-2 border-gray-300 border-t-primary-500 rounded-full animate-spin" />
+                    Loading more products…
+                  </div>
+                )}
+                {!hasMore && filteredProducts.length > 0 && (
+                  <span className="text-xs text-gray-300">All products loaded</span>
+                )}
+              </div>
+            </div>
+
+            {filteredProducts.length === 0 && !posLoading && (
+               <div className="card text-center py-12 text-gray-500 shadow-sm">
+                 <Package className="w-12 h-12 mx-auto mb-2 text-gray-300" />
+                 <p className="text-sm">No products found or out of stock</p>
+               </div>
+             )}
+          </>
+        )}
+        </div> {/* end scrollable area */}
       </div>
 
       {/* Right Panel - Cart */}
@@ -554,7 +647,7 @@ const POS: React.FC = () => {
           <OpeningBalanceModal />
         </div>
       ) : (
-      <div className="w-[350px] lg:w-[400px] flex flex-col space-y-3 h-[calc(100vh-4rem)]">
+      <div className="shrink-0 flex flex-col h-full overflow-hidden space-y-3 py-2 pr-2">
         <div className="card shrink-0 shadow-sm p-3">
           <div className="flex justify-between items-center mb-2">
             <h3 className="text-sm font-semibold text-gray-700 flex items-center gap-1.5 border-l-2 border-blue-500 pl-2 -ml-3">

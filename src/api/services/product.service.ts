@@ -15,15 +15,29 @@ export const productService = {
     return response.data;
   },
 
-  create: async (data: ProductFormData): Promise<Product> => {
-    const response = await axiosInstance.post<Product>(API_ENDPOINTS.PRODUCTS.LIST, data);
+  create: async (data: ProductFormData | FormData): Promise<Product> => {
+    const response = await axiosInstance.post<Product>(
+      API_ENDPOINTS.PRODUCTS.LIST,
+      data,
+      {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+      }
+    );
     return response.data;
   },
 
-  update: async (id: number, data: Partial<ProductFormData>): Promise<Product> => {
+  update: async (id: number, data: Partial<ProductFormData> | FormData): Promise<Product> => {
+    console.log("Product update data:", data);
     const response = await axiosInstance.put<Product>(
       API_ENDPOINTS.PRODUCTS.DETAIL(id),
-      data
+      data,
+      {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+      }
     );
     return response.data;
   },

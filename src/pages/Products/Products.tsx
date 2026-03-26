@@ -48,10 +48,10 @@ const Products: React.FC = () => {
       // Handle paginated response - extract results array
       const productsData = productsResponse.results || productsResponse;
       const count = productsResponse.count || (Array.isArray(productsData) ? productsData.length : 0);
-      
+
       setTotalCount(count);
       setTotalPages(Math.ceil(count / pageSize));
-      
+
       let filteredData = Array.isArray(productsData) ? productsData : [];
 
       // Apply stock filter on frontend (since backend doesn't have this filter)
@@ -144,14 +144,27 @@ const Products: React.FC = () => {
     try {
       setFormLoading(true);
 
+      const formData = new FormData();
+
+      Object.keys(data).forEach((key) => {
+        const value = (data as any)[key];
+
+        // Handle file separately
+        if (key === "image" && value instanceof File) {
+          formData.append("image", value);
+        } else if (value !== null && value !== undefined) {
+          formData.append(key, value);
+        }
+      });
+
       if (selectedProduct) {
-        await productService.update(selectedProduct.id, data);
+        await productService.update(selectedProduct.id, formData);
         dispatch(addNotification({
           message: 'Product updated successfully',
           type: 'success',
         }));
       } else {
-        await productService.create(data);
+        await productService.create(formData);
         dispatch(addNotification({
           message: 'Product created successfully',
           type: 'success',
