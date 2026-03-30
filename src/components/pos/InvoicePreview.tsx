@@ -100,12 +100,12 @@ const InvoicePreview: React.FC<InvoicePreviewProps> = ({ sale, onClose }) => {
                         <td className="text-right py-1.5 px-1">₹{unitPrice.toFixed(2)}</td>
                         <td className="text-right py-1.5 px-1">₹{taxableValue.toFixed(2)}</td>
                         <td className="text-right py-1.5 px-1">
-                          {gstRate > 0 ? `₹${cgst.toFixed(2)}` : '—'}
-                          {gstRate > 0 && <div className="text-[9px] text-gray-400">@{gstRate / 2}%</div>}
+                          {gstRate > 0 ? `₹${cgst.toFixed(2)}` : '0.00'}
+                          {gstRate > 0 ? <div className="text-[9px] text-gray-400">@{gstRate / 2}%</div> : <div className="text-[9px] text-gray-400">@{gstRate}%</div>}
                         </td>
                         <td className="text-right py-1.5 px-1 ">
-                          {gstRate > 0 ? `₹${sgst.toFixed(2)}` : '—'}
-                          {gstRate > 0 && <div className="text-[9px] text-gray-400">@{gstRate / 2}%</div>}
+                          {gstRate > 0 ? `₹${sgst.toFixed(2)}` : '0.00'}
+                          {gstRate > 0 ? <div className="text-[9px] text-gray-400">@{gstRate / 2}%</div> : <div className="text-[9px] text-gray-400">@{gstRate}%</div>}
                         </td>
                         <td className="text-right py-1.5 px-1 font-bold">₹{lineTotal.toFixed(2)}</td>
                       </tr>

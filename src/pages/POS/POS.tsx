@@ -4,9 +4,10 @@ import { productService } from '@api/services/product.service';
 import { customerService } from '@api/services/customer.service';
 import { saleService } from '@api/services/sale.service';
 import { priceTierService, PriceTier, ProductTierPrice } from '@api/services/priceTier.service';
+import { categoryService, Category } from '@api/services/category.service';
 import { addNotification } from '@store/slices/uiSlice';
 import { fetchCurrentSession } from '@store/slices/sessionSlice';
-import { Search, Plus, Minus, Trash2, ShoppingCart, Package, Tag, Lock, Flag, Wallet } from 'lucide-react';
+import { Search, Plus, Minus, Trash2, ShoppingCart, Package, Tag, Lock, Flag, Wallet, LayoutGrid } from 'lucide-react';
 import PaymentModal from '../../components/pos/PaymentModal';
 import InvoicePreview from '../../components/pos/InvoicePreview';
 import OpeningBalanceModal from '../../components/pos/OpeningBalanceModal';
@@ -42,6 +43,12 @@ const POS: React.FC = () => {
   const [priceTiers, setPriceTiers] = useState<PriceTier[]>([]);
   const [productRules, setProductRules] = useState<ProductTierPrice[]>([]);
   const [selectedTierId, setSelectedTierId] = useState<number | null>(null);
+  const allCategoriesRef = useRef<Category[]>([]); // all categories, no re-render on load
+  const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
+  const [categorySearch, setCategorySearch] = useState('');
+  const [categoryDropdownOpen, setCategoryDropdownOpen] = useState(false);
+  const categoryInputRef = useRef<HTMLInputElement | null>(null);
+  const categoryDropdownRef = useRef<HTMLDivElement | null>(null);
 
   // Infinite scroll state
   const [posPage, setPosPage] = useState(1);
@@ -103,7 +110,7 @@ const POS: React.FC = () => {
   }, [guestPhone]);
 
   // Fetch products (paginated, appending)
-  const fetchProducts = useCallback(async (page: number, search: string, reset: boolean) => {
+  const fetchProducts = useCallback(async (page: number, search: string, reset: boolean, category?: number | null) => {
     if (posLoadingRef.current) return; // ref-based guard avoids stale closure
     posLoadingRef.current = true;
     setPosLoading(true);
@@ -112,6 +119,7 @@ const POS: React.FC = () => {
         page,
         page_size: 25,
         ...(search ? { search } : {}),
+        ...(category ? { category } : {}),
       });
       const results: any[] = data.results || data;
 
@@ -127,23 +135,25 @@ const POS: React.FC = () => {
     }
   }, []);
 
-  // Fetch initial data (tiers + rules once, products paginated)
+  // Fetch initial data (tiers + rules + categories once, products paginated)
   useEffect(() => {
     const fetchInitialData = async () => {
       try {
-        const [tiersData, rulesData] = await Promise.all([
+        const [tiersData, rulesData, categoriesData] = await Promise.all([
           priceTierService.getAllTiers(),
-          priceTierService.getProductRules()
+          priceTierService.getProductRules(),
+          categoryService.getAll(),
         ]);
         setPriceTiers(tiersData.filter((t: PriceTier) => t.is_active));
         setProductRules(rulesData);
+        allCategoriesRef.current = categoriesData.filter((c: Category) => c.is_active);
       } catch (error) {
-        console.error('Error fetching tiers/rules:', error);
+        console.error('Error fetching initial POS data:', error);
         dispatch(addNotification({ message: 'Failed to load POS data', type: 'error' }));
       }
     };
     fetchInitialData();
-    fetchProducts(1, '', true);
+    fetchProducts(1, '', true, null);
   }, [dispatch, fetchProducts]);
 
   // Handle Session State
@@ -159,16 +169,16 @@ const POS: React.FC = () => {
     const observer = new IntersectionObserver(
       (entries) => {
         if (entries[0].isIntersecting && hasMore && !posLoading) {
-          fetchProducts(posPage + 1, productSearch, false);
+          fetchProducts(posPage + 1, productSearch, false, selectedCategory?.id);
         }
       },
       { threshold: 0.1 }
     );
     observer.observe(sentinelRef.current);
     return () => observer.disconnect();
-  }, [hasMore, posLoading, posPage, productSearch, fetchProducts, needsSessionSetup]);
+  }, [hasMore, posLoading, posPage, productSearch, selectedCategory, fetchProducts, needsSessionSetup]);
 
-  // Debounce search → reset to page 1
+  // Debounce search + category filter → reset to page 1
   // Skip on initial mount — the initial product load is handled by fetchInitialData
   useEffect(() => {
     if (isFirstSearch.current) {
@@ -178,13 +188,30 @@ const POS: React.FC = () => {
     if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
     searchDebounceRef.current = setTimeout(() => {
       setProducts([]);
-      setHasMore(true);
-      fetchProducts(1, productSearch, true);
+      setHasMore(false);
+      fetchProducts(1, productSearch, true, selectedCategory?.id);
     }, 300);
     return () => {
       if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
     };
-  }, [productSearch]); // intentionally omit fetchProducts to avoid loop
+  }, [productSearch, selectedCategory]); // intentionally omit fetchProducts to avoid loop
+
+  // Close category dropdown on outside click
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (
+        categoryDropdownRef.current &&
+        !categoryDropdownRef.current.contains(e.target as Node) &&
+        categoryInputRef.current &&
+        !categoryInputRef.current.contains(e.target as Node)
+      ) {
+        setCategoryDropdownOpen(false);
+        setCategorySearch('');
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   const calculateEffectivePrice = (product: any) => {
     const baseSellingPrice = parseFloat(product.selling_price);
@@ -500,7 +527,8 @@ const POS: React.FC = () => {
       {/* Left Panel - Products */}
       <div className="flex-1 flex flex-col min-h-0 overflow-hidden py-2 pl-2">
         {/* Fixed header bar */}
-        <div className="card shadow-sm p-3 shrink-0 mb-3">
+        <div className="card shadow-sm p-3 shrink-0 mb-3 space-y-2.5">
+          {/* Row 1: Title + Search + Tier */}
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
              <div className="flex items-center gap-3">
                <h2 className="text-lg font-bold text-gray-800">Products</h2>
@@ -548,6 +576,110 @@ const POS: React.FC = () => {
                   </select>
                </div>
              </div>
+          </div>
+
+          {/* Row 2: Category combobox */}
+          <div className="flex items-center gap-2">
+            <LayoutGrid className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+
+            {/* Selected category chip */}
+            {selectedCategory && (
+              <div className="flex items-center gap-1 bg-blue-600 text-white text-xs font-semibold px-2.5 py-1 rounded-full shrink-0 shadow-sm">
+                <span>{selectedCategory.name}</span>
+                <button
+                  onClick={() => setSelectedCategory(null)}
+                  className="ml-0.5 hover:bg-blue-700 rounded-full p-0.5 transition-colors"
+                  title="Clear category"
+                >
+                  <Plus className="w-2.5 h-2.5 rotate-45" />
+                </button>
+              </div>
+            )}
+
+            {/* Combobox input */}
+            <div className="relative">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400 pointer-events-none" />
+              <input
+                ref={categoryInputRef}
+                type="text"
+                placeholder={selectedCategory ? 'Change category...' : 'Filter by category...'}
+                value={categorySearch}
+                onChange={(e) => {
+                  setCategorySearch(e.target.value);
+                  setCategoryDropdownOpen(true);
+                }}
+                onFocus={() => setCategoryDropdownOpen(true)}
+                className="pl-7 pr-3 py-1.5 text-xs border border-gray-200 rounded-lg outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400 w-44 bg-gray-50 transition-all"
+              />
+
+              {/* Dropdown */}
+              {categoryDropdownOpen && (
+                <div
+                  ref={categoryDropdownRef}
+                  className="absolute top-full left-0 mt-1 w-56 bg-white border border-gray-200 rounded-lg shadow-lg z-50 overflow-hidden"
+                >
+                  {/* All option */}
+                  <button
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => {
+                      setSelectedCategory(null);
+                      setCategoryDropdownOpen(false);
+                      setCategorySearch('');
+                    }}
+                    className={`w-full text-left px-3 py-2 text-xs font-semibold flex items-center justify-between hover:bg-blue-50 transition-colors ${
+                      !selectedCategory ? 'text-blue-600 bg-blue-50/50' : 'text-gray-700'
+                    }`}
+                  >
+                    <span>All Categories</span>
+                    {!selectedCategory && <span className="w-1.5 h-1.5 rounded-full bg-blue-600 inline-block" />}
+                  </button>
+
+                  <div className="border-t border-gray-100 max-h-52 overflow-y-auto">
+                    {(() => {
+                      const filtered = allCategoriesRef.current.filter(c =>
+                        c.name.toLowerCase().includes(categorySearch.toLowerCase())
+                      ).slice(0, 10); // render max 10
+
+                      if (filtered.length === 0) {
+                        return (
+                          <div className="px-3 py-4 text-center text-xs text-gray-400">
+                            No categories found
+                          </div>
+                        );
+                      }
+
+                      return filtered.map(cat => (
+                        <button
+                          key={cat.id}
+                          onMouseDown={(e) => e.preventDefault()}
+                          onClick={() => {
+                            setSelectedCategory(cat);
+                            setCategoryDropdownOpen(false);
+                            setCategorySearch('');
+                          }}
+                          className={`w-full text-left px-3 py-2 text-xs flex items-center justify-between hover:bg-blue-50 transition-colors ${
+                            selectedCategory?.id === cat.id ? 'text-blue-600 bg-blue-50/50 font-semibold' : 'text-gray-700'
+                          }`}
+                        >
+                          <span className="truncate">{cat.name}</span>
+                          <span className="ml-2 text-[10px] text-gray-400 shrink-0">
+                            {cat.product_count ?? ''}
+                          </span>
+                        </button>
+                      ));
+                    })()}
+
+                    {allCategoriesRef.current.filter(c =>
+                      c.name.toLowerCase().includes(categorySearch.toLowerCase())
+                    ).length > 10 && (
+                      <div className="px-3 py-1.5 text-center text-[10px] text-gray-400 border-t border-gray-100">
+                        Type to narrow down results
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </div>
 

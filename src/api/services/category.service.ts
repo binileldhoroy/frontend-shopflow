@@ -18,9 +18,9 @@ export interface Category {
 }
 
 export const categoryService = {
-  // Get all categories
-  getAll: async (): Promise<Category[]> => {
-    const response = await axiosInstance.get<Category[]>(API_ENDPOINTS.CATEGORIES.LIST);
+  // Get all categories (optional server-side search)
+  getAll: async (params?: { search?: string }): Promise<Category[]> => {
+    const response = await axiosInstance.get<Category[]>(API_ENDPOINTS.CATEGORIES.LIST, { params });
     return response.data;
   },
 
