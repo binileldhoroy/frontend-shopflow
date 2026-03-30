@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { FileText, Plus, Eye, X, Printer, ChevronRight, ChevronLeft, Search, User } from 'lucide-react';
 import { format } from 'date-fns';
 import { useReactToPrint } from 'react-to-print';
@@ -19,6 +19,7 @@ const Invoices: React.FC = () => {
   const [states, setStates] = useState<StateMaster[]>([]);
   const [searchingCustomers, setSearchingCustomers] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [initialLoading, setInitialLoading] = useState(true);
 
   // Pagination and search
   const [currentPage, setCurrentPage] = useState(1);
@@ -143,6 +144,7 @@ const Invoices: React.FC = () => {
       console.error('Error fetching invoices:', error);
     } finally {
       setLoading(false);
+      setInitialLoading(false);
     }
   };
 
@@ -368,61 +370,96 @@ const Invoices: React.FC = () => {
     }
   };
 
-  if (loading && currentPage === 1) {
+  // Animation state for modals
+  const [createModalVisible, setCreateModalVisible] = useState(false);
+  const [viewModalVisible, setViewModalVisible] = useState(false);
+
+  // Animated open
+  const openCreateModal = useCallback(() => {
+    setShowCreateModal(true);
+    requestAnimationFrame(() => setCreateModalVisible(true));
+  }, []);
+
+  const closeCreateModal = useCallback(() => {
+    setCreateModalVisible(false);
+    setTimeout(resetModal, 200);
+  }, []);
+
+  const openViewModal = useCallback((invoice: TaxInvoice) => {
+    setViewingInvoice(invoice);
+    requestAnimationFrame(() => setViewModalVisible(true));
+  }, []);
+
+  const closeViewModal = useCallback(() => {
+    setViewModalVisible(false);
+    setTimeout(() => setViewingInvoice(null), 200);
+  }, []);
+
+  if (initialLoading) {
     return (
       <div className="flex items-center justify-center h-full">
         <div className="text-center">
-          <div className="w-16 h-16 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading invoices...</p>
+          <div className="w-10 h-10 border-gray-200 border-t-gray-600 rounded-full animate-spin mx-auto mb-3" style={{borderWidth: 3, borderStyle: 'solid'}}></div>
+          <p className="text-sm text-gray-500">Loading invoices…</p>
         </div>
       </div>
     );
   }
 
+  const stepLabels = ['Select Sale', 'Customer Details', 'Preview'];
+
   return (
-    <div className="h-full flex flex-col">
+    <div className="h-full flex flex-col gap-4">
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Tax Invoices</h1>
-          <p className="text-gray-600">Generate and manage GST invoices</p>
+          <h1 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+            <FileText className="w-5 h-5 text-gray-500" />
+            Tax Invoices
+          </h1>
+          <p className="text-sm text-gray-500 mt-0.5">Generate and manage GST invoices</p>
         </div>
         <button
-          onClick={() => setShowCreateModal(true)}
-          className="btn btn-primary flex items-center gap-2"
+          onClick={openCreateModal}
+          className="flex items-center gap-2 px-4 py-2 bg-gray-900 hover:bg-gray-700 text-white text-sm font-medium rounded-lg transition-colors shadow-sm"
         >
           <Plus className="w-4 h-4" />
           Generate Invoice
         </button>
       </div>
 
-      {/* Search and Filters */}
-      <div className="mb-4 flex gap-4">
-        <div className="flex-1 relative">
-          <Search className="w-5 h-5 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-          <input
-            type="text"
-            placeholder="Search by invoice number..."
-            value={searchQuery}
-            onChange={(e) => {
-              setSearchQuery(e.target.value);
-              setCurrentPage(1);
-            }}
-            className="input-field pl-10"
-          />
-        </div>
+      {/* Search */}
+      <div className="relative max-w-sm">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+        <input
+          type="text"
+          placeholder="Search by invoice number…"
+          value={searchQuery}
+          onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }}
+          className="w-full pl-9 pr-3 py-2 text-sm border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-gray-400 focus:border-transparent transition-all bg-white"
+        />
       </div>
 
-      {/* Invoices Table */}
-      <div className="card flex-1 flex flex-col min-h-0 overflow-hidden">
-        {invoices.length === 0 ? (
-          <div className="text-center py-12 flex-1">
-            <FileText className="w-16 h-16 mx-auto text-gray-300 mb-4" />
-            <p className="text-gray-500 mb-4">
-              {searchQuery ? 'No invoices found matching your search' : 'No invoices generated yet'}
+      {/* Table Card */}
+      <div className="bg-white border border-gray-200 rounded-xl flex-1 flex flex-col min-h-0 overflow-hidden shadow-sm relative">
+        {/* Inline loading overlay — shown on search/page changes without unmounting */}
+        {loading && !initialLoading && (
+          <div className="absolute inset-0 bg-white/70 z-10 flex items-center justify-center rounded-xl">
+            <div className="w-6 h-6 border-2 border-gray-200 border-t-gray-600 rounded-full animate-spin" />
+          </div>
+        )}
+
+        {!loading && invoices.length === 0 ? (
+          <div className="flex-1 flex flex-col items-center justify-center py-16 text-center">
+            <FileText className="w-12 h-12 text-gray-200 mb-3" />
+            <p className="text-sm font-medium text-gray-500">
+              {searchQuery ? `No results for "${searchQuery}"` : 'No invoices yet'}
             </p>
             {!searchQuery && (
-              <button onClick={() => setShowCreateModal(true)} className="btn btn-primary">
+              <button
+                onClick={openCreateModal}
+                className="mt-4 px-4 py-2 text-sm bg-gray-900 text-white rounded-lg hover:bg-gray-700 transition-colors"
+              >
                 Generate First Invoice
               </button>
             )}
@@ -430,45 +467,42 @@ const Invoices: React.FC = () => {
         ) : (
           <div className="flex flex-col h-full min-h-0">
             <div className="flex-1 overflow-x-auto overflow-y-auto">
-              <table className="w-full">
+              <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-b border-gray-200">
-                    <th className="text-left py-3 px-4 font-medium text-gray-700">Invoice #</th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-700">Date</th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-700">Customer</th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-700">Sale Order</th>
-                    <th className="text-right py-3 px-4 font-medium text-gray-700">Amount</th>
-                    <th className="text-center py-3 px-4 font-medium text-gray-700">Status</th>
-                    <th className="text-right py-3 px-4 font-medium text-gray-700">Actions</th>
+                  <tr className="border-b border-gray-100 bg-gray-50/60">
+                    <th className="text-left py-3 px-4 font-semibold text-gray-500 text-xs uppercase tracking-wide">Invoice #</th>
+                    <th className="text-left py-3 px-4 font-semibold text-gray-500 text-xs uppercase tracking-wide">Date</th>
+                    <th className="text-left py-3 px-4 font-semibold text-gray-500 text-xs uppercase tracking-wide">Customer</th>
+                    <th className="text-left py-3 px-4 font-semibold text-gray-500 text-xs uppercase tracking-wide">Sale Order</th>
+                    <th className="text-right py-3 px-4 font-semibold text-gray-500 text-xs uppercase tracking-wide">Amount</th>
+                    <th className="text-center py-3 px-4 font-semibold text-gray-500 text-xs uppercase tracking-wide">Status</th>
+                    <th className="py-3 px-4"></th>
                   </tr>
                 </thead>
-                <tbody>
+                <tbody className="divide-y divide-gray-100">
                   {invoices.map((invoice) => (
-                    <tr key={invoice.id} className="border-b border-gray-100 hover:bg-gray-50">
-                      <td className="py-3 px-4 font-medium text-gray-900">{invoice.invoice_number}</td>
-                      <td className="py-3 px-4 text-gray-600">{format(new Date(invoice.invoice_date), 'dd/MM/yyyy')}</td>
-                      <td className="py-3 px-4 text-gray-600">{invoice.customer_name}</td>
-                      <td className="py-3 px-4 text-gray-600">{invoice.sale_order_data?.order_number}</td>
-                      <td className="py-3 px-4 text-right font-medium text-gray-900">
+                    <tr key={invoice.id} className="hover:bg-gray-50/70 transition-colors group">
+                      <td className="py-3.5 px-4 font-semibold text-gray-800 font-mono text-sm">{invoice.invoice_number}</td>
+                      <td className="py-3.5 px-4 text-gray-600 text-sm">{format(new Date(invoice.invoice_date), 'dd MMM yyyy')}</td>
+                      <td className="py-3.5 px-4 text-gray-700 text-sm">{invoice.customer_name || '—'}</td>
+                      <td className="py-3.5 px-4 text-gray-500 font-mono text-sm">{invoice.sale_order_data?.order_number}</td>
+                      <td className="py-3.5 px-4 text-right font-semibold text-gray-800 text-sm">
                         ₹{Math.round(invoice.sale_order_data?.total_amount || 0).toLocaleString()}
                       </td>
-                      <td className="py-3 px-4 text-center">
+                      <td className="py-3.5 px-4 text-center">
                         {invoice.is_cancelled ? (
-                          <span className="badge badge-danger">Cancelled</span>
+                          <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-red-50 text-red-600 border border-red-100">Cancelled</span>
                         ) : (
-                          <span className="badge badge-success">Active</span>
+                          <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-green-50 text-green-700 border border-green-100">Active</span>
                         )}
                       </td>
-                      <td className="py-3 px-4">
-                        <div className="flex items-center justify-end gap-2">
-                          <button
-                            className="p-2 text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
-                            onClick={() => setViewingInvoice(invoice)}
-                            title="View Invoice"
-                          >
-                            <Eye className="w-4 h-4" />
-                          </button>
-                        </div>
+                      <td className="py-3.5 px-4 text-right">
+                        <button
+                          onClick={() => openViewModal(invoice)}
+                          className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
+                        >
+                          <Eye className="w-3.5 h-3.5" /> View
+                        </button>
                       </td>
                     </tr>
                   ))}
@@ -478,56 +512,35 @@ const Invoices: React.FC = () => {
 
             {/* Pagination */}
             {totalCount > 0 && (
-              <div className="flex flex-wrap items-center justify-between gap-4 pt-4 mt-4 border-t border-gray-200 shrink-0">
-                <div className="flex items-center gap-2">
-                  <span className="text-sm text-gray-600">Show</span>
+              <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 border-t border-gray-100 bg-gray-50/40 shrink-0">
+                <div className="flex items-center gap-2 text-sm text-gray-500">
+                  <span>Show</span>
                   <select
                     value={pageSize}
                     onChange={(e) => setPageSize(Number(e.target.value))}
-                    className="input-field py-1 px-2 text-sm w-20"
+                    className="border border-gray-200 rounded px-1.5 py-1 text-sm outline-none focus:ring-1 focus:ring-gray-400 bg-white"
                   >
-                    <option value={10}>10</option>
-                    <option value={25}>25</option>
-                    <option value={50}>50</option>
-                    <option value={100}>100</option>
+                    {[10, 25, 50, 100].map(n => <option key={n} value={n}>{n}</option>)}
                   </select>
-                  <span className="text-sm text-gray-600 whitespace-nowrap">
-                    entries (Showing {(currentPage - 1) * pageSize + 1}-{Math.min(currentPage * pageSize, totalCount)} of {totalCount})
-                  </span>
+                  <span>— {(currentPage - 1) * pageSize + 1}–{Math.min(currentPage * pageSize, totalCount)} of {totalCount}</span>
                 </div>
-
                 <div className="flex items-center gap-1">
-                  <button
-                    onClick={() => handlePageChange(currentPage - 1)}
-                    disabled={currentPage === 1}
-                    className="px-3 py-1 text-sm border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    Previous
+                  <button onClick={() => handlePageChange(currentPage - 1)} disabled={currentPage === 1}
+                    className="px-2.5 py-1.5 text-sm border border-gray-200 rounded hover:bg-white disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
+                    <ChevronLeft className="w-4 h-4" />
                   </button>
-
-                  {getPageNumbers().map((page, index) => (
-                    <button
-                      key={index}
-                      onClick={() => typeof page === 'number' && handlePageChange(page)}
-                      disabled={page === '...'}
-                      className={`px-3 py-1 text-sm border rounded ${
-                        page === currentPage
-                          ? 'bg-primary-600 text-white border-primary-600'
-                          : page === '...'
-                          ? 'border-transparent cursor-default'
-                          : 'border-gray-300 hover:bg-gray-50'
-                      }`}
-                    >
+                  {getPageNumbers().map((page, i) => (
+                    <button key={i} onClick={() => typeof page === 'number' && handlePageChange(page)} disabled={page === '...'}
+                      className={`px-3 py-1.5 text-sm border rounded transition-colors ${
+                        page === currentPage ? 'bg-gray-900 text-white border-gray-900' :
+                        page === '...' ? 'border-transparent cursor-default text-gray-400' :
+                        'border-gray-200 hover:bg-white'}`}>
                       {page}
                     </button>
                   ))}
-
-                  <button
-                    onClick={() => handlePageChange(currentPage + 1)}
-                    disabled={currentPage === totalPages}
-                    className="px-3 py-1 text-sm border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    Next
+                  <button onClick={() => handlePageChange(currentPage + 1)} disabled={currentPage === totalPages}
+                    className="px-2.5 py-1.5 text-sm border border-gray-200 rounded hover:bg-white disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
+                    <ChevronRight className="w-4 h-4" />
                   </button>
                 </div>
               </div>
@@ -536,108 +549,102 @@ const Invoices: React.FC = () => {
         )}
       </div>
 
-      {/* Create Invoice Modal - Multi-Step */}
+      {/* ── Create Invoice Modal ── */}
       {showCreateModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg w-full max-w-4xl max-h-[90vh] flex flex-col">
-            {/* Modal Header */}
-            <div className="flex items-center justify-between p-6 border-b">
+        <div
+          className={`fixed inset-0 z-50 flex items-center justify-center p-4 transition-all duration-200 ${createModalVisible ? 'bg-black/40' : 'bg-black/0'}`}
+          onClick={(e) => { if (e.target === e.currentTarget) closeCreateModal(); }}
+        >
+          <div className={`bg-white rounded-xl shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col transition-all duration-200 ${createModalVisible ? 'opacity-100 scale-100' : 'opacity-0 scale-95'}`}>
+            {/* Header */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
               <div>
-                <h2 className="text-xl font-bold">Generate Invoice</h2>
-                <p className="text-sm text-gray-600 mt-1">
-                  Step {currentStep} of 3: {
-                    currentStep === 1 ? 'Select Sale Order' :
-                    currentStep === 2 ? 'Customer Details' :
-                    'Preview & Generate'
-                  }
-                </p>
+                <h2 className="text-base font-bold text-gray-900">Generate Invoice</h2>
+                {/* Step progress */}
+                <div className="flex items-center gap-2 mt-2">
+                  {stepLabels.map((label, i) => {
+                    const step = i + 1;
+                    const done = currentStep > step;
+                    const active = currentStep === step;
+                    return (
+                      <React.Fragment key={step}>
+                        <div className="flex items-center gap-1.5">
+                          <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold transition-colors ${
+                            done ? 'bg-gray-900 text-white' : active ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-400'}`}>
+                            {done ? '✓' : step}
+                          </div>
+                          <span className={`text-xs font-medium transition-colors ${active ? 'text-gray-900' : 'text-gray-400'}`}>{label}</span>
+                        </div>
+                        {i < stepLabels.length - 1 && (
+                          <div className={`h-px w-6 transition-colors ${currentStep > step ? 'bg-gray-900' : 'bg-gray-200'}`} />
+                        )}
+                      </React.Fragment>
+                    );
+                  })}
+                </div>
               </div>
-              <button onClick={resetModal} className="text-gray-500 hover:text-gray-700">
-                <X className="w-6 h-6" />
+              <button onClick={closeCreateModal} className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">
+                <X className="w-5 h-5" />
               </button>
             </div>
 
-            {/* Modal Body */}
+            {/* Body */}
             <div className="flex-1 overflow-auto p-6">
-              {/* Step 1: Select Sale Order */}
-              {currentStep === 1 && (
-                <div>
-                  <label className="label mb-2">Select Sale Order *</label>
 
-                  {/* Search field for sale orders */}
-                  <div className="mb-4 relative">
-                    <Search className="w-5 h-5 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+              {/* Step 1 */}
+              {currentStep === 1 && (
+                <div className="space-y-4">
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
                     <input
                       type="text"
-                      placeholder="Search by order number or customer name..."
+                      placeholder="Search by order number or customer…"
                       value={saleSearchQuery}
-                      onChange={(e) => {
-                        setSaleSearchQuery(e.target.value);
-                        setSalePage(1); // Reset to first page on search
-                      }}
-                      className="input-field pl-10"
+                      onChange={(e) => { setSaleSearchQuery(e.target.value); setSalePage(1); }}
+                      className="w-full pl-9 pr-3 py-2 text-sm border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-gray-400 transition-all"
                     />
                   </div>
 
                   {loadingSales ? (
-                    <div className="text-center py-12">
-                      <div className="w-8 h-8 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin mx-auto mb-4"></div>
-                      <p className="text-gray-500">Loading sales...</p>
+                    <div className="flex flex-col items-center justify-center py-12 text-gray-400">
+                      <div className="w-6 h-6 border-2 border-gray-200 border-t-gray-500 rounded-full animate-spin mb-2" />
+                      <span className="text-xs">Loading…</span>
                     </div>
                   ) : availableSales.length === 0 ? (
-                    <div className="text-center py-8">
-                      <p className="text-gray-500">
-                        {saleSearchQuery ? 'No sales found matching your search' : 'All sales already have invoices generated'}
-                      </p>
+                    <div className="text-center py-10 text-sm text-gray-400">
+                      {saleSearchQuery ? `No sales matching "${saleSearchQuery}"` : 'All sales already have invoices'}
                     </div>
                   ) : (
                     <>
-                      <div className="space-y-2 max-h-96 overflow-y-auto mb-4">
+                      <div className="space-y-1.5 max-h-80 overflow-y-auto pr-1">
                         {availableSales.map((sale) => (
-                          <div
+                          <button
                             key={sale.id}
                             onClick={() => handleSelectSale(sale.id)}
-                            className="p-4 border-2 border-gray-200 rounded-lg hover:border-blue-500 cursor-pointer transition-colors"
+                            className="w-full flex items-center justify-between p-3.5 border border-gray-200 rounded-lg hover:border-gray-400 hover:bg-gray-50 transition-all text-left group"
                           >
-                            <div className="flex items-center justify-between">
-                              <div>
-                                <p className="font-semibold">{sale.order_number}</p>
-                                <p className="text-sm text-gray-600">{sale.customer_name}</p>
-                                <p className="text-xs text-gray-500 mt-1">
-                                  {format(new Date(sale.sale_date), 'dd MMM yyyy')}
-                                </p>
-                              </div>
-                              <div className="text-right">
-                                <p className="text-lg font-bold text-blue-600">
-                                  ₹{Math.round(sale.total_amount).toLocaleString()}
-                                </p>
-                                <ChevronRight className="w-5 h-5 text-gray-400 mt-1 ml-auto" />
-                              </div>
+                            <div>
+                              <p className="font-semibold text-sm text-gray-800 font-mono">{sale.order_number}</p>
+                              <p className="text-xs text-gray-500 mt-0.5">{sale.customer_name || 'Walk-in'} · {format(new Date(sale.sale_date), 'dd MMM yyyy')}</p>
                             </div>
-                          </div>
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm font-bold text-gray-700">₹{Math.round(sale.total_amount).toLocaleString()}</span>
+                              <ChevronRight className="w-4 h-4 text-gray-300 group-hover:text-gray-600 transition-colors" />
+                            </div>
+                          </button>
                         ))}
                       </div>
-
-                      {/* Pagination for sales */}
                       {saleTotalPages > 1 && (
-                        <div className="flex items-center justify-between pt-4 border-t">
-                          <p className="text-sm text-gray-600">
-                            Page {salePage} of {saleTotalPages}
-                          </p>
-                          <div className="flex gap-2">
-                            <button
-                              onClick={() => setSalePage((p) => Math.max(1, p - 1))}
-                              disabled={salePage === 1}
-                              className="btn btn-secondary btn-sm disabled:opacity-50 disabled:cursor-not-allowed"
-                            >
-                              <ChevronLeft className="w-4 h-4" />
+                        <div className="flex items-center justify-between pt-3 border-t border-gray-100 text-xs text-gray-500">
+                          <span>Page {salePage} of {saleTotalPages}</span>
+                          <div className="flex gap-1">
+                            <button onClick={() => setSalePage(p => Math.max(1, p - 1))} disabled={salePage === 1}
+                              className="px-2.5 py-1 border border-gray-200 rounded hover:bg-gray-50 disabled:opacity-40 transition-colors">
+                              <ChevronLeft className="w-3.5 h-3.5" />
                             </button>
-                            <button
-                              onClick={() => setSalePage((p) => Math.min(saleTotalPages, p + 1))}
-                              disabled={salePage === saleTotalPages}
-                              className="btn btn-secondary btn-sm disabled:opacity-50 disabled:cursor-not-allowed"
-                            >
-                              <ChevronRight className="w-4 h-4" />
+                            <button onClick={() => setSalePage(p => Math.min(saleTotalPages, p + 1))} disabled={salePage === saleTotalPages}
+                              className="px-2.5 py-1 border border-gray-200 rounded hover:bg-gray-50 disabled:opacity-40 transition-colors">
+                              <ChevronRight className="w-3.5 h-3.5" />
                             </button>
                           </div>
                         </div>
@@ -647,274 +654,182 @@ const Invoices: React.FC = () => {
                 </div>
               )}
 
-              {/* Step 2: Customer Details */}
+              {/* Step 2 */}
               {currentStep === 2 && selectedSale && (
                 <div className="space-y-4">
-                  <div className="bg-blue-50 p-4 rounded-lg mb-4">
-                    <p className="text-sm font-semibold text-blue-900">Selected Sale Order</p>
-                    <p className="text-sm text-blue-700">{selectedSale.order_number} - ₹{Math.round(selectedSale.total_amount).toLocaleString()}</p>
+                  {/* Sale summary pill */}
+                  <div className="flex items-center gap-3 px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm">
+                    <FileText className="w-4 h-4 text-gray-400 shrink-0" />
+                    <span className="font-mono font-semibold text-gray-700">{selectedSale.order_number}</span>
+                    <span className="text-gray-400">·</span>
+                    <span className="font-semibold text-gray-700">₹{Math.round(selectedSale.total_amount).toLocaleString()}</span>
                   </div>
 
-                  {/* Customer Selection with Searchable Dropdown */}
+                  {/* Customer lookup */}
                   <div>
-                    <label className="label">Select Existing Customer (Optional)</label>
+                    <label className="block text-xs font-medium text-gray-600 mb-1.5">Load from existing customer <span className="text-gray-400 font-normal">(optional)</span></label>
                     <div className="relative">
                       <button
                         type="button"
                         onClick={() => setShowCustomerDropdown(!showCustomerDropdown)}
-                        className="input-field text-left flex items-center justify-between w-full"
+                        className="w-full flex items-center justify-between px-3 py-2 text-sm border border-gray-200 rounded-lg hover:border-gray-400 transition-colors bg-white text-left"
                       >
-                        <div className="flex items-center gap-2">
-                          <User className="w-5 h-5 text-gray-400" />
-                          <span className={selectedCustomer ? 'text-gray-900' : 'text-gray-500'}>
-                            {selectedCustomer
-                              ? customers.find(c => c.id === selectedCustomer)?.name
-                              : '-- Select a customer or enter manually --'}
+                        <div className="flex items-center gap-2 text-gray-500">
+                          <User className="w-4 h-4" />
+                          <span className={selectedCustomer ? 'text-gray-900 font-medium' : ''}>
+                            {selectedCustomer ? customers.find(c => c.id === selectedCustomer)?.name : 'Select a customer…'}
                           </span>
                         </div>
-                        <ChevronRight className={`w-5 h-5 text-gray-400 transition-transform ${showCustomerDropdown ? 'rotate-90' : ''}`} />
+                        <ChevronRight className={`w-4 h-4 text-gray-400 transition-transform ${showCustomerDropdown ? 'rotate-90' : ''}`} />
                       </button>
 
-                      {/* Dropdown Menu */}
                       {showCustomerDropdown && (
-                        <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-80 overflow-hidden">
-                          {/* Search inside dropdown */}
-                          <div className="p-2 border-b sticky top-0 bg-white">
+                        <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden">
+                          <div className="p-2 border-b border-gray-100 sticky top-0 bg-white">
                             <div className="relative">
-                              <Search className="w-4 h-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400 pointer-events-none" />
                               <input
                                 type="text"
-                                placeholder="Search customers..."
+                                placeholder="Search customers…"
                                 value={customerSearchQuery}
                                 onChange={(e) => setCustomerSearchQuery(e.target.value)}
-                                className="w-full pl-9 pr-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                                 onClick={(e) => e.stopPropagation()}
+                                className="w-full pl-8 pr-3 py-1.5 text-xs border border-gray-200 rounded-lg outline-none focus:ring-1 focus:ring-gray-400"
+                                autoFocus
                               />
                             </div>
                           </div>
-
-                          {/* Customer List */}
-                          <div className="max-h-60 overflow-y-auto">
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setSelectedCustomer(null);
-                                setShowCustomerDropdown(false);
-                                setCustomerSearchQuery('');
-                              }}
-                              className="w-full text-left px-4 py-2 hover:bg-gray-100 text-sm text-gray-500 border-b"
-                            >
-                              -- Enter manually --
+                          <div className="max-h-52 overflow-y-auto">
+                            <button type="button" onClick={() => { setSelectedCustomer(null); setShowCustomerDropdown(false); setCustomerSearchQuery(''); }}
+                              className="w-full text-left px-3 py-2 text-xs text-gray-400 hover:bg-gray-50 border-b border-gray-50 italic">
+                              Enter manually
                             </button>
-
                             {searchingCustomers ? (
-                              <div className="px-4 py-8 text-center text-sm text-gray-500">
-                                <div className="w-5 h-5 border-2 border-blue-200 border-t-blue-600 rounded-full animate-spin mx-auto mb-2"></div>
-                                Searching...
+                              <div className="py-6 text-center text-xs text-gray-400">
+                                <div className="w-4 h-4 border-2 border-gray-200 border-t-gray-500 rounded-full animate-spin mx-auto mb-1" />Searching…
                               </div>
                             ) : customerSearchQuery.length < 2 ? (
-                              <div className="px-4 py-8 text-center text-sm text-gray-500">
-                                Type at least 2 characters to search
-                              </div>
+                              <div className="py-6 text-center text-xs text-gray-400">Type at least 2 characters</div>
                             ) : customers.length === 0 ? (
-                              <div className="px-4 py-8 text-center text-sm text-gray-500">
-                                No customers found
-                              </div>
-                            ) : (
-                              customers
-                                .filter(c => !c.is_guest)
-                                .map((customer) => (
-                                  <button
-                                    key={customer.id}
-                                    type="button"
-                                    onClick={() => {
-                                      handleCustomerSelect(customer.id);
-                                      setShowCustomerDropdown(false);
-                                      setCustomerSearchQuery('');
-                                    }}
-                                    className={`w-full text-left px-4 py-2 hover:bg-blue-50 text-sm ${
-                                      selectedCustomer === customer.id ? 'bg-blue-100' : ''
-                                    }`}
-                                  >
-                                    <div className="font-medium">{customer.name}</div>
-                                    {customer.phone && (
-                                      <div className="text-xs text-gray-500">{customer.phone}</div>
-                                    )}
-                                  </button>
-                                ))
-                            )}
+                              <div className="py-6 text-center text-xs text-gray-400">No customers found</div>
+                            ) : customers.filter(c => !c.is_guest).map((customer) => (
+                              <button key={customer.id} type="button"
+                                onClick={() => { handleCustomerSelect(customer.id); setShowCustomerDropdown(false); setCustomerSearchQuery(''); }}
+                                className={`w-full text-left px-3 py-2.5 hover:bg-gray-50 transition-colors ${selectedCustomer === customer.id ? 'bg-gray-50' : ''}`}>
+                                <div className="text-sm font-medium text-gray-800">{customer.name}</div>
+                                {customer.phone && <div className="text-xs text-gray-400">{customer.phone}</div>}
+                              </button>
+                            ))}
                           </div>
                         </div>
                       )}
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="label">Customer Name *</label>
-                      <input
-                        type="text"
-                        className={`input-field ${errors.customer_name ? 'input-error' : ''}`}
-                        value={customerDetails.customer_name}
-                        onChange={(e) => handleCustomerDetailChange('customer_name', e.target.value)}
-                        placeholder="Enter customer name"
-                      />
-                      {errors.customer_name && (
-                        <p className="text-sm text-red-600 mt-1">{errors.customer_name}</p>
-                      )}
-                    </div>
-
-                    <div>
-                      <label className="label">GSTIN (Optional)</label>
-                      <input
-                        type="text"
-                        className="input-field"
-                        value={customerDetails.customer_gstin}
-                        onChange={(e) => handleCustomerDetailChange('customer_gstin', e.target.value)}
-                        placeholder="22AAAAA0000A1Z5"
-                      />
-                    </div>
+                  <div className="border-t border-gray-100 pt-4 grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {[
+                      { label: 'Customer Name', field: 'customer_name', required: true, placeholder: 'Full name' },
+                      { label: 'GSTIN', field: 'customer_gstin', placeholder: '22AAAAA0000A1Z5' },
+                      { label: 'Phone', field: 'customer_phone', placeholder: '+91 9876543210', type: 'tel' },
+                      { label: 'Email', field: 'customer_email', placeholder: 'customer@example.com', type: 'email' },
+                      { label: 'City', field: 'customer_city', placeholder: 'City' },
+                      { label: 'Pincode', field: 'customer_pincode', placeholder: '123456', maxLength: 6 },
+                    ].map(({ label, field, required, placeholder, type, maxLength }) => (
+                      <div key={field}>
+                        <label className="block text-xs font-medium text-gray-600 mb-1">
+                          {label}{required && <span className="text-red-500 ml-0.5">*</span>}
+                        </label>
+                        <input
+                          type={type || 'text'}
+                          placeholder={placeholder}
+                          maxLength={maxLength}
+                          value={(customerDetails as any)[field] || ''}
+                          onChange={(e) => handleCustomerDetailChange(field as keyof TaxInvoiceCreate, e.target.value)}
+                          className={`w-full px-3 py-2 text-sm border rounded-lg outline-none focus:ring-2 focus:ring-gray-400 focus:border-transparent transition-all ${errors[field] ? 'border-red-300 bg-red-50' : 'border-gray-200'}`}
+                        />
+                        {errors[field] && <p className="text-xs text-red-500 mt-1">{errors[field]}</p>}
+                      </div>
+                    ))}
 
                     <div className="md:col-span-2">
-                      <label className="label">Address</label>
+                      <label className="block text-xs font-medium text-gray-600 mb-1">Address</label>
                       <input
                         type="text"
-                        className="input-field"
-                        value={customerDetails.customer_address}
-                        onChange={(e) => handleCustomerDetailChange('customer_address', e.target.value)}
                         placeholder="Street address"
+                        value={customerDetails.customer_address || ''}
+                        onChange={(e) => handleCustomerDetailChange('customer_address', e.target.value)}
+                        className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-gray-400 focus:border-transparent transition-all"
                       />
                     </div>
 
                     <div>
-                      <label className="label">City</label>
-                      <input
-                        type="text"
-                        className="input-field"
-                        value={customerDetails.customer_city}
-                        onChange={(e) => handleCustomerDetailChange('customer_city', e.target.value)}
-                        placeholder="City"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="label">State</label>
+                      <label className="block text-xs font-medium text-gray-600 mb-1">
+                        State {errors.customer_state && <span className="text-red-500">*</span>}
+                      </label>
                       <select
-                        className={`input-field ${errors.customer_state ? 'input-error' : ''}`}
                         value={customerDetails.customer_state || ''}
                         onChange={(e) => handleCustomerDetailChange('customer_state', e.target.value ? parseInt(e.target.value) : undefined as any)}
+                        className={`w-full px-3 py-2 text-sm border rounded-lg outline-none focus:ring-2 focus:ring-gray-400 focus:border-transparent transition-all ${errors.customer_state ? 'border-red-300 bg-red-50' : 'border-gray-200'}`}
                       >
-                        <option value="">Select State</option>
-                        {states.map(state => (
-                          <option key={state.id} value={state.id}>
-                            {state.name}
-                          </option>
-                        ))}
+                        <option value="">Select state</option>
+                        {states.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                       </select>
-                      {errors.customer_state && (
-                        <p className="text-sm text-red-600 mt-1">{errors.customer_state}</p>
-                      )}
-                    </div>
-
-                    <div>
-                      <label className="label">Pincode</label>
-                      <input
-                        type="text"
-                        className={`input-field ${errors.customer_pincode ? 'input-error' : ''}`}
-                        value={customerDetails.customer_pincode}
-                        onChange={(e) => handleCustomerDetailChange('customer_pincode', e.target.value)}
-                        placeholder="123456"
-                        maxLength={6}
-                      />
-                      {errors.customer_pincode && (
-                        <p className="text-sm text-red-600 mt-1">{errors.customer_pincode}</p>
-                      )}
-                    </div>
-
-                    <div>
-                      <label className="label">Phone</label>
-                      <input
-                        type="tel"
-                        className={`input-field ${errors.customer_phone ? 'input-error' : ''}`}
-                        value={customerDetails.customer_phone}
-                        onChange={(e) => handleCustomerDetailChange('customer_phone', e.target.value)}
-                        placeholder="+91 1234567890"
-                      />
-                      {errors.customer_phone && (
-                        <p className="text-sm text-red-600 mt-1">{errors.customer_phone}</p>
-                      )}
-                    </div>
-
-                    <div>
-                      <label className="label">Email</label>
-                      <input
-                        type="email"
-                        className={`input-field ${errors.customer_email ? 'input-error' : ''}`}
-                        value={customerDetails.customer_email}
-                        onChange={(e) => handleCustomerDetailChange('customer_email', e.target.value)}
-                        placeholder="customer@example.com"
-                      />
-                      {errors.customer_email && (
-                        <p className="text-sm text-red-600 mt-1">{errors.customer_email}</p>
-                      )}
+                      {errors.customer_state && <p className="text-xs text-red-500 mt-1">{errors.customer_state}</p>}
                     </div>
                   </div>
                 </div>
               )}
 
-              {/* Step 3: Preview */}
+              {/* Step 3 */}
               {currentStep === 3 && selectedSale && (
-                <div>
-                  <div className="bg-gray-100 p-4 rounded-lg mb-4 max-h-[500px] overflow-y-auto">
-                    <InvoiceTemplate
-                      saleOrder={selectedSale}
-                      invoiceNumber="PREVIEW"
-                      invoiceDate={new Date().toISOString()}
-                      customerDetails={{
-                        name: customerDetails.customer_name,
-                        gstin: customerDetails.customer_gstin,
-                        address: customerDetails.customer_address,
-                        city: customerDetails.customer_city,
-                        state: states.find(s => s.id === customerDetails.customer_state)?.name,
-                        pincode: customerDetails.customer_pincode,
-                        phone: customerDetails.customer_phone,
-                        email: customerDetails.customer_email,
-                      }}
-                    />
-                  </div>
+                <div className="bg-gray-50 rounded-lg overflow-auto max-h-[460px] border border-gray-200">
+                  <InvoiceTemplate
+                    saleOrder={selectedSale}
+                    invoiceNumber="PREVIEW"
+                    invoiceDate={new Date().toISOString()}
+                    customerDetails={{
+                      name: customerDetails.customer_name,
+                      gstin: customerDetails.customer_gstin,
+                      address: customerDetails.customer_address,
+                      city: customerDetails.customer_city,
+                      state: states.find(s => s.id === customerDetails.customer_state)?.name,
+                      pincode: customerDetails.customer_pincode,
+                      phone: customerDetails.customer_phone,
+                      email: customerDetails.customer_email,
+                    }}
+                  />
                 </div>
               )}
             </div>
 
-            {/* Modal Footer */}
-            <div className="flex items-center justify-between p-6 border-t bg-gray-50">
+            {/* Footer */}
+            <div className="flex items-center justify-between px-6 py-4 border-t border-gray-100 bg-gray-50/50 rounded-b-xl">
               <button
-                onClick={() => currentStep > 1 ? setCurrentStep(currentStep - 1) : resetModal()}
-                className="btn btn-secondary flex items-center gap-2"
+                onClick={() => currentStep > 1 ? setCurrentStep(currentStep - 1) : closeCreateModal()}
+                className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
               >
                 <ChevronLeft className="w-4 h-4" />
                 {currentStep === 1 ? 'Cancel' : 'Back'}
               </button>
-
               {currentStep < 3 ? (
                 <button
-                  onClick={() => {
-                    if (currentStep === 2 && !validateForm()) return;
-                    setCurrentStep(currentStep + 1);
-                  }}
+                  onClick={() => { if (currentStep === 2 && !validateForm()) return; setCurrentStep(currentStep + 1); }}
                   disabled={currentStep === 1 && !selectedSale}
-                  className="btn btn-primary flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="flex items-center gap-1.5 px-5 py-2 text-sm font-semibold bg-gray-900 text-white rounded-lg hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                 >
-                  Next
-                  <ChevronRight className="w-4 h-4" />
+                  Next <ChevronRight className="w-4 h-4" />
                 </button>
               ) : (
                 <button
                   onClick={handleGenerateInvoice}
                   disabled={creating}
-                  className="btn btn-success disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="flex items-center gap-1.5 px-5 py-2 text-sm font-semibold bg-gray-900 text-white rounded-lg hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                 >
-                  {creating ? 'Generating...' : 'Generate Invoice'}
+                  {creating ? (
+                    <><div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Generating…</>
+                  ) : (
+                    <><FileText className="w-3.5 h-3.5" /> Generate Invoice</>
+                  )}
                 </button>
               )}
             </div>
@@ -922,29 +837,31 @@ const Invoices: React.FC = () => {
         </div>
       )}
 
-      {/* View Invoice Modal */}
+      {/* ── View Invoice Modal ── */}
       {viewingInvoice && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg w-full max-w-5xl max-h-[90vh] flex flex-col">
-            <div className="flex items-center justify-between p-4 border-b">
+        <div
+          className={`fixed inset-0 z-50 flex items-center justify-center p-4 transition-all duration-200 ${viewModalVisible ? 'bg-black/40' : 'bg-black/0'}`}
+          onClick={(e) => { if (e.target === e.currentTarget) closeViewModal(); }}
+        >
+          <div className={`bg-white rounded-xl shadow-2xl w-full max-w-5xl max-h-[90vh] flex flex-col transition-all duration-200 ${viewModalVisible ? 'opacity-100 scale-100' : 'opacity-0 scale-95'}`}>
+            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
               <div>
-                <h2 className="text-xl font-bold">{viewingInvoice.invoice_number}</h2>
-                <p className="text-sm text-gray-600">
-                  {format(new Date(viewingInvoice.invoice_date), 'dd MMMM yyyy')}
-                </p>
+                <p className="font-bold text-gray-900 font-mono">{viewingInvoice.invoice_number}</p>
+                <p className="text-sm text-gray-500 mt-0.5">{format(new Date(viewingInvoice.invoice_date), 'dd MMMM yyyy')} · {viewingInvoice.customer_name}</p>
               </div>
               <div className="flex items-center gap-2">
-                <button onClick={handlePrint} className="btn btn-secondary flex items-center gap-2">
-                  <Printer className="w-4 h-4" />
-                  Print
+                <button onClick={handlePrint}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-gray-700 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
+                  <Printer className="w-3.5 h-3.5" /> Print
                 </button>
-                <button onClick={() => setViewingInvoice(null)} className="text-gray-500 hover:text-gray-700">
-                  <X className="w-6 h-6" />
+                <button onClick={closeViewModal}
+                  className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">
+                  <X className="w-4 h-4" />
                 </button>
               </div>
             </div>
 
-            <div className="flex-1 overflow-auto p-4 bg-gray-100">
+            <div className="flex-1 overflow-auto p-4 bg-gray-50">
               <div ref={invoiceRef}>
                 <InvoiceTemplate
                   saleOrder={viewingInvoice.sale_order_data}
@@ -963,8 +880,9 @@ const Invoices: React.FC = () => {
               </div>
             </div>
 
-            <div className="p-4 border-t bg-gray-50 flex justify-end">
-              <button onClick={() => setViewingInvoice(null)} className="btn btn-secondary">
+            <div className="px-5 py-3 border-t border-gray-100 bg-gray-50/50 flex justify-end rounded-b-xl">
+              <button onClick={closeViewModal}
+                className="px-4 py-1.5 text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors">
                 Close
               </button>
             </div>
