@@ -31,6 +31,7 @@ import Purchases from './pages/Purchases/Purchases';
 import Suppliers from './pages/Suppliers/Suppliers';
 import Payments from './pages/Payments/Payments';
 import Invoices from './pages/Invoices/Invoices';
+import InvoiceDetail from './pages/Invoices/InvoiceDetail';
 import Reports from './pages/Reports/Reports';
 import Users from './pages/Users/Users';
 import Settings from './pages/Settings/Settings';
@@ -224,6 +225,17 @@ function App() {
               <RoleBasedRoute allowedRoles={[UserRole.ADMIN, UserRole.MANAGER]}>
                 <Layout>
                   <Invoices />
+                </Layout>
+              </RoleBasedRoute>
+            }
+          />
+
+          <Route
+            path="/invoices/:id"
+            element={
+              <RoleBasedRoute allowedRoles={[UserRole.ADMIN, UserRole.MANAGER]}>
+                <Layout>
+                  <InvoiceDetail />
                 </Layout>
               </RoleBasedRoute>
             }

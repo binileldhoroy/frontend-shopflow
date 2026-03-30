@@ -1,7 +1,9 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { FileText, Plus, Eye, X, Printer, ChevronRight, ChevronLeft, Search, User } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { FileText, Plus, Eye, X, Printer, ChevronRight, ChevronLeft, Search, User, Download, Share2, Mail, Copy, Check, MessageCircle } from 'lucide-react';
 import { format } from 'date-fns';
 import { useReactToPrint } from 'react-to-print';
+import html2pdf from 'html2pdf.js';
 import { invoiceService } from '../../api/services/invoice.service';
 import { saleService } from '../../api/services/sale.service';
 import { customerService } from '../../api/services/customer.service';
@@ -13,6 +15,7 @@ import { StateMaster } from '../../types/state.types';
 import InvoiceTemplate from '../../components/invoices/InvoiceTemplate';
 
 const Invoices: React.FC = () => {
+  const navigate = useNavigate();
   const [invoices, setInvoices] = useState<TaxInvoice[]>([]);
   const [sales, setSales] = useState<SaleOrder[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
@@ -63,6 +66,21 @@ const Invoices: React.FC = () => {
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   const invoiceRef = useRef<HTMLDivElement>(null);
+  const shareMenuRef = useRef<HTMLDivElement>(null);
+  const [showShareMenu, setShowShareMenu] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const [downloading, setDownloading] = useState(false);
+
+  // Close share menu on outside click
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (shareMenuRef.current && !shareMenuRef.current.contains(e.target as Node)) {
+        setShowShareMenu(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
 
   // Debounce search input → searchQuery (triggers API)
   useEffect(() => {
@@ -226,6 +244,53 @@ const Invoices: React.FC = () => {
     documentTitle: `${viewingInvoice?.invoice_number || 'Invoice'}`,
   });
 
+  const handleDownloadPDF = async () => {
+    if (!invoiceRef.current || !viewingInvoice) return;
+    setDownloading(true);
+    const opt = {
+      margin: [8, 8, 8, 8] as [number, number, number, number],
+      filename: `Invoice_${viewingInvoice.invoice_number}.pdf`,
+      image: { type: 'jpeg' as const, quality: 0.98 },
+      html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff' },
+      jsPDF: { unit: 'mm' as const, format: 'a4' as const, orientation: 'portrait' as const },
+      pagebreak: { mode: ['css', 'legacy'], before: '.invoice-page:not(:first-child)' },
+    };
+    try {
+      await html2pdf().set(opt).from(invoiceRef.current).save();
+    } finally {
+      setDownloading(false);
+    }
+  };
+
+  const getShareUrl = () =>
+    viewingInvoice ? `${window.location.origin}/invoices/${viewingInvoice.id}` : '';
+
+  const handleShareWhatsApp = () => {
+    if (!viewingInvoice) return;
+    const text = encodeURIComponent(
+      `Invoice ${viewingInvoice.invoice_number} — ${viewingInvoice.customer_name}\n${getShareUrl()}`
+    );
+    window.open(`https://wa.me/?text=${text}`, '_blank');
+    setShowShareMenu(false);
+  };
+
+  const handleShareEmail = () => {
+    if (!viewingInvoice) return;
+    const subject = encodeURIComponent(`Invoice ${viewingInvoice.invoice_number}`);
+    const body = encodeURIComponent(
+      `Invoice ${viewingInvoice.invoice_number} — ${viewingInvoice.customer_name}\n\nView invoice: ${getShareUrl()}`
+    );
+    window.open(`mailto:?subject=${subject}&body=${body}`);
+    setShowShareMenu(false);
+  };
+
+  const handleCopyLink = async () => {
+    await navigator.clipboard.writeText(getShareUrl());
+    setCopied(true);
+    setShowShareMenu(false);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
   // Filter sales without invoices
   const availableSales = sales.filter(
     (sale) => !invoices.some((inv) => inv.sale_order === sale.id && !inv.is_cancelled)
@@ -366,9 +431,9 @@ const Invoices: React.FC = () => {
         invoiceData.customer_state = Number(customerDetails.customer_state);
       }
 
-      await invoiceService.createInvoice(invoiceData);
-      await fetchInvoices();
+      const created = await invoiceService.createInvoice(invoiceData);
       resetModal();
+      navigate(`/invoices/${created.id}`);
     } catch (error: any) {
       console.error('Error creating invoice:', error);
       const errorMessage = error?.response?.data?.error ||
@@ -898,12 +963,59 @@ const Invoices: React.FC = () => {
                 <p className="text-sm text-gray-500 mt-0.5">{format(new Date(viewingInvoice.invoice_date), 'dd MMMM yyyy')} · {viewingInvoice.customer_name}</p>
               </div>
               <div className="flex items-center gap-2">
-                <button onClick={handlePrint}
-                  className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-gray-700 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
-                  <Printer className="w-3.5 h-3.5" /> Print
+                {/* Download PDF */}
+                <button
+                  onClick={handleDownloadPDF}
+                  disabled={downloading}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-gray-700 border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-50 transition-colors"
+                >
+                  {downloading
+                    ? <div className="w-3.5 h-3.5 border-2 border-gray-400 border-t-gray-700 rounded-full animate-spin" />
+                    : <Download className="w-3.5 h-3.5" />}
+                  <span className="hidden sm:inline">PDF</span>
                 </button>
-                <button onClick={closeViewModal}
-                  className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">
+
+                {/* Print */}
+                <button
+                  onClick={() => handlePrint()}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-gray-700 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  <Printer className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">Print</span>
+                </button>
+
+                {/* Copy feedback */}
+                {copied && (
+                  <span className="flex items-center gap-1 text-xs text-green-600 font-medium">
+                    <Check className="w-3.5 h-3.5" /> Copied!
+                  </span>
+                )}
+
+                {/* Share */}
+                <div className="relative" ref={shareMenuRef}>
+                  <button
+                    onClick={() => setShowShareMenu(v => !v)}
+                    className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-semibold bg-gray-900 text-white rounded-lg hover:bg-gray-700 transition-colors"
+                  >
+                    <Share2 className="w-3.5 h-3.5" />
+                    <span className="hidden sm:inline">Share</span>
+                  </button>
+                  {showShareMenu && (
+                    <div className="absolute right-0 top-full mt-1.5 w-48 bg-white rounded-xl shadow-xl border border-gray-100 py-1.5 z-50">
+                      <button onClick={handleShareWhatsApp} className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors">
+                        <MessageCircle className="w-4 h-4 text-green-500" /> WhatsApp
+                      </button>
+                      <button onClick={handleShareEmail} className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors">
+                        <Mail className="w-4 h-4 text-blue-500" /> Email
+                      </button>
+                      <button onClick={handleCopyLink} className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors">
+                        <Copy className="w-4 h-4 text-gray-500" /> Copy Link
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                <button onClick={closeViewModal} className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">
                   <X className="w-4 h-4" />
                 </button>
               </div>
