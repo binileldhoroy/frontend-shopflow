@@ -549,13 +549,13 @@ const POS: React.FC = () => {
 
              <div className="flex flex-1 max-w-lg items-center gap-3">
                <div className="relative flex-1">
-                 <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                 <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
                  <input
                    type="text"
                    placeholder="Search products..."
                    value={productSearch}
                    onChange={(e) => setProductSearch(e.target.value)}
-                   className="input-field pl-8 py-1.5 text-sm"
+                   className="w-full pl-9 pr-3 py-1.5 text-sm border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent transition-all"
                  />
                </div>
 
@@ -630,7 +630,7 @@ const POS: React.FC = () => {
                       !selectedCategory ? 'text-blue-600 bg-blue-50/50' : 'text-gray-700'
                     }`}
                   >
-                    <span>All Categories</span>
+                    <span>All Categories</span>Search
                     {!selectedCategory && <span className="w-1.5 h-1.5 rounded-full bg-blue-600 inline-block" />}
                   </button>
 

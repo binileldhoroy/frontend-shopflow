@@ -483,25 +483,6 @@ const QuickSale: React.FC = () => {
         }
       }
 
-      // Debug: Log cart items to identify the issue
-      console.log("=== DEBUG: Cart Items Before Payment ===");
-      cart.items.forEach((item, idx) => {
-        console.log(`Item ${idx}:`, {
-          name: item.name,
-          quantity: item.quantity,
-          unit_price: item.unit_price,
-          selling_price: item.selling_price,
-          gst_rate: item.gst_rate,
-          tax_included: item.tax_included,
-          original_selling_price: item.original_selling_price
-        });
-
-        // Validate unit_price
-        if (item.unit_price > 9999999999.99) {
-          console.error(`ERROR: Item ${item.name} has invalid unit_price: ${item.unit_price}`);
-        }
-      });
-      console.log("=" + "=".repeat(39));
 
       const saleData = {
         order_number: `QS-${Date.now()}`,
@@ -532,7 +513,6 @@ const QuickSale: React.FC = () => {
         })
       };
 
-      console.log("=== DEBUG: Sale Data Being Sent ===", saleData);
 
       const sale = await saleService.create(saleData);
 
@@ -665,86 +645,81 @@ const QuickSale: React.FC = () => {
         </div>
       ) : (
         <div className="flex-1 card shadow-sm flex flex-col p-0 overflow-hidden relative z-10">
-          <div className="p-3 border-b bg-gray-50 flex justify-between items-center">
-            <h2 className="font-semibold text-gray-700 flex items-center gap-2 text-sm border-l-2 border-blue-500 pl-2 -ml-3">
-              <ShoppingCart className="w-5 h-5"/>
+          {/* Cart Header */}
+          <div className="px-3 py-2.5 border-b flex justify-between items-center bg-gradient-to-r from-blue-600 to-blue-500">
+            <h2 className="font-semibold text-white flex items-center gap-2 text-sm">
+              <ShoppingCart className="w-4 h-4"/>
               Cart Items
             </h2>
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
               {currentSession && (
-                <div className="flex items-center border border-green-200 rounded-full overflow-hidden shadow-sm">
-                  <span className="px-2 py-0.5 bg-green-50 text-green-700 text-xs font-semibold">
-                    Session Active
-                  </span>
+                <div className="flex items-center border border-white/30 rounded-full overflow-hidden">
+                  <span className="px-2 py-0.5 text-white/80 text-[10px] font-semibold">Session Active</span>
                   <button
                     onClick={() => setShowCloseModal(true)}
-                    className="px-2 py-0.5 bg-white hover:bg-red-50 text-red-600 text-[10px] font-bold border-l border-green-200 flex items-center gap-1 transition-colors uppercase tracking-wider"
+                    className="px-2 py-0.5 bg-white/10 hover:bg-red-500 text-white text-[10px] font-bold border-l border-white/20 flex items-center gap-1 transition-colors"
                   >
-                    <Flag className="w-3 h-3" /> Close Register
+                    <Flag className="w-3 h-3" /> Close
                   </button>
                 </div>
               )}
               {cart.items.length > 0 && (
-                <span className="text-xs font-medium bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">
-                  {cart.items.reduce((acc, i) => acc + i.quantity, 0)} Items
+                <span className="text-[10px] font-bold bg-white/20 text-white px-2 py-0.5 rounded-full border border-white/30">
+                  {cart.items.reduce((acc, i) => acc + i.quantity, 0)} items
                 </span>
               )}
             </div>
           </div>
 
-          <div className="overflow-y-auto flex-1 p-3 bg-gray-50/30">
+          <div className="overflow-y-auto flex-1 bg-gray-50/50">
             {cart.items.length === 0 ? (
-              <div className="h-full flex flex-col items-center justify-center text-gray-400 space-y-3">
-                 <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mb-2">
-                   <ShoppingCart className="w-10 h-10 text-gray-300"/>
-                 </div>
-                 <p className="text-gray-500 font-medium text-lg">Your cart is empty</p>
-                 <p className="text-sm">Scan a barcode or search for products above to begin</p>
+              <div className="h-full flex flex-col items-center justify-center text-gray-400 space-y-2 py-10">
+                <ShoppingCart className="w-12 h-12 text-gray-200"/>
+                <p className="text-gray-500 font-medium">Cart is empty</p>
+                <p className="text-xs text-gray-400">Scan a barcode or search above</p>
               </div>
             ) : (
-              <div className="space-y-2">
-                 {cart.items.map((item, index) => (
-                   <div key={item.id} className="flex items-center gap-4 p-3 bg-white border border-gray-100 rounded-xl shadow-sm hover:border-blue-200 transition-colors group">
-                     {/* Row Number connecting it physically in layout */}
-                     <div className="w-6 h-6 rounded-full bg-gray-100 text-gray-500 flex items-center justify-center text-xs font-bold font-mono shrink-0">
-                       {index + 1}
-                     </div>
+              <div className="divide-y divide-gray-100">
+                {cart.items.map((item, index) => (
+                  <div key={item.id} className="flex items-center gap-3 px-3 py-2.5 bg-white hover:bg-blue-50/30 transition-colors group">
+                    {/* Index */}
+                    <span className="shrink-0 w-5 h-5 rounded-full bg-blue-100 text-blue-600 text-[10px] font-bold flex items-center justify-center">
+                      {index + 1}
+                    </span>
 
-                     {/* Product Details */}
-                     <div className="flex-1 min-w-0">
-                       <div className="font-bold text-gray-800 text-sm xl:text-base truncate pr-4">{item.name}</div>
-                       <div className="flex items-center gap-3 mt-1">
-                          <span className="text-[11px] text-gray-400 font-mono">SKU: {item.sku}</span>
-                          <span className="text-[11px] font-medium text-gray-500 bg-gray-50 px-1.5 rounded">₹{item.unit_price.toFixed(2)} / unit</span>
-                          {item.tax_included && <span className="text-[10px] text-blue-600 bg-blue-50 px-1 rounded border border-blue-100">Inc. Tax ({item.gst_rate}%)</span>}
-                       </div>
-                     </div>
+                    {/* Product Details */}
+                    <div className="flex-1 min-w-0">
+                      <div className="font-semibold text-gray-800 text-sm truncate">{item.name}</div>
+                      <div className="flex items-center gap-2 mt-0.5">
+                        <span className="text-[10px] text-gray-400">₹{item.unit_price.toFixed(2)} / unit</span>
+                        {item.gst_rate > 0 && (
+                          <span className="text-[10px] text-orange-500 font-medium">GST {item.gst_rate}%</span>
+                        )}
+                      </div>
+                    </div>
 
-                     {/* Quantity Control */}
-                     <div className="flex items-center bg-gray-50 rounded-lg border border-gray-200 shadow-inner h-10 w-32 shrink-0">
-                       <button onClick={() => updateQuantity(item.id, -1)} className="w-10 h-full flex items-center justify-center hover:bg-gray-200 text-gray-600 transition-colors rounded-l-lg"><Minus className="w-4 h-4"/></button>
-                       <span className="flex-1 text-center font-bold text-gray-800 text-sm bg-white h-full flex items-center justify-center">{item.quantity}</span>
-                       <button onClick={() => updateQuantity(item.id, 1)} className="w-10 h-full flex items-center justify-center hover:bg-gray-200 text-gray-600 transition-colors rounded-r-lg"><Plus className="w-4 h-4"/></button>
-                     </div>
+                    {/* Quantity Control */}
+                    <div className="flex items-center border border-gray-200 rounded overflow-hidden shrink-0">
+                      <button onClick={() => updateQuantity(item.id, -1)} className="w-7 h-7 flex items-center justify-center hover:bg-gray-100 text-gray-500 transition-colors"><Minus className="w-3 h-3"/></button>
+                      <span className="w-8 text-center font-bold text-gray-800 text-sm border-x border-gray-200">{item.quantity}</span>
+                      <button onClick={() => updateQuantity(item.id, 1)} className="w-7 h-7 flex items-center justify-center hover:bg-gray-100 text-gray-500 transition-colors"><Plus className="w-3 h-3"/></button>
+                    </div>
 
-                     {/* Totals & Delete */}
-                     <div className="flex flex-col items-end shrink-0 w-28">
-                       <div className="font-bold text-lg text-gray-900 leading-none mb-1">
-                         ₹{(item.selling_price * item.quantity).toFixed(2)}
-                       </div>
-                       <div className="text-[10px] text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity">
-                         Base: ₹{(item.unit_price * item.quantity).toFixed(2)}
-                       </div>
-                     </div>
-                     <button
-                       onClick={() => removeItem(item.id)}
-                       className="p-2 ml-2 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all opacity-50 group-hover:opacity-100"
-                       title="Remove Item"
-                     >
-                       <Trash2 className="w-5 h-5"/>
-                     </button>
-                   </div>
-                 ))}
+                    {/* Line Total */}
+                    <div className="shrink-0 text-right w-20">
+                      <div className="font-bold text-gray-900 text-sm">₹{(item.selling_price * item.quantity).toFixed(2)}</div>
+                      <div className="text-[10px] text-gray-400">× {item.quantity}</div>
+                    </div>
+
+                    {/* Remove */}
+                    <button
+                      onClick={() => removeItem(item.id)}
+                      className="shrink-0 p-1.5 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded transition-all opacity-0 group-hover:opacity-100"
+                    >
+                      <Trash2 className="w-3.5 h-3.5"/>
+                    </button>
+                  </div>
+                ))}
               </div>
             )}
           </div>
@@ -845,95 +820,109 @@ const QuickSale: React.FC = () => {
 
         {/* Totals & Payments */}
         <div className="card flex-1 flex flex-col p-0 shadow-sm border border-gray-100 overflow-hidden">
-          <div className="p-3 border-b border-gray-100 bg-gray-50/50">
-             <h3 className="text-sm font-semibold text-gray-700 flex items-center gap-1.5 border-l-2 border-blue-500 pl-2 -ml-3">
-               Order Summary
-             </h3>
+          {/* Order Summary Header */}
+          <div className="px-3 py-2.5 border-b bg-gradient-to-r from-blue-600 to-blue-500">
+            <h3 className="text-sm font-semibold text-white">Order Summary</h3>
           </div>
 
-          <div className="p-4 space-y-2.5 flex-1 overflow-y-auto">
-              <div className="flex justify-between text-sm text-gray-600">
-                <span>Subtotal</span>
-                <span className="font-medium text-gray-700">₹{totals.subtotal.toFixed(2)}</span>
-              </div>
+          <div className="px-3 py-2 space-y-2 flex-1 overflow-y-auto">
+            {/* Subtotal */}
+            <div className="flex justify-between text-xs text-gray-500 pt-1">
+              <span>Subtotal</span>
+              <span className="font-medium text-gray-700">₹{totals.subtotal.toFixed(2)}</span>
+            </div>
 
-              {/* Discount Input */}
-              <div className="flex justify-between items-center py-2.5 border-y border-dashed border-gray-100 my-1">
-                <span className="text-sm text-gray-600">Discount</span>
-                <div className="flex items-center gap-2">
-                  <div className="flex bg-gray-100 rounded p-0.5 border border-gray-200">
-                    <button
-                      onClick={() => setCart(prev => ({ ...prev, discount_type: 'percentage' }))}
-                      className={`px-2 py-0.5 text-xs font-semibold rounded ${cart.discount_type === 'percentage' ? 'bg-white shadow-sm text-gray-800' : 'text-gray-500'}`}
-                    >%</button>
-                    <button
-                      onClick={() => setCart(prev => ({ ...prev, discount_type: 'amount' }))}
-                      className={`px-2 py-0.5 text-xs font-semibold rounded ${cart.discount_type === 'amount' ? 'bg-white shadow-sm text-gray-800' : 'text-gray-500'}`}
-                    >₹</button>
-                  </div>
-                  <input
-                    type="number"
-                    min="0"
-                    value={cart.discount_type === 'percentage' ? (cart.discount_percentage || '') : (cart.discount_amount || '')}
-                    onChange={(e) => {
-                      const val = parseFloat(e.target.value) || 0;
-                      if (cart.discount_type === 'percentage') {
-                        setCart(prev => ({ ...prev, discount_percentage: val > 100 ? 100 : val }));
-                      } else {
-                        setCart(prev => ({ ...prev, discount_amount: val }));
-                      }
-                    }}
-                    className="w-20 text-right p-1 border border-gray-200 rounded text-sm outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400 transition-all text-gray-700 font-medium"
-                    placeholder="0"
-                  />
+            {/* Discount */}
+            <div className="flex justify-between items-center gap-2 border-t border-dashed border-gray-100 pt-2">
+              <span className="text-xs text-gray-500 shrink-0">Discount</span>
+              <div className="flex items-center gap-1">
+                <div className="flex bg-gray-100 rounded p-0.5 border border-gray-200">
+                  <button
+                    onClick={() => setCart(prev => ({ ...prev, discount_type: 'percentage' }))}
+                    className={`px-1.5 py-0.5 text-[10px] font-semibold rounded transition-colors ${cart.discount_type === 'percentage' ? 'bg-white shadow-sm text-blue-700' : 'text-gray-400'}`}
+                  >%</button>
+                  <button
+                    onClick={() => setCart(prev => ({ ...prev, discount_type: 'amount' }))}
+                    className={`px-1.5 py-0.5 text-[10px] font-semibold rounded transition-colors ${cart.discount_type === 'amount' ? 'bg-white shadow-sm text-blue-700' : 'text-gray-400'}`}
+                  >₹</button>
                 </div>
+                <input
+                  type="number"
+                  min="0"
+                  value={cart.discount_type === 'percentage' ? (cart.discount_percentage || '') : (cart.discount_amount || '')}
+                  onChange={(e) => {
+                    const val = parseFloat(e.target.value) || 0;
+                    if (cart.discount_type === 'percentage') {
+                      setCart(prev => ({ ...prev, discount_percentage: val > 100 ? 100 : val }));
+                    } else {
+                      setCart(prev => ({ ...prev, discount_amount: val }));
+                    }
+                  }}
+                  className="w-16 text-right px-1.5 py-1 border border-gray-200 rounded text-xs outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400 font-medium text-gray-700"
+                  placeholder="0"
+                />
               </div>
+            </div>
 
-              {totals.discount > 0 && (
-                <div className="flex justify-between text-sm text-green-600 font-medium pb-2">
-                  <span>Discount Applied</span>
-                  <span>-₹{totals.discount.toFixed(2)}</span>
-                </div>
-              )}
+            {totals.discount > 0 && (
+              <div className="flex justify-between text-xs text-green-600 font-medium">
+                <span>Discount</span>
+                <span>-₹{totals.discount.toFixed(2)}</span>
+              </div>
+            )}
 
-              {/* Compact Tax display with Tooltip */}
-              <div className="flex justify-between text-sm text-gray-600 py-1">
-                  <div className="group relative flex items-center gap-1 cursor-help">
-                    <span className="border-b border-dashed border-gray-400">Total Tax</span>
-                    <div className="hidden group-hover:block absolute bottom-full left-0 mb-1 w-52 bg-gray-800 text-white p-2.5 text-xs rounded-lg shadow-xl z-50">
-                      <div className="font-semibold mb-1 pb-1 border-b border-gray-600">Tax Breakdown</div>
-                      {Object.entries(totals.taxBreakdown).length > 0 ? Object.entries(totals.taxBreakdown).sort(([a], [b]) => Number(b) - Number(a)).map(([rate, breakdown]) => (
-                         <div key={rate} className="flex justify-between mb-0.5">
-                            <span>GST @ {rate}%:</span>
-                            <span>₹{breakdown.taxAmount.toFixed(2)}</span>
-                         </div>
-                      )) : <div className="text-gray-400 italic">No tax applicable</div>}
-                      {totals.exemptedAmount > 0 && (
-                         <div className="flex justify-between text-gray-300 mt-2 border-t border-gray-600 pt-1">
-                            <span>Exempted 0%:</span>
-                            <span>₹{totals.exemptedAmount.toFixed(2)}</span>
-                         </div>
-                      )}
+            {/* GST Breakdown — always visible */}
+            {Object.entries(totals.taxBreakdown).length > 0 && (
+              <div className="bg-orange-50 border border-orange-100 rounded-lg px-2.5 py-1.5 space-y-1">
+                <div className="text-[10px] font-semibold text-orange-700 uppercase tracking-wide">GST Breakdown</div>
+                {Object.entries(totals.taxBreakdown)
+                  .sort(([a], [b]) => Number(a) - Number(b))
+                  .map(([rate, breakdown]) => (
+                    <div key={rate} className="space-y-0.5">
+                      <div className="flex justify-between text-[11px] text-orange-800 font-medium">
+                        <span>Taxable @ {rate}%</span>
+                        <span>₹{breakdown.taxableAmount.toFixed(2)}</span>
+                      </div>
+                      <div className="flex justify-between text-[10px] text-orange-600 pl-2">
+                        <span>CGST @{Number(rate) / 2}%</span>
+                        <span>₹{breakdown.cgst.toFixed(2)}</span>
+                      </div>
+                      <div className="flex justify-between text-[10px] text-orange-600 pl-2">
+                        <span>SGST @{Number(rate) / 2}%</span>
+                        <span>₹{breakdown.sgst.toFixed(2)}</span>
+                      </div>
                     </div>
+                  ))}
+                {totals.exemptedAmount > 0 && (
+                  <div className="flex justify-between text-[10px] text-orange-500 border-t border-orange-200 pt-1">
+                    <span>Exempted (0%)</span>
+                    <span>₹{totals.exemptedAmount.toFixed(2)}</span>
                   </div>
-                  <span className="font-medium text-gray-700">₹{totals.totalGst.toFixed(2)}</span>
-              </div>
-
-              {totals.roundOff !== 0 && (
-                <div className="flex justify-between text-xs text-gray-400 py-1">
-                  <span>Round Off</span>
-                  <span>{totals.roundOff > 0 ? '+' : ''}₹{totals.roundOff.toFixed(2)}</span>
+                )}
+                <div className="flex justify-between text-xs font-bold text-orange-800 border-t border-orange-200 pt-1">
+                  <span>Total Tax</span>
+                  <span>₹{totals.totalGst.toFixed(2)}</span>
                 </div>
-              )}
+              </div>
+            )}
+
+            {totals.roundOff !== 0 && (
+              <div className="flex justify-between text-[11px] text-gray-400">
+                <span>Round Off</span>
+                <span>{totals.roundOff > 0 ? '+' : ''}₹{totals.roundOff.toFixed(2)}</span>
+              </div>
+            )}
           </div>
 
-          <div className="bg-blue-50/50 p-4 border-t border-blue-100">
-              <div className="flex justify-between items-end mb-4">
-                <span className="font-bold text-gray-700 text-lg">Grand Total</span>
-                <span className="text-3xl font-bold text-blue-600 leading-none tracking-tight">₹{totals.grandTotal.toFixed(2)}</span>
-              </div>
+          <div className="p-3 border-t border-gray-200 bg-white space-y-3">
+            {/* Grand Total */}
+            <div className="flex justify-between items-center bg-blue-600 text-white rounded-lg px-3 py-2">
+              <span className="font-bold text-sm">Grand Total</span>
+              <span className="text-2xl font-extrabold tracking-tight">₹{totals.grandTotal.toFixed(2)}</span>
+            </div>
 
-            <div className="grid grid-cols-2 gap-2.5">
+            {/* Payment Buttons */}
+            <div className="grid grid-cols-2 gap-2">
               <button
                 disabled={isProcessing || cart.items.length === 0}
                 onClick={() => processPayment('cash')}
