@@ -32,7 +32,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
             sidebarOpen ? 'lg:ml-64' : 'lg:ml-20'
           }`}
         >
-          <div className="h-full px-4 pt-4 pb-2 overflow-hidden">{children}</div>
+          <div className="h-full px-4 pt-4 pb-2 overflow-y-auto">{children}</div>
         </main>
       </div>
       <ToastNotification />

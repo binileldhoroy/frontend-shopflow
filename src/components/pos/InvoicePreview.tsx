@@ -10,10 +10,9 @@ const InvoicePreview: React.FC<InvoicePreviewProps> = ({ sale, onClose }) => {
   const handlePrint = () => {
     window.print();
   };
-console.log(sale);
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg shadow-xl max-w-sm w-full max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
         {/* Header - Hidden on print */}
         <div className="flex items-center justify-between p-4 border-b border-gray-200 print:hidden">
           <h2 className="text-lg font-bold text-gray-900">Invoice Preview</h2>
@@ -69,31 +68,50 @@ console.log(sale);
           <div className="border-t-2 border-dashed border-gray-400 pt-2 mb-2">
             <table className="w-full text-xs">
               <thead>
-                <tr className="border-b border-gray-300">
-                  <th className="text-left py-1">Item</th>
-                  <th className="text-center py-1">Qty</th>
-                  <th className="text-right py-1">Rate</th>
-                  <th className="text-right py-1">Amt</th>
+                <tr className="border-b-2 border-gray-300 bg-gray-50">
+                  <th className="text-left py-1.5 px-1">Item / HSN</th>
+                  <th className="text-center py-1.5 px-1">Qty</th>
+                  <th className="text-right py-1.5 px-1">Rate</th>
+                  <th className="text-right py-1.5 px-1">Taxable</th>
+                  <th className="text-right py-1.5 px-1">CGST</th>
+                  <th className="text-right py-1.5 px-1">SGST</th>
+                  <th className="text-right py-1.5 px-1">Amt</th>
                 </tr>
               </thead>
               <tbody>
-                {sale.items?.map((item: any, index: number) => (
-                  <React.Fragment key={index}>
-                    <tr className="border-b border-gray-200">
-                      <td className="py-1">{item.product_name || item.product}</td>
-                      <td className="text-center py-1">{item.quantity}</td>
-                      <td className="text-right py-1">₹{parseFloat(item.unit_price).toFixed(2)}</td>
-                      <td className="text-right py-1 font-medium">
-                        ₹{(parseFloat(item.unit_price) * item.quantity).toFixed(2)}
-                      </td>
-                    </tr>
-                    <tr>
-                      <td colSpan={4} className="text-xs text-gray-600 pb-1">
-                        HSN: {item.hsn_code} | GST: {item.gst_rate}%
-                      </td>
-                    </tr>
-                  </React.Fragment>
-                ))}
+                {sale.items?.map((item: any, index: number) => {
+                  const qty = Number(item.quantity) || 0;
+                  const unitPrice = parseFloat(item.unit_price) || 0;
+                  const taxableValue = qty * unitPrice;
+                  const gstRate = parseFloat(item.gst_rate) || 0;
+                  const isInterstate = Number(sale.igst_amount) > 0;
+                  const totalTax = (taxableValue * gstRate) / 100;
+                  const cgst = isInterstate ? 0 : totalTax / 2;
+                  const sgst = isInterstate ? 0 : totalTax / 2;
+                  const lineTotal = taxableValue + totalTax;
+                  return (
+                    <React.Fragment key={index}>
+                      <tr className="border-b border-gray-100 hover:bg-gray-50">
+                        <td className="py-1.5 px-1">
+                          <div className="font-medium">{item.product_name || item.product}</div>
+                          <div className="text-[10px] text-gray-400">HSN: {item.hsn_code || '—'} | GST {gstRate}%</div>
+                        </td>
+                        <td className="text-center py-1.5 px-1">{qty}</td>
+                        <td className="text-right py-1.5 px-1">₹{unitPrice.toFixed(2)}</td>
+                        <td className="text-right py-1.5 px-1">₹{taxableValue.toFixed(2)}</td>
+                        <td className="text-right py-1.5 px-1">
+                          {gstRate > 0 ? `₹${cgst.toFixed(2)}` : '—'}
+                          {gstRate > 0 && <div className="text-[9px] text-gray-400">@{gstRate / 2}%</div>}
+                        </td>
+                        <td className="text-right py-1.5 px-1 ">
+                          {gstRate > 0 ? `₹${sgst.toFixed(2)}` : '—'}
+                          {gstRate > 0 && <div className="text-[9px] text-gray-400">@{gstRate / 2}%</div>}
+                        </td>
+                        <td className="text-right py-1.5 px-1 font-bold">₹{lineTotal.toFixed(2)}</td>
+                      </tr>
+                    </React.Fragment>
+                  );
+                })}
               </tbody>
             </table>
           </div>

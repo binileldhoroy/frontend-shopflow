@@ -149,9 +149,12 @@ const Products: React.FC = () => {
       Object.keys(data).forEach((key) => {
         const value = (data as any)[key];
 
-        // Handle file separately
-        if (key === "image" && value instanceof File) {
-          formData.append("image", value);
+        // Handle image separately - only append if it's a new File upload
+        if (key === "image") {
+          if (value instanceof File) {
+            formData.append("image", value);
+          }
+          // Skip if it's an existing URL string - backend keeps the current image
         } else if (value !== null && value !== undefined) {
           formData.append(key, value);
         }

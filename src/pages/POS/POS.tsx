@@ -45,10 +45,12 @@ const POS: React.FC = () => {
 
   // Infinite scroll state
   const [posPage, setPosPage] = useState(1);
-  const [hasMore, setHasMore] = useState(true);
+  const [hasMore, setHasMore] = useState(false); // false until first fetch resolves
   const [posLoading, setPosLoading] = useState(false);
+  const posLoadingRef = useRef(false); // ref-based guard to avoid stale closure
   const sentinelRef = useRef<HTMLDivElement | null>(null);
   const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isFirstSearch = useRef(true);
 
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [showInvoice, setShowInvoice] = useState(false);
@@ -102,7 +104,8 @@ const POS: React.FC = () => {
 
   // Fetch products (paginated, appending)
   const fetchProducts = useCallback(async (page: number, search: string, reset: boolean) => {
-    if (posLoading) return;
+    if (posLoadingRef.current) return; // ref-based guard avoids stale closure
+    posLoadingRef.current = true;
     setPosLoading(true);
     try {
       const data = await productService.getAll({
@@ -111,15 +114,15 @@ const POS: React.FC = () => {
         ...(search ? { search } : {}),
       });
       const results: any[] = data.results || data;
-      const totalCount = data.count ?? results.length;
 
       const inStock = results.filter((p: any) => p.stock_quantity > 0);
       setProducts(prev => reset ? inStock : [...prev, ...inStock]);
-      setHasMore(page * 25 < totalCount);
+      setHasMore(data.next !== null && data.next !== undefined);
       setPosPage(page);
     } catch (error) {
       console.error('Error fetching products:', error);
     } finally {
+      posLoadingRef.current = false;
       setPosLoading(false);
     }
   }, []);
@@ -149,6 +152,8 @@ const POS: React.FC = () => {
   }, [dispatch]);
 
   // IntersectionObserver: load next page when sentinel is visible
+  // needsSessionSetup is included so the observer re-attaches after the register is opened
+  // (the sentinel div only renders when the product grid is visible)
   useEffect(() => {
     if (!sentinelRef.current) return;
     const observer = new IntersectionObserver(
@@ -161,10 +166,15 @@ const POS: React.FC = () => {
     );
     observer.observe(sentinelRef.current);
     return () => observer.disconnect();
-  }, [hasMore, posLoading, posPage, productSearch, fetchProducts]);
+  }, [hasMore, posLoading, posPage, productSearch, fetchProducts, needsSessionSetup]);
 
   // Debounce search → reset to page 1
+  // Skip on initial mount — the initial product load is handled by fetchInitialData
   useEffect(() => {
+    if (isFirstSearch.current) {
+      isFirstSearch.current = false;
+      return;
+    }
     if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
     searchDebounceRef.current = setTimeout(() => {
       setProducts([]);
@@ -717,130 +727,149 @@ const POS: React.FC = () => {
 
         {/* Cart Items */}
         <div className="card flex-1 overflow-hidden flex flex-col shadow-sm p-0">
-          <div className="p-3 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
-            <h3 className="font-semibold text-gray-800 flex items-center gap-2 text-sm border-l-2 border-blue-500 pl-2 -ml-3">
+          {/* Cart Header */}
+          <div className="px-3 py-2.5 border-b border-gray-100 flex items-center justify-between bg-gradient-to-r from-blue-600 to-blue-500">
+            <h3 className="font-semibold text-white flex items-center gap-2 text-sm">
               <ShoppingCart className="w-4 h-4" />
               Current Sale
             </h3>
             {cart.items.length > 0 && (
-              <span className="text-[10px] font-medium bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">
-                {cart.items.reduce((acc, item) => acc + item.quantity, 0)} Items
+              <span className="text-[10px] font-bold bg-white/20 text-white px-2 py-0.5 rounded-full border border-white/30">
+                {cart.items.reduce((acc, item) => acc + item.quantity, 0)} items
               </span>
             )}
           </div>
 
-          <div className="flex-1 overflow-y-auto p-2 space-y-1.5 bg-gray-50/30">
+          {/* Cart Items List */}
+          <div className="flex-1 overflow-y-auto bg-gray-50/50">
             {cart.items.length === 0 ? (
-              <div className="flex flex-col items-center justify-center h-full text-gray-400 space-y-2">
+              <div className="flex flex-col items-center justify-center h-full text-gray-400 space-y-2 py-10">
                 <ShoppingCart className="w-10 h-10 opacity-20" />
                 <span className="text-sm">Cart is empty</span>
               </div>
             ) : (
-              cart.items.map((item) => (
-                <div key={item.id} className="p-2 border border-gray-100 rounded-lg hover:border-gray-200 transition-colors bg-white group shadow-sm">
-                  <div className="flex justify-between items-start mb-1.5">
-                    <div className="flex-1 pr-2">
-                      <div className="font-medium text-xs text-gray-800 leading-tight">{item.name}</div>
-                      <div className="text-[10px] text-gray-400 mt-0.5">₹{item.unit_price.toFixed(2)} / unit</div>
+              <div className="divide-y divide-gray-100">
+                {cart.items.map((item, index) => (
+                  <div key={item.id} className="flex items-center gap-2 px-3 py-2 bg-white hover:bg-blue-50/30 transition-colors group">
+                    {/* Index */}
+                    <span className="shrink-0 w-5 h-5 rounded-full bg-blue-100 text-blue-600 text-[10px] font-bold flex items-center justify-center">
+                      {index + 1}
+                    </span>
+
+                    {/* Name + price */}
+                    <div className="flex-1 min-w-0">
+                      <div className="font-semibold text-xs text-gray-800 leading-tight truncate">{item.name}</div>
+                      <div className="text-[10px] text-gray-400">₹{item.unit_price.toFixed(2)} × {item.quantity}</div>
                     </div>
-                    <button
-                      onClick={() => handleRemoveItem(item.id)}
-                      className="text-gray-300 hover:text-red-500 hover:bg-red-50 p-1 rounded transition-colors opacity-0 group-hover:opacity-100"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                  <div className="flex items-center justify-between pt-1.5 border-t border-gray-50">
-                    <div className="flex items-center bg-gray-50 rounded border border-gray-200 shadow-[0_1px_2px_rgba(0,0,0,0.02)] overflow-hidden">
+
+                    {/* Qty controls */}
+                    <div className="flex items-center border border-gray-200 rounded overflow-hidden shrink-0 bg-white">
                       <button
                         onClick={() => handleQuantityChange(item.id, Math.max(1, item.quantity - 1))}
-                        className="px-2 py-0.5 hover:bg-gray-200 text-gray-600 transition-colors"
+                        className="w-6 h-6 flex items-center justify-center hover:bg-gray-100 text-gray-500 transition-colors"
                       >
-                        <Minus className="w-3 h-3" />
+                        <Minus className="w-2.5 h-2.5" />
                       </button>
-                      <span className="w-8 text-center text-xs font-semibold bg-white py-0.5">{item.quantity}</span>
+                      <span className="w-7 text-center text-xs font-bold text-gray-800 border-x border-gray-200">{item.quantity}</span>
                       <button
                         onClick={() => handleQuantityChange(item.id, item.quantity + 1)}
-                        className="px-2 py-0.5 hover:bg-gray-200 text-gray-600 transition-colors"
+                        className="w-6 h-6 flex items-center justify-center hover:bg-gray-100 text-gray-500 transition-colors"
                       >
-                        <Plus className="w-3 h-3" />
+                        <Plus className="w-2.5 h-2.5" />
                       </button>
                     </div>
-                    <div className="font-bold text-gray-800 text-sm">
-                      ₹{(item.selling_price * item.quantity).toFixed(2)}
+
+                    {/* Line total */}
+                    <div className="shrink-0 text-right w-16">
+                      <div className="text-xs font-bold text-gray-800">₹{(item.selling_price * item.quantity).toFixed(2)}</div>
+                      {item.gst_rate > 0 && (
+                        <div className="text-[9px] text-orange-500 font-medium">GST {item.gst_rate}%</div>
+                      )}
                     </div>
+
+                    {/* Remove */}
+                    <button
+                      onClick={() => handleRemoveItem(item.id)}
+                      className="shrink-0 text-gray-300 hover:text-red-500 hover:bg-red-50 p-1 rounded transition-colors opacity-0 group-hover:opacity-100"
+                    >
+                      <Trash2 className="w-3 h-3" />
+                    </button>
                   </div>
-                </div>
-              ))
+                ))}
+              </div>
             )}
           </div>
 
+          {/* Totals + Checkout */}
           {cart.items.length > 0 && (
-            <div className="bg-white border-t border-gray-100 p-3 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
-              <div className="space-y-1 mb-3">
+            <div className="border-t border-gray-200 bg-white">
+              {/* Discount row */}
+              <div className="px-3 py-2 flex items-center justify-between border-b border-gray-100 gap-2">
+                <span className="text-xs text-gray-500 shrink-0">Discount</span>
+                <div className="flex items-center gap-1">
+                  <div className="flex bg-gray-100 rounded p-0.5 border border-gray-200">
+                    <button
+                      onClick={() => setCart(prev => ({ ...prev, discount_type: 'percentage' }))}
+                      className={`px-1.5 py-0.5 text-[10px] font-semibold rounded transition-colors ${cart.discount_type === 'percentage' ? 'bg-white shadow-sm text-blue-700' : 'text-gray-400 hover:text-gray-600'}`}
+                    >%</button>
+                    <button
+                      onClick={() => setCart(prev => ({ ...prev, discount_type: 'amount' }))}
+                      className={`px-1.5 py-0.5 text-[10px] font-semibold rounded transition-colors ${cart.discount_type === 'amount' ? 'bg-white shadow-sm text-blue-700' : 'text-gray-400 hover:text-gray-600'}`}
+                    >₹</button>
+                  </div>
+                  <input
+                    type="number"
+                    min="0"
+                    value={cart.discount_type === 'percentage' ? (cart.discount_percentage || '') : (cart.discount_amount || '')}
+                    onChange={(e) => {
+                      const val = parseFloat(e.target.value) || 0;
+                      if (cart.discount_type === 'percentage') {
+                        setCart(prev => ({ ...prev, discount_percentage: val > 100 ? 100 : val }));
+                      } else {
+                        setCart(prev => ({ ...prev, discount_amount: val }));
+                      }
+                    }}
+                    className="w-16 text-right px-1.5 py-1 border border-gray-200 rounded text-xs outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400 font-medium text-gray-700"
+                    placeholder="0"
+                  />
+                </div>
+              </div>
+
+              {/* Summary rows */}
+              <div className="px-3 py-2 space-y-1.5">
                 <div className="flex justify-between text-xs text-gray-500">
                   <span>Subtotal</span>
                   <span className="font-medium text-gray-700">₹{totals.subtotal.toFixed(2)}</span>
                 </div>
 
-                <div className="flex justify-between items-center text-xs text-gray-500 gap-2 overflow-visible">
-                  <span>Discount</span>
-                  <div className="flex items-center gap-1">
-                    <div className="flex bg-gray-100 rounded p-0.5 border border-gray-200">
-                      <button
-                        onClick={() => setCart(prev => ({ ...prev, discount_type: 'percentage' }))}
-                        className={`px-1.5 py-0.5 text-[10px] font-semibold rounded ${cart.discount_type === 'percentage' ? 'bg-white shadow-sm text-gray-800' : 'text-gray-500'}`}
-                      >%</button>
-                      <button
-                        onClick={() => setCart(prev => ({ ...prev, discount_type: 'amount' }))}
-                        className={`px-1.5 py-0.5 text-[10px] font-semibold rounded ${cart.discount_type === 'amount' ? 'bg-white shadow-sm text-gray-800' : 'text-gray-500'}`}
-                      >₹</button>
-                    </div>
-                    <input
-                      type="number"
-                      min="0"
-                      value={cart.discount_type === 'percentage' ? (cart.discount_percentage || '') : (cart.discount_amount || '')}
-                      onChange={(e) => {
-                        const val = parseFloat(e.target.value) || 0;
-                        if (cart.discount_type === 'percentage') {
-                          setCart(prev => ({ ...prev, discount_percentage: val > 100 ? 100 : val }));
-                        } else {
-                          setCart(prev => ({ ...prev, discount_amount: val }));
-                        }
-                      }}
-                      className="w-16 text-right p-0.5 border border-gray-200 rounded text-xs outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400 transition-all font-medium text-gray-700"
-                      placeholder="0"
-                    />
-                  </div>
-                </div>
-
                 {totals.discount > 0 && (
                   <div className="flex justify-between text-xs text-green-600 font-medium">
-                    <span>Discount Applied</span>
+                    <span>Discount</span>
                     <span>-₹{totals.discount.toFixed(2)}</span>
                   </div>
                 )}
 
-                <div className="flex justify-between text-xs text-gray-500">
-                  <div className="group relative flex items-center gap-1 cursor-help">
-                    <span className="border-b border-dashed border-gray-300 pointer-events-auto">Total Tax</span>
-                    <div className="hidden group-hover:block absolute bottom-full left-0 mb-1 w-48 bg-gray-800 text-white p-2 text-[10px] rounded shadow-lg z-50">
-                      {Object.entries(totals.taxBreakdown).length > 0 ? Object.entries(totals.taxBreakdown).sort(([a], [b]) => Number(b) - Number(a)).map(([rate, breakdown]) => (
-                         <div key={rate} className="flex justify-between mb-0.5">
-                            <span>GST @ {rate}%:</span>
-                            <span>₹{breakdown.taxAmount.toFixed(2)}</span>
-                         </div>
-                      )) : "No tax applicable"}
-                      {totals.exemptedAmount > 0 && (
-                         <div className="flex justify-between text-gray-300 mt-1 border-t border-gray-600 pt-1">
-                            <span>Exempted 0%:</span>
-                            <span>₹{totals.exemptedAmount.toFixed(2)}</span>
-                         </div>
-                      )}
+                {/* GST Breakdown — always visible */}
+                {Object.entries(totals.taxBreakdown).length > 0 && (
+                  <div className="bg-orange-50 border border-orange-100 rounded-lg px-2.5 py-1.5 space-y-1">
+                    <div className="text-[10px] font-semibold text-orange-700 uppercase tracking-wide mb-1">GST Breakdown</div>
+                    {Object.entries(totals.taxBreakdown)
+                      .sort(([a], [b]) => Number(a) - Number(b))
+                      .map(([rate, breakdown]) => (
+                        <div key={rate} className="flex justify-between text-[11px] text-orange-800">
+                          <span>GST @ {rate}%</span>
+                          <div className="flex gap-2 text-right">
+                            <span className="text-orange-500">CGST ₹{breakdown.cgst.toFixed(2)}</span>
+                            <span className="text-orange-500">SGST ₹{breakdown.sgst.toFixed(2)}</span>
+                          </div>
+                        </div>
+                    ))}
+                    <div className="flex justify-between text-xs font-bold text-orange-800 border-t border-orange-200 pt-1 mt-1">
+                      <span>Total Tax</span>
+                      <span>₹{totals.totalGst.toFixed(2)}</span>
                     </div>
                   </div>
-                  <span className="font-medium text-gray-700">₹{totals.totalGst.toFixed(2)}</span>
-                </div>
+                )}
 
                 {totals.roundOff !== 0 && (
                   <div className="flex justify-between text-[11px] text-gray-400">
@@ -850,18 +879,21 @@ const POS: React.FC = () => {
                 )}
               </div>
 
-              <div className="flex justify-between items-end pt-2 border-t border-gray-100 mb-3 bg-blue-50/50 -mx-3 px-3 py-2 rounded">
-                <span className="font-bold text-gray-700 text-sm">Grand Total</span>
-                <span className="text-xl font-bold text-blue-600 leading-none">₹{totals.grandTotal.toFixed(2)}</span>
+              {/* Grand Total */}
+              <div className="mx-3 mb-2 flex justify-between items-center bg-blue-600 text-white rounded-lg px-3 py-2">
+                <span className="font-bold text-sm">Grand Total</span>
+                <span className="text-xl font-extrabold tracking-tight">₹{totals.grandTotal.toFixed(2)}</span>
               </div>
 
-              <button
-                onClick={handleInitiateCheckout}
-                disabled={isProcessing}
-                className="btn btn-primary w-full py-2.5 shadow-md flex justify-center items-center font-bold tracking-wide"
-              >
-                {isProcessing ? 'Processing...' : 'Complete Sale'}
-              </button>
+              <div className="px-3 pb-3">
+                <button
+                  onClick={handleInitiateCheckout}
+                  disabled={isProcessing}
+                  className="w-full py-2.5 bg-green-600 hover:bg-green-700 disabled:opacity-60 text-white font-bold text-sm rounded-lg shadow-md transition-colors flex items-center justify-center gap-2 tracking-wide"
+                >
+                  {isProcessing ? 'Processing...' : '✓ Complete Sale'}
+                </button>
+              </div>
             </div>
           )}
         </div>
