@@ -26,7 +26,10 @@ const Invoices: React.FC = () => {
   const [totalPages, setTotalPages] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
   const [pageSize, setPageSize] = useState(10);
+  const [searchInput, setSearchInput] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
   const [saleSearchQuery, setSaleSearchQuery] = useState('');
   const [customerSearchQuery, setCustomerSearchQuery] = useState('');
   const [showCustomerDropdown, setShowCustomerDropdown] = useState(false);
@@ -61,11 +64,20 @@ const Invoices: React.FC = () => {
 
   const invoiceRef = useRef<HTMLDivElement>(null);
 
-  // Fetch data on mount and when page/search changes
+  // Debounce search input → searchQuery (triggers API)
+  useEffect(() => {
+    const id = setTimeout(() => setSearchQuery(searchInput), 400);
+    return () => clearTimeout(id);
+  }, [searchInput]);
+
+  // Fetch data on mount and when page/search/date changes
   useEffect(() => {
     fetchInvoices();
+  }, [currentPage, searchQuery, dateFrom, dateTo, pageSize]);
+
+  useEffect(() => {
     fetchStates();
-  }, [currentPage, searchQuery, pageSize]);
+  }, []);
 
 
   useEffect(() => {
@@ -130,11 +142,11 @@ const Invoices: React.FC = () => {
       setLoading(true);
       const filters: any = {
         page: currentPage,
-        page_size: pageSize
+        page_size: pageSize,
       };
-      if (searchQuery) {
-        filters.invoice_number = searchQuery;
-      }
+      if (searchQuery.trim()) filters.search = searchQuery.trim();
+      if (dateFrom) filters.start_date = dateFrom;
+      if (dateTo) filters.end_date = dateTo;
 
       const data = await invoiceService.getInvoices(filters);
       setInvoices(data.results);
@@ -150,10 +162,8 @@ const Invoices: React.FC = () => {
 
   // Reset to page 1 when filters or page size change
   useEffect(() => {
-    if (currentPage !== 1) {
-      setCurrentPage(1);
-    }
-  }, [searchQuery, pageSize]);
+    setCurrentPage(1);
+  }, [searchInput, dateFrom, dateTo, pageSize]);
 
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
@@ -428,16 +438,54 @@ const Invoices: React.FC = () => {
         </button>
       </div>
 
-      {/* Search */}
-      <div className="relative max-w-sm">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
-        <input
-          type="text"
-          placeholder="Search by invoice number…"
-          value={searchQuery}
-          onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }}
-          className="w-full pl-9 pr-3 py-2 text-sm border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-gray-400 focus:border-transparent transition-all bg-white"
-        />
+      {/* Filters */}
+      <div className="flex flex-wrap items-end gap-3">
+        {/* Search */}
+        <div className="flex flex-col gap-0.5 flex-1 min-w-[220px] max-w-sm">
+          <label className="text-xs text-gray-400 px-0.5">Search</label>
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+            <input
+              type="text"
+              placeholder="Invoice no, customer, sale order…"
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
+              className="w-full pl-9 pr-8 py-2 text-sm border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-gray-400 focus:border-transparent transition-all bg-white"
+            />
+            {searchInput && (
+              <button onClick={() => setSearchInput('')} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Date range */}
+        <div className="flex flex-col gap-0.5">
+          <label className="text-xs text-gray-400 px-0.5">From</label>
+          <input
+            type="date"
+            value={dateFrom}
+            onChange={(e) => setDateFrom(e.target.value)}
+            className="px-3 py-2 text-sm border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-gray-400 focus:border-transparent transition-all bg-white text-gray-700"
+          />
+        </div>
+        <span className="text-gray-400 text-sm pb-2">—</span>
+        <div className="flex flex-col gap-0.5">
+          <label className="text-xs text-gray-400 px-0.5">To</label>
+          <input
+            type="date"
+            value={dateTo}
+            min={dateFrom || undefined}
+            onChange={(e) => setDateTo(e.target.value)}
+            className="px-3 py-2 text-sm border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-gray-400 focus:border-transparent transition-all bg-white text-gray-700"
+          />
+        </div>
+        {(dateFrom || dateTo) && (
+          <button onClick={() => { setDateFrom(''); setDateTo(''); }} className="text-xs text-gray-400 hover:text-gray-700 underline underline-offset-2 transition-colors pb-2">
+            Clear
+          </button>
+        )}
       </div>
 
       {/* Table Card */}
@@ -453,9 +501,9 @@ const Invoices: React.FC = () => {
           <div className="flex-1 flex flex-col items-center justify-center py-16 text-center">
             <FileText className="w-12 h-12 text-gray-200 mb-3" />
             <p className="text-sm font-medium text-gray-500">
-              {searchQuery ? `No results for "${searchQuery}"` : 'No invoices yet'}
+              {searchInput || dateFrom || dateTo ? 'No invoices match the current filters' : 'No invoices yet'}
             </p>
-            {!searchQuery && (
+            {!searchInput && !dateFrom && !dateTo && (
               <button
                 onClick={openCreateModal}
                 className="mt-4 px-4 py-2 text-sm bg-gray-900 text-white rounded-lg hover:bg-gray-700 transition-colors"

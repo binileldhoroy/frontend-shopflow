@@ -40,6 +40,7 @@ export interface InvoiceFilters {
   start_date?: string;
   end_date?: string;
   month?: string; // Format: YYYY-MM
-  customer_name?: string;
-  invoice_number?: string;
+  search?: string; // searches invoice_number, customer_name, sale_order order_number
+  page?: number;
+  page_size?: number;
 }

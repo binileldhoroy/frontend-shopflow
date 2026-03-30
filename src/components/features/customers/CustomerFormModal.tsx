@@ -15,7 +15,7 @@ const CustomerFormModal: React.FC<CustomerFormModalProps> = ({ customer, onClose
     name: '',
     email: '',
     phone: '',
-    address: '',
+    address_line1: '',
     city: '',
     state: '',
     pincode: '',
@@ -42,9 +42,9 @@ const CustomerFormModal: React.FC<CustomerFormModalProps> = ({ customer, onClose
         name: customer.name || '',
         email: customer.email || '',
         phone: customer.phone || '',
-        address: customer.address || '',
+        address_line1: customer.address_line1 || '',
         city: customer.city || '',
-        state: customer.state?.id || '',
+        state: customer.state || '',
         pincode: customer.pincode || '',
         gstin: customer.gstin || '',
         is_guest: customer.is_guest || false,
@@ -66,7 +66,7 @@ const CustomerFormModal: React.FC<CustomerFormModalProps> = ({ customer, onClose
     try {
       const submitData = {
         ...formData,
-        state: formData.state ? Number(formData.state) : null,
+        state: formData.state || null,
       };
       await onSave(submitData);
     } finally {
@@ -135,8 +135,8 @@ const CustomerFormModal: React.FC<CustomerFormModalProps> = ({ customer, onClose
             <label className="label">Address</label>
             <input
               type="text"
-              name="address"
-              value={formData.address}
+              name="address_line1"
+              value={formData.address_line1}
               onChange={handleChange}
               className="input-field"
             />
@@ -163,7 +163,7 @@ const CustomerFormModal: React.FC<CustomerFormModalProps> = ({ customer, onClose
             >
               <option value="">Select State</option>
               {states.map((state: any) => (
-                <option key={state.id} value={state.id}>
+                <option key={state.id} value={state.name}>
                   {state.name}
                 </option>
               ))}

@@ -5,9 +5,9 @@ export interface CustomerFormData {
   name: string;
   email?: string;
   phone?: string;
-  address?: string;
+  address_line1?: string;
   city?: string;
-  state?: number;
+  state?: string;
   pincode?: string;
   gstin?: string;
   is_guest?: boolean;
