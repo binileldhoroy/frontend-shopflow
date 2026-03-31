@@ -1,10 +1,7 @@
-import React from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { SaleOrder, SaleItem } from '../../types/sale.types';
 import { useAppSelector } from '@hooks/useRedux';
 import QRCode from 'react-qr-code';
-
-const ITEMS_PER_FIRST_PAGE = 13;
-const ITEMS_PER_NEXT_PAGE = 20;
 
 interface InvoiceTemplateProps {
   saleOrder: SaleOrder;
@@ -31,6 +28,77 @@ const InvoiceTemplate: React.FC<InvoiceTemplateProps> = ({
   customerDetails,
 }) => {
   const currentCompany = useAppSelector((state) => state.company.currentCompany);
+
+  const [measuring, setMeasuring] = useState(true);
+  const [itemPages, setItemPages] = useState<SaleItem[][]>([]);
+  const measureRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    setMeasuring(true);
+  }, [saleOrder, customerDetails]);
+
+  useEffect(() => {
+    if (measuring && measureRef.current) {
+      const fpHeader = measureRef.current.querySelector('.measure-fp-header') as HTMLElement;
+      const cpHeader = measureRef.current.querySelector('.measure-cp-header') as HTMLElement;
+      const tHeader = measureRef.current.querySelector('.measure-table-header') as HTMLElement;
+      const summary = measureRef.current.querySelector('.measure-summary') as HTMLElement;
+      const footerCont = measureRef.current.querySelector('.measure-footer-cont') as HTMLElement;
+      const footerLast = measureRef.current.querySelector('.measure-footer-last') as HTMLElement;
+      const rows = measureRef.current.querySelectorAll('.measure-row');
+
+      const A4_HEIGHT = 1080;
+      const SAFE_PADDING = 15;
+
+      const heights = {
+        fpHeader: (fpHeader?.offsetHeight || 0) + SAFE_PADDING,
+        cpHeader: (cpHeader?.offsetHeight || 0) + SAFE_PADDING,
+        tHeader: tHeader?.offsetHeight || 0,
+        summary: summary?.offsetHeight || 0,
+        footerCont: footerCont?.offsetHeight || 0,
+        footerLast: footerLast?.offsetHeight || 0,
+        rows: Array.from(rows).map(r => (r as HTMLElement).offsetHeight)
+      };
+
+      const items = saleOrder.items || [];
+      const newPages: SaleItem[][] = [];
+      let currentPage: SaleItem[] = [];
+
+      let remainingHeight = A4_HEIGHT - heights.fpHeader - heights.tHeader - heights.footerCont;
+
+      for (let i = 0; i < items.length; i++) {
+        const itemHeight = heights.rows[i] || 30;
+        const isLastItem = i === items.length - 1;
+        const requiredSpace = itemHeight + (isLastItem ? heights.summary + heights.footerLast : 0);
+
+        if (remainingHeight >= requiredSpace) {
+          currentPage.push(items[i]);
+          remainingHeight -= itemHeight;
+        } else {
+          if (currentPage.length > 0) {
+            newPages.push(currentPage);
+          }
+
+          currentPage = [items[i]];
+          remainingHeight = A4_HEIGHT - heights.cpHeader - heights.tHeader - heights.footerCont - itemHeight;
+
+          if (isLastItem) {
+             if (remainingHeight < heights.summary + heights.footerLast) {
+                newPages.push(currentPage);
+                currentPage = [];
+             }
+          }
+        }
+      }
+
+      if (currentPage.length > 0 || items.length === 0) {
+        newPages.push(currentPage);
+      }
+
+      setItemPages(newPages);
+      setMeasuring(false);
+    }
+  }, [measuring, saleOrder]);
 
   if (!currentCompany) {
     return (
@@ -110,18 +178,7 @@ const InvoiceTemplate: React.FC<InvoiceTemplateProps> = ({
 
   // Split items into pages
   const allItems = saleOrder.items || [];
-  const itemPages: SaleItem[][] = [];
-  if (allItems.length <= ITEMS_PER_FIRST_PAGE) {
-    itemPages.push(allItems);
-  } else {
-    itemPages.push(allItems.slice(0, ITEMS_PER_FIRST_PAGE));
-    let remaining = allItems.slice(ITEMS_PER_FIRST_PAGE);
-    while (remaining.length > 0) {
-      itemPages.push(remaining.slice(0, ITEMS_PER_NEXT_PAGE));
-      remaining = remaining.slice(ITEMS_PER_NEXT_PAGE);
-    }
-  }
-  const totalPages = itemPages.length;
+  const totalPages = Math.max(1, itemPages.length);
 
   const upiQrValue = currentCompany.upi_id
     ? `upi://pay?pa=${currentCompany.upi_id}&pn=${encodeURIComponent(currentCompany.company_name)}&am=${saleOrder.total_amount}&cu=INR&tr=${saleOrder.order_number}`
@@ -153,9 +210,9 @@ const InvoiceTemplate: React.FC<InvoiceTemplateProps> = ({
   };
 
   // ─── Items table ──────────────────────────────────────────────────────────
-  const renderItemsTable = (items: SaleItem[], startIndex: number, isInterstate: boolean) => (
+  const renderItemsTable = (items: SaleItem[], startIndex: number, isInterstate: boolean, isMeasuring = false) => (
     <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-      <thead>
+      <thead className={isMeasuring ? "measure-table-header" : ""}>
         <tr>
           <th style={{ ...thBase, width: '26px' }}>S.No</th>
           <th style={{ ...thBase, textAlign: 'left' as const }}>Description of Goods</th>
@@ -184,7 +241,7 @@ const InvoiceTemplate: React.FC<InvoiceTemplateProps> = ({
           const total = Number(item.total_with_gst) || (taxable + gstAmt);
           const discPct = Number((item as any).discount_percentage) || 0;
           return (
-            <tr key={item.id}>
+            <tr key={item.id} className={isMeasuring ? "measure-row" : ""}>
               <td style={{ ...tdBase, textAlign: 'center' as const }}>{startIndex + idx + 1}</td>
               <td style={{ ...tdBase, textAlign: 'left' as const }}>{item.product_name}</td>
               <td style={{ ...tdBase, textAlign: 'center' as const }}>{item.hsn_code || '-'}</td>
@@ -570,14 +627,31 @@ const InvoiceTemplate: React.FC<InvoiceTemplateProps> = ({
   );
 
   // ─── Render ───────────────────────────────────────────────────────────────
+
+  if (measuring) {
+    return (
+      <div style={{ position: 'fixed', top: -10000, left: -10000, width: '210mm', background: 'white', visibility: 'hidden' }}>
+        <div ref={measureRef} style={{ width: '100%', fontFamily: 'Arial, sans-serif', fontSize: BASE }}>
+          <div className="measure-fp-header">{renderFullHeader()}{renderTitle()}{renderBillToSection()}</div>
+          <div className="measure-cp-header">{renderCompactHeader(2)}</div>
+          {renderItemsTable(allItems, 0, taxDetails.isInterstate, true)}
+          <div className="measure-summary">{renderSummarySection()}</div>
+          <div className="measure-footer-cont">{renderContinuedFooter(1)}</div>
+          <div className="measure-footer-last">{renderLastPageFooter()}</div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <>
       <style>{`
         /* Screen: gap between pages */
-        .invoice-page + .invoice-page { margin-top: 20px; }
+        .invoice-page + .invoice-page { margin-top: 16px; }
 
         @media print {
-          @page { size: A4; margin: 8mm; }
+          /* Zero browser margin — our content div handles its own sizing */
+          @page { size: A4; margin: 10mm; }
 
           html, body {
             -webkit-print-color-adjust: exact;
@@ -586,36 +660,30 @@ const InvoiceTemplate: React.FC<InvoiceTemplateProps> = ({
             padding: 0 !important;
             background: white !important;
           }
+          .invoice-outer-wrapper { background: white !important; }
 
-          /* Strip the screen wrapper */
-          .invoice-outer-wrapper {
-            background: white !important;
-            padding: 0 !important;
-          }
-
-          /* Each page div = one A4 page */
+          /* Each div = exactly one A4 page */
           .invoice-page {
-            width: 100% !important;
-            max-width: 100% !important;
-            margin: 0 !important;
-            border: 2px solid #000 !important;
+            width:  210mm !important;
+            height: 297mm !important;
+            margin: 0 auto !important;
+            overflow: hidden !important;
             box-sizing: border-box !important;
             page-break-after: always !important;
             page-break-inside: avoid !important;
           }
-          .invoice-page:last-child {
-            page-break-after: auto !important;
-          }
+          .invoice-page:last-child { page-break-after: auto !important; }
+
+          /* Inner wrapper must also be full height in print */
+          .invoice-page-inner { height: 100% !important; }
         }
       `}</style>
 
-      <div className="invoice-outer-wrapper" style={{ fontFamily: 'Arial, sans-serif', fontSize: BASE, backgroundColor: '#e5e7eb', padding: '0' }}>
+      <div className="invoice-outer-wrapper" style={{ fontFamily: 'Arial, sans-serif', fontSize: BASE, backgroundColor: '#e5e7eb' }}>
         {itemPages.map((pageItems, pageIndex) => {
           const isFirstPage = pageIndex === 0;
           const isLastPage = pageIndex === totalPages - 1;
-          const startItemIndex = isFirstPage
-            ? 0
-            : ITEMS_PER_FIRST_PAGE + (pageIndex - 1) * ITEMS_PER_NEXT_PAGE;
+          const startItemIndex = itemPages.slice(0, pageIndex).reduce((acc, p) => acc + p.length, 0);
 
           return (
             <div
@@ -623,49 +691,64 @@ const InvoiceTemplate: React.FC<InvoiceTemplateProps> = ({
               className="invoice-page"
               style={{
                 width: '210mm',
+                height: '297mm',
                 margin: '0 auto',
-                padding: 0,
+                boxSizing: 'border-box' as const,
                 fontFamily: 'Arial, sans-serif',
                 fontSize: BASE,
                 backgroundColor: 'white',
-                border: outerBorder,
+                overflow: 'hidden',
               }}
             >
-              {/* Header */}
-              {isFirstPage ? renderFullHeader() : renderCompactHeader(pageIndex + 1)}
-
-              {/* Title bar (page 1 only) */}
-              {isFirstPage && renderTitle()}
-
-              {/* Bill To section (page 1 only) */}
-              {isFirstPage && renderBillToSection()}
-
-              {/* Continuation label for page 2+ */}
-              {!isFirstPage && (
-                <div style={{
-                  padding: '4px 10px',
-                  borderBottom: innerBorder,
-                  backgroundColor: '#f0f0f0',
-                  fontSize: '10px',
-                  fontStyle: 'italic',
-                  color: '#555',
-                  textAlign: 'center' as const,
-                  fontWeight: '600',
-                }}>
-                  TAX INVOICE (Continued) — Page {pageIndex + 1} of {totalPages}
+              {/*
+               * Inner border wrapper — flex column so:
+               *   • fixed sections (header, bill-to) stay at the top
+               *   • items area (flex:1) fills all remaining space
+               *   • footer/summary stays at the bottom
+               * This makes every page — even one with a single item —
+               * look like a complete, professional A4 page.
+               */}
+              <div
+                className="invoice-page-inner"
+                style={{
+                  border: outerBorder,
+                  height: '100%',
+                  boxSizing: 'border-box' as const,
+                  display: 'flex',
+                  flexDirection: 'column' as const,
+                }}
+              >
+                {/* ── Top fixed section ── */}
+                <div style={{ flexShrink: 0 }}>
+                  {isFirstPage ? renderFullHeader() : renderCompactHeader(pageIndex + 1)}
+                  {isFirstPage && renderTitle()}
+                  {isFirstPage && renderBillToSection()}
+                  {!isFirstPage && (
+                    <div style={{
+                      padding: '4px 10px',
+                      borderBottom: innerBorder,
+                      backgroundColor: '#f0f0f0',
+                      fontSize: '10px',
+                      fontStyle: 'italic',
+                      color: '#555',
+                      textAlign: 'center' as const,
+                      fontWeight: '600',
+                    }}>
+                      TAX INVOICE (Continued) — Page {pageIndex + 1} of {totalPages}
+                    </div>
+                  )}
                 </div>
-              )}
 
-              {/* Items */}
-              <div style={{ borderBottom: isLastPage ? outerBorder : innerBorder }}>
-                {renderItemsTable(pageItems, startItemIndex, taxDetails.isInterstate)}
+                {/* ── Items area — grows to fill remaining space ── */}
+                <div style={{ flex: 1, overflow: 'hidden', borderBottom: outerBorder, }}>
+                  {renderItemsTable(pageItems, startItemIndex, taxDetails.isInterstate)}
+                </div>
+
+                {/* ── Bottom section — summary on last page, footer on others ── */}
+                <div style={{ flexShrink: 0 }}>
+                  {isLastPage ? renderSummarySection() : renderContinuedFooter(pageIndex + 1)}
+                </div>
               </div>
-
-              {/* Summary (last page only) */}
-              {isLastPage && renderSummarySection()}
-
-              {/* Footer */}
-              {!isLastPage ? renderContinuedFooter(pageIndex + 1) : renderLastPageFooter()}
             </div>
           );
         })}

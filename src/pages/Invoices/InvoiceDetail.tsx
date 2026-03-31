@@ -58,7 +58,7 @@ const InvoiceDetail: React.FC = () => {
     if (!invoiceRef.current || !invoice) return;
     setDownloading(true);
     const opt = {
-      margin: [8, 8, 8, 8] as [number, number, number, number],
+      margin: 0,
       filename: `Invoice_${invoice.invoice_number}.pdf`,
       image: { type: 'jpeg' as const, quality: 0.98 },
       html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff' },
