@@ -28,21 +28,22 @@ export interface PaginatedResponse<T> {
 export const saleService = {
   // Get all sales with pagination
   // Get all sales with pagination and filters
-  getAll: async (page: number = 1, pageSize: number = 10, filters?: { startDate?: string; endDate?: string; paymentMethod?: string }): Promise<PaginatedResponse<any>> => {
+  getAll: async (page: number = 1, pageSize: number = 10, filters?: { startDate?: string; endDate?: string; paymentMethod?: string; hasInvoice?: boolean }): Promise<PaginatedResponse<any>> => {
     let url = `${API_ENDPOINTS.SALES.LIST}?page=${page}&page_size=${pageSize}`;
     if (filters?.startDate) url += `&start_date=${filters.startDate}`;
     if (filters?.endDate) url += `&end_date=${filters.endDate}`;
     if (filters?.paymentMethod) url += `&payment_method=${filters.paymentMethod}`;
+    if (filters?.hasInvoice !== undefined) url += `&has_invoice=${filters.hasInvoice}`;
 
     const response = await axiosInstance.get<PaginatedResponse<any>>(url);
     return response.data;
   },
 
   // Search sales by query with pagination
-  search: async (query: string, page: number = 1, pageSize: number = 10): Promise<PaginatedResponse<any>> => {
-    const response = await axiosInstance.get<PaginatedResponse<any>>(
-      `${API_ENDPOINTS.SALES.LIST}?search=${encodeURIComponent(query)}&page=${page}&page_size=${pageSize}`
-    );
+  search: async (query: string, page: number = 1, pageSize: number = 10, filters?: { hasInvoice?: boolean }): Promise<PaginatedResponse<any>> => {
+    let url = `${API_ENDPOINTS.SALES.LIST}?search=${encodeURIComponent(query)}&page=${page}&page_size=${pageSize}`;
+    if (filters?.hasInvoice !== undefined) url += `&has_invoice=${filters.hasInvoice}`;
+    const response = await axiosInstance.get<PaginatedResponse<any>>(url);
     return response.data;
   },
 

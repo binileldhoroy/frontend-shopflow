@@ -69,15 +69,19 @@ const InvoiceTemplate: React.FC<InvoiceTemplateProps> = ({
       for (let i = 0; i < items.length; i++) {
         const itemHeight = heights.rows[i] || 30;
         const isLastItem = i === items.length - 1;
-        const requiredSpace = itemHeight + (isLastItem ? heights.summary + heights.footerLast : 0);
 
-        if (remainingHeight >= requiredSpace) {
+        if (remainingHeight >= itemHeight || currentPage.length === 0) {
           currentPage.push(items[i]);
           remainingHeight -= itemHeight;
-        } else {
-          if (currentPage.length > 0) {
-            newPages.push(currentPage);
+
+          if (isLastItem) {
+            if (remainingHeight < heights.summary + heights.footerLast) {
+               newPages.push(currentPage);
+               currentPage = [];
+            }
           }
+        } else {
+          newPages.push(currentPage);
 
           currentPage = [items[i]];
           remainingHeight = A4_HEIGHT - heights.cpHeader - heights.tHeader - heights.footerCont - itemHeight;
@@ -211,7 +215,7 @@ const InvoiceTemplate: React.FC<InvoiceTemplateProps> = ({
 
   // ─── Items table ──────────────────────────────────────────────────────────
   const renderItemsTable = (items: SaleItem[], startIndex: number, isInterstate: boolean, isMeasuring = false) => (
-    <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+    <table style={{ width: '100%', height: isMeasuring ? 'auto' : '100%', borderCollapse: 'collapse' }}>
       <thead className={isMeasuring ? "measure-table-header" : ""}>
         <tr>
           <th style={{ ...thBase, width: '26px' }}>S.No</th>
@@ -265,6 +269,29 @@ const InvoiceTemplate: React.FC<InvoiceTemplateProps> = ({
             </tr>
           );
         })}
+        {/* Filler row to stretch vertical lines */}
+        {!isMeasuring && (
+          <tr style={{ height: '100%' }}>
+            <td style={{ borderRight: innerBorder }}></td>
+            <td style={{ borderRight: innerBorder }}></td>
+            <td style={{ borderRight: innerBorder }}></td>
+            <td style={{ borderRight: innerBorder }}></td>
+            <td style={{ borderRight: innerBorder }}></td>
+            <td style={{ borderRight: innerBorder }}></td>
+            <td style={{ borderRight: innerBorder }}></td>
+            <td style={{ borderRight: innerBorder }}></td>
+            <td style={{ borderRight: innerBorder }}></td>
+            {isInterstate ? (
+              <td style={{ borderRight: innerBorder }}></td>
+            ) : (
+              <>
+                <td style={{ borderRight: innerBorder }}></td>
+                <td style={{ borderRight: innerBorder }}></td>
+              </>
+            )}
+            <td style={{ borderRight: 'none' }}></td>
+          </tr>
+        )}
       </tbody>
     </table>
   );
@@ -317,12 +344,12 @@ const InvoiceTemplate: React.FC<InvoiceTemplateProps> = ({
               <p style={{ fontSize: '7px', color: '#555', margin: '1px 0 0 0' }}>UPI: {currentCompany.upi_id}</p>
             </div>
           )}
-          {invoiceUrl && (
+          {/* {invoiceUrl && (
             <div style={{ textAlign: 'center' as const }}>
               <QRCode value={invoiceUrl} size={74} />
               <p style={{ fontSize: '8px', fontWeight: '700', margin: '3px 0 0 0', textTransform: 'uppercase' as const, letterSpacing: '0.5px' }}>VIEW INVOICE</p>
             </div>
-          )}
+          )} */}
         </div>
       </div>
     </div>
@@ -400,7 +427,6 @@ const InvoiceTemplate: React.FC<InvoiceTemplateProps> = ({
               ['Invoice Date:', invoiceDate ? formatDate(invoiceDate) : formatDate(new Date().toISOString())],
               ['Order No:', saleOrder.order_number],
               ['Order Date:', formatDate(saleOrder.sale_date)],
-              ['Payment Mode:', saleOrder.payment_method?.replace(/_/g, ' ') || '-'],
             ].map(([label, value]) => (
               <tr key={label}>
                 <td style={{ fontWeight: '600', padding: '3px 0', width: '45%', color: '#333' }}>{label}</td>

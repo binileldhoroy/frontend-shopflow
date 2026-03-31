@@ -113,9 +113,9 @@ const Invoices: React.FC = () => {
         setLoadingSales(true);
         let data;
         if (saleSearchQuery) {
-          data = await saleService.search(saleSearchQuery, salePage, 10);
+          data = await saleService.search(saleSearchQuery, salePage, 10, { hasInvoice: false });
         } else {
-          data = await saleService.getAll(salePage, 10);
+          data = await saleService.getAll(salePage, 10, { hasInvoice: false });
         }
         setSales(data.results);
         setSaleTotalPages(Math.ceil(data.count / 10));
@@ -219,7 +219,7 @@ const Invoices: React.FC = () => {
   const fetchSales = async () => {
     try {
       setLoadingSales(true);
-      const salesData = await saleService.getAll(1, 10);
+      const salesData = await saleService.getAll(1, 10, { hasInvoice: false });
       setSales(salesData.results);
       setSaleTotalPages(Math.ceil(salesData.count / 10));
     } catch (error) {
@@ -291,10 +291,8 @@ const Invoices: React.FC = () => {
     setTimeout(() => setCopied(false), 2000);
   };
 
-  // Filter sales without invoices
-  const availableSales = sales.filter(
-    (sale) => !invoices.some((inv) => inv.sale_order === sale.id && !inv.is_cancelled)
-  );
+  // Filter sales without invoices (now handled by API)
+  const availableSales = sales;
 
   // Reset modal
   const resetModal = () => {
@@ -668,7 +666,7 @@ const Invoices: React.FC = () => {
           className={`fixed inset-0 z-50 flex items-center justify-center p-4 transition-all duration-200 ${createModalVisible ? 'bg-black/40' : 'bg-black/0'}`}
           onClick={(e) => { if (e.target === e.currentTarget) closeCreateModal(); }}
         >
-          <div className={`bg-white rounded-xl shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col transition-all duration-200 ${createModalVisible ? 'opacity-100 scale-100' : 'opacity-0 scale-95'}`}>
+          <div className={`bg-white rounded-xl shadow-2xl w-full max-w-4xl w-[95vw] h-[95vh] flex flex-col transition-all duration-200 ${createModalVisible ? 'opacity-100 scale-100' : 'opacity-0 scale-95'}`}>
             {/* Header */}
             <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
               <div>
@@ -729,7 +727,7 @@ const Invoices: React.FC = () => {
                     </div>
                   ) : (
                     <>
-                      <div className="space-y-1.5 max-h-80 overflow-y-auto pr-1">
+                      <div className="space-y-1.5 max-h-[60vh] overflow-y-auto pr-1">
                         {availableSales.map((sale) => (
                           <button
                             key={sale.id}
@@ -895,7 +893,7 @@ const Invoices: React.FC = () => {
 
               {/* Step 3 */}
               {currentStep === 3 && selectedSale && (
-                <div className="bg-gray-50 rounded-lg overflow-auto max-h-[460px] border border-gray-200">
+                <div className="bg-gray-50 rounded-lg overflow-auto max-h-[80vh] border border-gray-200">
                   <InvoiceTemplate
                     saleOrder={selectedSale}
                     invoiceNumber="PREVIEW"
@@ -956,7 +954,7 @@ const Invoices: React.FC = () => {
           className={`fixed inset-0 z-50 flex items-center justify-center p-4 transition-all duration-200 ${viewModalVisible ? 'bg-black/40' : 'bg-black/0'}`}
           onClick={(e) => { if (e.target === e.currentTarget) closeViewModal(); }}
         >
-          <div className={`bg-white rounded-xl shadow-2xl w-full max-w-5xl max-h-[90vh] flex flex-col transition-all duration-200 ${viewModalVisible ? 'opacity-100 scale-100' : 'opacity-0 scale-95'}`}>
+          <div className={`bg-white rounded-xl shadow-2xl w-fullw-[95vw] h-[95vh] max-w-none flex flex-col transition-all duration-200 ${viewModalVisible ? 'opacity-100 scale-100' : 'opacity-0 scale-95'}`}>
             <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
               <div>
                 <p className="font-bold text-gray-900 font-mono">{viewingInvoice.invoice_number}</p>
@@ -964,7 +962,7 @@ const Invoices: React.FC = () => {
               </div>
               <div className="flex items-center gap-2">
                 {/* Download PDF */}
-                <button
+                {/* <button
                   onClick={handleDownloadPDF}
                   disabled={downloading}
                   className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-gray-700 border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-50 transition-colors"
@@ -973,7 +971,7 @@ const Invoices: React.FC = () => {
                     ? <div className="w-3.5 h-3.5 border-2 border-gray-400 border-t-gray-700 rounded-full animate-spin" />
                     : <Download className="w-3.5 h-3.5" />}
                   <span className="hidden sm:inline">PDF</span>
-                </button>
+                </button> */}
 
                 {/* Print */}
                 <button
