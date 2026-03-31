@@ -221,9 +221,7 @@ const InvoiceTemplate: React.FC<InvoiceTemplateProps> = ({
           <th style={{ ...thBase, width: '26px' }}>S.No</th>
           <th style={{ ...thBase, textAlign: 'left' as const }}>Description of Goods</th>
           <th style={{ ...thBase, width: '58px' }}>HSN / SAC</th>
-          <th style={{ ...thBase, width: '34px' }}>GST%</th>
           <th style={{ ...thBase, width: '36px' }}>Qty</th>
-          <th style={{ ...thBase, width: '32px' }}>Unit</th>
           <th style={{ ...thBase, width: '60px', textAlign: 'right' as const }}>Rate (₹)</th>
           <th style={{ ...thBase, width: '42px', textAlign: 'center' as const }}>Disc%</th>
           <th style={{ ...thBase, width: '64px', textAlign: 'right' as const }}>Taxable (₹)</th>
@@ -249,9 +247,7 @@ const InvoiceTemplate: React.FC<InvoiceTemplateProps> = ({
               <td style={{ ...tdBase, textAlign: 'center' as const }}>{startIndex + idx + 1}</td>
               <td style={{ ...tdBase, textAlign: 'left' as const }}>{item.product_name}</td>
               <td style={{ ...tdBase, textAlign: 'center' as const }}>{item.hsn_code || '-'}</td>
-              <td style={{ ...tdBase, textAlign: 'center' as const }}>{item.gst_rate}%</td>
               <td style={{ ...tdBase, textAlign: 'center' as const }}>{item.quantity}</td>
-              <td style={{ ...tdBase, textAlign: 'center' as const }}>{(item as any).unit || 'Nos'}</td>
               <td style={{ ...tdBase, textAlign: 'right' as const }}>{Number(item.unit_price).toFixed(2)}</td>
               <td style={{ ...tdBase, textAlign: 'center' as const, color: discPct > 0 ? '#059669' : '#aaa' }}>
                 {discPct > 0 ? `${discPct}%` : '-'}
@@ -272,8 +268,6 @@ const InvoiceTemplate: React.FC<InvoiceTemplateProps> = ({
         {/* Filler row to stretch vertical lines */}
         {!isMeasuring && (
           <tr style={{ height: '100%' }}>
-            <td style={{ borderRight: innerBorder }}></td>
-            <td style={{ borderRight: innerBorder }}></td>
             <td style={{ borderRight: innerBorder }}></td>
             <td style={{ borderRight: innerBorder }}></td>
             <td style={{ borderRight: innerBorder }}></td>

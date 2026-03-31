@@ -1,9 +1,9 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FileText, Plus, Eye, X, Printer, ChevronRight, ChevronLeft, Search, User, Download, Share2, Mail, Copy, Check, MessageCircle } from 'lucide-react';
+import { FileText, Plus, Eye, X, Printer, ChevronRight, ChevronLeft, Search, User, Share2, Mail, Copy, Check, MessageCircle } from 'lucide-react';
 import { format } from 'date-fns';
 import { useReactToPrint } from 'react-to-print';
-import html2pdf from 'html2pdf.js';
+// import html2pdf from 'html2pdf.js';
 import { invoiceService } from '../../api/services/invoice.service';
 import { saleService } from '../../api/services/sale.service';
 import { customerService } from '../../api/services/customer.service';
@@ -69,7 +69,7 @@ const Invoices: React.FC = () => {
   const shareMenuRef = useRef<HTMLDivElement>(null);
   const [showShareMenu, setShowShareMenu] = useState(false);
   const [copied, setCopied] = useState(false);
-  const [downloading, setDownloading] = useState(false);
+  // const [downloading, setDownloading] = useState(false);
 
   // Close share menu on outside click
   useEffect(() => {
@@ -244,23 +244,23 @@ const Invoices: React.FC = () => {
     documentTitle: `${viewingInvoice?.invoice_number || 'Invoice'}`,
   });
 
-  const handleDownloadPDF = async () => {
-    if (!invoiceRef.current || !viewingInvoice) return;
-    setDownloading(true);
-    const opt = {
-      margin: [8, 8, 8, 8] as [number, number, number, number],
-      filename: `Invoice_${viewingInvoice.invoice_number}.pdf`,
-      image: { type: 'jpeg' as const, quality: 0.98 },
-      html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff' },
-      jsPDF: { unit: 'mm' as const, format: 'a4' as const, orientation: 'portrait' as const },
-      pagebreak: { mode: ['css', 'legacy'], before: '.invoice-page:not(:first-child)' },
-    };
-    try {
-      await html2pdf().set(opt).from(invoiceRef.current).save();
-    } finally {
-      setDownloading(false);
-    }
-  };
+  // const handleDownloadPDF = async () => {
+  //   if (!invoiceRef.current || !viewingInvoice) return;
+  //   setDownloading(true);
+  //   const opt = {
+  //     margin: [8, 8, 8, 8] as [number, number, number, number],
+  //     filename: `Invoice_${viewingInvoice.invoice_number}.pdf`,
+  //     image: { type: 'jpeg' as const, quality: 0.98 },
+  //     html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff' },
+  //     jsPDF: { unit: 'mm' as const, format: 'a4' as const, orientation: 'portrait' as const },
+  //     pagebreak: { mode: ['css', 'legacy'], before: '.invoice-page:not(:first-child)' },
+  //   };
+  //   try {
+  //     await html2pdf().set(opt).from(invoiceRef.current).save();
+  //   } finally {
+  //     setDownloading(false);
+  //   }
+  // };
 
   const getShareUrl = () =>
     viewingInvoice ? `${window.location.origin}/invoices/${viewingInvoice.id}` : '';
