@@ -218,7 +218,7 @@ const Sidebar: React.FC = () => {
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 overflow-y-auto py-3 px-2 space-y-0.5">
+        <nav className="flex-1 py-3 px-2 space-y-0.5">
           {navGroups.map((group) => {
             const visibleItems = group.items.filter((item) => hasRole(item.roles));
             if (!visibleItems.length) return null;

@@ -29,7 +29,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
         <Sidebar />
         <main
           className={`flex-1 min-h-0 overflow-hidden transition-all duration-300 ${
-            sidebarOpen ? 'lg:ml-64' : 'md:ml-20'
+            sidebarOpen ? 'md:ml-64' : 'md:ml-[60px]'
           }`}
         >
           <div className="h-full px-4 md:px-6 pt-4 pb-2 overflow-y-auto">{children}</div>

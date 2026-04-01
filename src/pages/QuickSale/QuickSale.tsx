@@ -567,9 +567,9 @@ const QuickSale: React.FC = () => {
 
   // Render
   return (
-    <div className="h-full flex gap-4 p-2 relative">
+    <div className="h-full flex gap-3 p-2 relative overflow-hidden">
       {/* Left Panel: Search & Cart (Main Area) */}
-      <div className="flex-1 flex flex-col gap-3 h-[calc(100vh-4rem)]">
+      <div className="flex-1 min-h-0 flex flex-col gap-3">
         {/* Search Bar - Top of Left Panel */}
         <div className="card shadow-sm p-3 relative z-20">
            <div className="relative">
@@ -681,7 +681,7 @@ const QuickSale: React.FC = () => {
             ) : (
               <div className="divide-y divide-gray-100">
                 {cart.items.map((item, index) => (
-                  <div key={item.id} className="flex items-center gap-3 px-3 py-2.5 bg-white hover:bg-blue-50/30 transition-colors group">
+                  <div key={item.id} className="flex items-center gap-3 px-3 py-3 bg-white hover:bg-blue-50/30 transition-colors group">
                     {/* Index */}
                     <span className="shrink-0 w-5 h-5 rounded-full bg-blue-100 text-blue-600 text-[10px] font-bold flex items-center justify-center">
                       {index + 1}
@@ -699,10 +699,10 @@ const QuickSale: React.FC = () => {
                     </div>
 
                     {/* Quantity Control */}
-                    <div className="flex items-center border border-gray-200 rounded overflow-hidden shrink-0">
-                      <button onClick={() => updateQuantity(item.id, -1)} className="w-7 h-7 flex items-center justify-center hover:bg-gray-100 text-gray-500 transition-colors"><Minus className="w-3 h-3"/></button>
-                      <span className="w-8 text-center font-bold text-gray-800 text-sm border-x border-gray-200">{item.quantity}</span>
-                      <button onClick={() => updateQuantity(item.id, 1)} className="w-7 h-7 flex items-center justify-center hover:bg-gray-100 text-gray-500 transition-colors"><Plus className="w-3 h-3"/></button>
+                    <div className="flex items-center border border-gray-200 rounded-lg overflow-hidden shrink-0">
+                      <button onClick={() => updateQuantity(item.id, -1)} className="w-9 h-9 flex items-center justify-center hover:bg-gray-100 active:bg-gray-200 text-gray-500 transition-colors"><Minus className="w-3.5 h-3.5"/></button>
+                      <span className="w-9 text-center font-bold text-gray-800 text-sm border-x border-gray-200">{item.quantity}</span>
+                      <button onClick={() => updateQuantity(item.id, 1)} className="w-9 h-9 flex items-center justify-center hover:bg-gray-100 active:bg-gray-200 text-gray-500 transition-colors"><Plus className="w-3.5 h-3.5"/></button>
                     </div>
 
                     {/* Line Total */}
@@ -729,11 +729,11 @@ const QuickSale: React.FC = () => {
 
       {/* Right Panel: Customer, Totals & Payments */}
       {needsSessionSetup ? (
-        <div className="w-[350px] lg:w-[400px]">
+        <div className="w-[300px] lg:w-[380px] shrink-0">
           <OpeningBalanceModal />
         </div>
       ) : (
-      <div className="w-[350px] lg:w-[400px] flex flex-col gap-3 h-[calc(100vh-4rem)]">
+      <div className="w-[300px] lg:w-[380px] shrink-0 flex flex-col gap-3 min-h-0">
 
         {/* Customer Details & Pricing Tier */}
         <div className="card shrink-0 shadow-sm p-3 border border-gray-100">

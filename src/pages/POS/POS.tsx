@@ -695,7 +695,7 @@ const POS: React.FC = () => {
           </div>
         ) : (
           <>
-            <div className="grid grid-cols-4 gap-3 pb-4">
+            <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-3 pb-4">
               {filteredProducts.map((product: any) => {
                  const effectivePrice = calculateEffectivePrice(product);
                  const isDiscounted = effectivePrice < parseFloat(product.selling_price);
@@ -785,11 +785,11 @@ const POS: React.FC = () => {
 
       {/* Right Panel - Cart */}
       {needsSessionSetup ? (
-        <div className="w-[350px] lg:w-[400px] h-[calc(100vh-6rem)]">
+        <div className="w-[280px] lg:w-[340px] shrink-0">
           <OpeningBalanceModal />
         </div>
       ) : (
-      <div className="shrink-0 flex flex-col h-full overflow-hidden space-y-3 py-2 pr-2">
+      <div className="w-[280px] lg:w-[340px] shrink-0 flex flex-col h-full overflow-hidden space-y-3 py-2 pr-2">
         <div className="card shrink-0 shadow-sm p-3">
           <div className="flex justify-between items-center mb-2">
             <h3 className="text-sm font-semibold text-gray-700 flex items-center gap-1.5 border-l-2 border-blue-500 pl-2 -ml-3">
@@ -882,7 +882,7 @@ const POS: React.FC = () => {
             ) : (
               <div className="divide-y divide-gray-100">
                 {cart.items.map((item, index) => (
-                  <div key={item.id} className="flex items-center gap-2 px-3 py-2 bg-white hover:bg-blue-50/30 transition-colors group">
+                  <div key={item.id} className="flex items-center gap-2 px-3 py-2.5 bg-white hover:bg-blue-50/30 transition-colors group">
                     {/* Index */}
                     <span className="shrink-0 w-5 h-5 rounded-full bg-blue-100 text-blue-600 text-[10px] font-bold flex items-center justify-center">
                       {index + 1}
@@ -895,19 +895,19 @@ const POS: React.FC = () => {
                     </div>
 
                     {/* Qty controls */}
-                    <div className="flex items-center border border-gray-200 rounded overflow-hidden shrink-0 bg-white">
+                    <div className="flex items-center border border-gray-200 rounded-lg overflow-hidden shrink-0 bg-white">
                       <button
                         onClick={() => handleQuantityChange(item.id, Math.max(1, item.quantity - 1))}
-                        className="w-6 h-6 flex items-center justify-center hover:bg-gray-100 text-gray-500 transition-colors"
+                        className="w-9 h-9 flex items-center justify-center hover:bg-gray-100 active:bg-gray-200 text-gray-500 transition-colors"
                       >
-                        <Minus className="w-2.5 h-2.5" />
+                        <Minus className="w-3.5 h-3.5" />
                       </button>
-                      <span className="w-7 text-center text-xs font-bold text-gray-800 border-x border-gray-200">{item.quantity}</span>
+                      <span className="w-9 text-center text-xs font-bold text-gray-800 border-x border-gray-200">{item.quantity}</span>
                       <button
                         onClick={() => handleQuantityChange(item.id, item.quantity + 1)}
-                        className="w-6 h-6 flex items-center justify-center hover:bg-gray-100 text-gray-500 transition-colors"
+                        className="w-9 h-9 flex items-center justify-center hover:bg-gray-100 active:bg-gray-200 text-gray-500 transition-colors"
                       >
-                        <Plus className="w-2.5 h-2.5" />
+                        <Plus className="w-3.5 h-3.5" />
                       </button>
                     </div>
 
@@ -1021,7 +1021,7 @@ const POS: React.FC = () => {
                 <button
                   onClick={handleInitiateCheckout}
                   disabled={isProcessing}
-                  className="w-full py-2.5 bg-green-600 hover:bg-green-700 disabled:opacity-60 text-white font-bold text-sm rounded-lg shadow-md transition-colors flex items-center justify-center gap-2 tracking-wide"
+                  className="w-full py-3.5 bg-green-600 hover:bg-green-700 active:bg-green-800 disabled:opacity-60 text-white font-bold text-base rounded-lg shadow-md transition-colors flex items-center justify-center gap-2 tracking-wide"
                 >
                   {isProcessing ? 'Processing...' : '✓ Complete Sale'}
                 </button>
