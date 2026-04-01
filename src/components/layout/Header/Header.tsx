@@ -45,15 +45,15 @@ const Header: React.FC = () => {
   };
 
   return (
-    <header className="bg-white shadow-md sticky top-0 z-50">
+    <header className="bg-[#0F1F18] sticky top-0 z-50 border-b border-white/[0.07]">
       <div className="flex items-center justify-between px-4 py-3">
         <div className="flex items-center gap-4">
           <button
-            className="p-2 hover:bg-gray-100 rounded-lg transition-colors duration-200 lg:hidden"
+            className="p-2 min-h-[44px] min-w-[44px] hover:bg-white/10 rounded-lg transition-colors duration-200 flex items-center justify-center"
             onClick={() => dispatch(toggleSidebar())}
             aria-label="Toggle menu"
           >
-            <Menu className="w-6 h-6 text-gray-700" />
+            <Menu className="w-6 h-6 text-white" />
           </button>
 
           {currentCompany && (
@@ -62,10 +62,10 @@ const Header: React.FC = () => {
                 <img
                   src={currentCompany.logo}
                   alt={currentCompany.company_name}
-                  className="h-10 w-10 object-contain rounded"
+                  className="h-10 w-10 object-contain rounded ring-2 ring-white/20"
                 />
               )}
-              <h1 className="text-xl font-bold text-gray-800 hidden md:block">
+              <h1 className="text-xl font-bold text-white hidden md:block">
                 {currentCompany.company_name}
               </h1>
             </div>
@@ -75,24 +75,24 @@ const Header: React.FC = () => {
         <div className="flex items-center gap-4">
           <div className="relative" ref={dropdownRef}>
             <button
-              className="flex items-center gap-3 px-3 py-2 hover:bg-gray-100 rounded-lg transition-colors duration-200"
+              className="flex items-center gap-3 px-3 py-2 min-h-[44px] hover:bg-white/10 rounded-lg transition-colors duration-200"
               onClick={() => setShowUserMenu(!showUserMenu)}
             >
               <div className="w-10 h-10 bg-primary-600 text-white rounded-full flex items-center justify-center font-semibold">
                 {getUserInitials()}
               </div>
               <div className="hidden md:block text-left">
-                <p className="text-sm font-medium text-gray-900">
+                <p className="text-sm font-medium text-white">
                   {user?.first_name || user?.username}
                 </p>
-                <p className="text-xs text-gray-500 capitalize">
+                <p className="text-xs text-slate-300 capitalize">
                   {user?.role.replace('_', ' ')}
                 </p>
               </div>
               {showUserMenu ? (
-                <ChevronUp className="w-4 h-4 text-gray-500" />
+                <ChevronUp className="w-4 h-4 text-slate-300" />
               ) : (
-                <ChevronDown className="w-4 h-4 text-gray-500" />
+                <ChevronDown className="w-4 h-4 text-slate-300" />
               )}
             </button>
 

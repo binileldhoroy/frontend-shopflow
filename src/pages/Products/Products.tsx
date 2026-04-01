@@ -214,228 +214,189 @@ const Products: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* Header */}
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-2">
-            <Package className="w-8 h-8" />
-            Products
-          </h1>
-          <p className="text-gray-600 mt-1">Manage your product inventory</p>
+      <div className="page-header">
+        <div className="page-header-left">
+          <div className="page-header-icon">
+            <Package className="w-5 h-5" />
+          </div>
+          <div>
+            <h1>Products</h1>
+            <p>Manage your product inventory</p>
+          </div>
         </div>
-        <button className="btn btn-primary" onClick={handleAddProduct}>
-          <Plus className="w-5 h-5 inline mr-2" />
+        <button className="btn btn-primary self-start" onClick={handleAddProduct}>
+          <Plus className="w-4 h-4 inline mr-1.5" />
           Add Product
         </button>
       </div>
 
       {/* Filters */}
-      <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
-        <div className="md:col-span-4">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-            <input
-              type="text"
-              className="input-field pl-10"
-              placeholder="Search products..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-          </div>
-        </div>
-        <div className="md:col-span-3">
-          <select
+      <div className="filter-bar">
+        <div className="search-wrap flex-1 min-w-[180px]">
+          <Search className="search-icon" />
+          <input
+            type="text"
             className="input-field"
-            value={categoryFilter}
-            onChange={(e) => setCategoryFilter(e.target.value)}
-          >
-            <option value="">All Categories</option>
-            {categories.map(cat => (
-              <option key={cat.id} value={cat.id}>
-                {cat.name}
-              </option>
-            ))}
-          </select>
+            placeholder="Search products…"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
         </div>
-        <div className="md:col-span-2">
-          <select
-            className="input-field"
-            value={stockFilter}
-            onChange={(e) => setStockFilter(e.target.value)}
-          >
-            <option value="">All Stock</option>
-            <option value="in">In Stock</option>
-            <option value="low">Low Stock</option>
-            <option value="out">Out of Stock</option>
-          </select>
-        </div>
-        <div className="md:col-span-3 flex items-center justify-end">
-          <span className="text-gray-600">
-            {products.length} product{products.length !== 1 ? 's' : ''}
-          </span>
-        </div>
+        <select
+          className="input-field w-auto min-w-[150px]"
+          value={categoryFilter}
+          onChange={(e) => setCategoryFilter(e.target.value)}
+        >
+          <option value="">All Categories</option>
+          {categories.map(cat => (
+            <option key={cat.id} value={cat.id}>{cat.name}</option>
+          ))}
+        </select>
+        <select
+          className="input-field w-auto min-w-[130px]"
+          value={stockFilter}
+          onChange={(e) => setStockFilter(e.target.value)}
+        >
+          <option value="">All Stock</option>
+          <option value="in">In Stock</option>
+          <option value="low">Low Stock</option>
+          <option value="out">Out of Stock</option>
+        </select>
+        <span className="text-sm text-gray-500 ml-auto whitespace-nowrap hidden sm:inline">
+          {totalCount} product{totalCount !== 1 ? 's' : ''}
+        </span>
       </div>
 
       {/* Products Table */}
-      <div className="card flex flex-col min-h-0 overflow-hidden" style={{ height: 'calc(100vh - 320px)' }}>
+      <div className="section-card flex flex-col" style={{ height: 'calc(100vh - 280px)', minHeight: '400px' }}>
         {loading ? (
-          <div className="flex justify-center items-center py-20 flex-1">
-            <div className="w-16 h-16 border-4 border-primary-600 border-t-transparent rounded-full animate-spin"></div>
+          <div className="loading-center flex-1">
+            <div className="spinner" />
+            <span className="text-sm text-gray-500">Loading products…</span>
           </div>
         ) : products.length === 0 ? (
-          <div className="text-center py-12 flex-1">
-            <Inbox className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-            <p className="text-gray-500">No products found</p>
+          <div className="empty-state flex-1">
+            <div className="empty-state-icon">
+              <Inbox className="w-6 h-6" />
+            </div>
+            <p className="text-gray-700 font-medium">No products found</p>
+            <p className="text-sm text-gray-400 mt-1">Try adjusting your filters or add a new product</p>
           </div>
         ) : (
           <>
-            <div className="flex-1 overflow-x-auto overflow-y-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-gray-200">
-                  <th className="text-left py-3 px-4 font-medium text-gray-700">SKU</th>
-                  <th className="text-left py-3 px-4 font-medium text-gray-700">Name</th>
-                  <th className="text-left py-3 px-4 font-medium text-gray-700">Category</th>
-                  <th className="text-left py-3 px-4 font-medium text-gray-700">HSN Code</th>
-                  <th className="text-left py-3 px-4 font-medium text-gray-700">Unit</th>
-                  <th className="text-right py-3 px-4 font-medium text-gray-700">Cost Price</th>
-                  <th className="text-right py-3 px-4 font-medium text-gray-700">Selling Price</th>
-                  <th className="text-right py-3 px-4 font-medium text-gray-700">GST Rate</th>
-                  <th className="text-center py-3 px-4 font-medium text-gray-700">Stock</th>
-                  <th className="text-center py-3 px-4 font-medium text-gray-700">Status</th>
-                  <th className="text-right py-3 px-4 font-medium text-gray-700">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {products.map((product: Product) => (
-                  <tr key={product.id} className="border-b border-gray-100 hover:bg-gray-50">
-                    <td className="py-3 px-4 font-medium text-gray-900">
-                      <strong>{product.sku}</strong>
-                      {product.barcode && (
-                        <div className="text-gray-500 text-xs font-normal">{product.barcode}</div>
-                      )}
-                    </td>
-                    <td className="py-3 px-4 text-gray-600">{product.name}</td>
-                    <td className="py-3 px-4">
-                      <span className="badge badge-secondary">
-                        {getCategoryName(product.category)}
-                      </span>
-                    </td>
-                    <td className="py-3 px-4 text-gray-600">{product.hsn_code || '-'}</td>
-                    <td className="py-3 px-4">
-                      <span className="text-gray-600 capitalize">{product.unit || 'piece'}</span>
-                    </td>
-                    <td className="py-3 px-4 text-right text-gray-600">₹{parseFloat(String(product.cost_price || 0)).toFixed(2)}</td>
-                    <td className="py-3 px-4 text-right font-medium text-gray-900">
-                      ₹{parseFloat(String(product.selling_price || 0)).toFixed(2)}
-                    </td>
-                    <td className="py-3 px-4 text-right">
-                      <span className="badge badge-info">{product.gst_rate || 0}%</span>
-                    </td>
-                    <td className="py-3 px-4 text-center">
-                      <span className={`badge ${
-                        product.stock_quantity === 0 ? 'badge-danger' :
-                        product.stock_quantity <= product.reorder_level ? 'badge-warning' :
-                        'badge-success'
-                      }`}>
-                        {product.stock_quantity} units
-                      </span>
-                      {product.stock_quantity <= product.reorder_level && product.stock_quantity > 0 && (
-                        <div className="text-warning-600 text-xs mt-1 flex items-center gap-1 justify-center font-medium">
-                          <AlertTriangle className="w-3 h-3" />
-                          Low stock
-                        </div>
-                      )}
-                    </td>
-                    <td className="py-3 px-4 text-center">
-                      <span className={`badge ${product.is_active ? 'badge-success' : 'badge-secondary'}`}>
-                        {product.is_active ? 'Active' : 'Inactive'}
-                      </span>
-                    </td>
-                    <td className="py-3 px-4">
-                      <div className="flex items-center justify-end gap-2">
-                        <button
-                          className="p-2 text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
-                          onClick={() => handleEditProduct(product)}
-                          title="Edit"
-                        >
-                          <Edit2 className="w-4 h-4" />
-                        </button>
-                        <button
-                          className="p-2 text-danger-600 hover:bg-danger-50 rounded-lg transition-colors"
-                          onClick={() => handleDeleteProduct(product)}
-                          title="Delete"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </td>
+            <div className="flex-1 table-scroll">
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th>SKU</th>
+                    <th>Name</th>
+                    <th>Category</th>
+                    <th className="hidden md:table-cell">HSN</th>
+                    <th className="hidden lg:table-cell">Unit</th>
+                    <th className="th-right hidden lg:table-cell">Cost</th>
+                    <th className="th-right">Price</th>
+                    <th className="th-right hidden md:table-cell">GST</th>
+                    <th className="th-center">Stock</th>
+                    <th className="th-center hidden sm:table-cell">Status</th>
+                    <th className="th-right">Actions</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          {/* Pagination */}
-          {totalCount > 0 && (
-            <div className="flex flex-wrap items-center justify-between gap-4 pt-4 mt-4 border-t border-gray-200 shrink-0">
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-gray-600">Show</span>
-                <select
-                  value={pageSize}
-                  onChange={(e) => setPageSize(Number(e.target.value))}
-                  className="input-field py-1 px-2 text-sm w-20"
-                >
-                  <option value={10}>10</option>
-                  <option value={25}>25</option>
-                  <option value={50}>50</option>
-                  <option value={100}>100</option>
-                </select>
-                <span className="text-sm text-gray-600 whitespace-nowrap">
-                  entries (Showing {(currentPage - 1) * pageSize + 1}-{Math.min(currentPage * pageSize, totalCount)} of {totalCount})
-                </span>
-              </div>
-
-              <div className="flex items-center gap-1">
-                <button
-                  onClick={() => handlePageChange(currentPage - 1)}
-                  disabled={currentPage === 1}
-                  className="px-3 py-1 text-sm border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  Previous
-                </button>
-
-                {getPageNumbers().map((page, index) => (
-                  <button
-                    key={index}
-                    onClick={() => typeof page === 'number' && handlePageChange(page)}
-                    disabled={page === '...'}
-                    className={`px-3 py-1 text-sm border rounded ${
-                      page === currentPage
-                        ? 'bg-primary-600 text-white border-primary-600'
-                        : page === '...'
-                        ? 'border-transparent cursor-default'
-                        : 'border-gray-300 hover:bg-gray-50'
-                    }`}
-                  >
-                    {page}
-                  </button>
-                ))}
-
-                <button
-                  onClick={() => handlePageChange(currentPage + 1)}
-                  disabled={currentPage === totalPages}
-                  className="px-3 py-1 text-sm border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  Next
-                </button>
-              </div>
+                </thead>
+                <tbody>
+                  {products.map((product: Product) => (
+                    <tr key={product.id}>
+                      <td>
+                        <span className="font-semibold text-gray-900 text-xs">{product.sku}</span>
+                        {product.barcode && (
+                          <div className="text-gray-400 text-xs mt-0.5">{product.barcode}</div>
+                        )}
+                      </td>
+                      <td className="font-medium text-gray-800">{product.name}</td>
+                      <td>
+                        <span className="badge badge-primary">{getCategoryName(product.category)}</span>
+                      </td>
+                      <td className="text-gray-500 hidden md:table-cell">{product.hsn_code || '—'}</td>
+                      <td className="text-gray-500 capitalize hidden lg:table-cell">{product.unit || 'piece'}</td>
+                      <td className="td-right text-gray-500 hidden lg:table-cell">₹{parseFloat(String(product.cost_price || 0)).toFixed(2)}</td>
+                      <td className="td-right font-semibold text-gray-900">₹{parseFloat(String(product.selling_price || 0)).toFixed(2)}</td>
+                      <td className="td-right hidden md:table-cell">
+                        <span className="badge badge-info">{product.gst_rate || 0}%</span>
+                      </td>
+                      <td className="td-center">
+                        <span className={`badge ${
+                          product.stock_quantity === 0 ? 'badge-danger' :
+                          product.stock_quantity <= product.reorder_level ? 'badge-warning' :
+                          'badge-success'
+                        }`}>
+                          {product.stock_quantity}
+                        </span>
+                        {product.stock_quantity <= product.reorder_level && product.stock_quantity > 0 && (
+                          <div className="text-warning-600 text-xs mt-0.5 flex items-center gap-0.5 justify-center">
+                            <AlertTriangle className="w-3 h-3" />
+                            Low
+                          </div>
+                        )}
+                      </td>
+                      <td className="td-center hidden sm:table-cell">
+                        <span className={`badge ${product.is_active ? 'badge-success' : 'badge-warning'}`}>
+                          {product.is_active ? 'Active' : 'Inactive'}
+                        </span>
+                      </td>
+                      <td>
+                        <div className="flex items-center justify-end gap-1">
+                          <button className="action-btn action-btn-primary" onClick={() => handleEditProduct(product)} title="Edit">
+                            <Edit2 className="w-4 h-4" />
+                          </button>
+                          <button className="action-btn action-btn-danger" onClick={() => handleDeleteProduct(product)} title="Delete">
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
-          )}
-        </>
-      )}
-    </div>
+
+            {/* Pagination */}
+            {totalCount > 0 && (
+              <div className="pagination-bar px-4 pb-3 shrink-0">
+                <div className="flex items-center gap-2 text-sm text-gray-500">
+                  <span>Show</span>
+                  <select
+                    value={pageSize}
+                    onChange={(e) => setPageSize(Number(e.target.value))}
+                    className="input-field py-1 px-2 text-xs w-16"
+                  >
+                    <option value={10}>10</option>
+                    <option value={25}>25</option>
+                    <option value={50}>50</option>
+                    <option value={100}>100</option>
+                  </select>
+                  <span className="hidden sm:inline whitespace-nowrap">
+                    {(currentPage - 1) * pageSize + 1}–{Math.min(currentPage * pageSize, totalCount)} of {totalCount}
+                  </span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <button onClick={() => handlePageChange(currentPage - 1)} disabled={currentPage === 1} className="pag-btn">‹</button>
+                  {getPageNumbers().map((page, i) => (
+                    <button
+                      key={i}
+                      onClick={() => typeof page === 'number' && handlePageChange(page)}
+                      disabled={page === '...'}
+                      className={`pag-btn ${page === currentPage ? 'active' : ''} ${page === '...' ? 'dots' : ''}`}
+                    >
+                      {page}
+                    </button>
+                  ))}
+                  <button onClick={() => handlePageChange(currentPage + 1)} disabled={currentPage === totalPages} className="pag-btn">›</button>
+                </div>
+              </div>
+            )}
+          </>
+        )}
+      </div>
 
       {/* Modals */}
       <ProductFormModal

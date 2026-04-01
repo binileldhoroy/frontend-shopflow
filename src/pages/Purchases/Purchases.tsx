@@ -164,51 +164,45 @@ const Purchases: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* Header */}
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-2">
-            <ShoppingBag className="w-8 h-8" />
-            Purchases
-          </h1>
-          <p className="text-gray-600 mt-1">Manage purchase orders and stock intake</p>
+      <div className="page-header">
+        <div className="page-header-left">
+          <div className="page-header-icon">
+            <ShoppingBag className="w-5 h-5" />
+          </div>
+          <div>
+            <h1>Purchases</h1>
+            <p>Manage purchase orders and stock intake</p>
+          </div>
         </div>
-        <button className="btn btn-primary" onClick={handleCreate}>
-          <Plus className="w-5 h-5 inline mr-2" />
+        <button className="btn btn-primary self-start" onClick={handleCreate}>
+          <Plus className="w-4 h-4 inline mr-1.5" />
           New Purchase
         </button>
       </div>
 
       {/* Filters */}
-      <div className="flex justify-between items-center gap-4">
-        <div className="relative flex-1 max-w-md">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-          <input
-            type="text"
-            className="input-field pl-10"
-            placeholder="Search by Order # or Supplier..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
+      <div className="filter-bar">
+        <div className="search-wrap flex-1 max-w-sm">
+          <Search className="search-icon" />
+          <input type="text" className="input-field" placeholder="Search by Order # or Supplier…" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
         </div>
-        <div className="flex items-center gap-2">
-          <select
-            className="input-field w-48"
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-          >
-            <option value="">All Status</option>
-            <option value="draft">Draft</option>
-            <option value="ordered">Ordered</option>
-            <option value="received">Received</option>
-            <option value="cancelled">Cancelled</option>
-          </select>
+        <div className="flex gap-2 flex-wrap">
+          {([
+            { value: '', label: 'All' },
+            { value: 'draft', label: 'Draft' },
+            { value: 'ordered', label: 'Ordered' },
+            { value: 'received', label: 'Received' },
+            { value: 'cancelled', label: 'Cancelled' },
+          ]).map(({ value, label }) => (
+            <button key={value || 'all'} onClick={() => setStatusFilter(value)} className={`filter-chip ${statusFilter === value ? 'active' : ''}`}>{label}</button>
+          ))}
         </div>
       </div>
 
       {/* List */}
-      <div className="card" style={{ height: 'calc(100vh - 280px)', display: 'flex', flexDirection: 'column' }}>
+      <div className="section-card" style={{ height: 'calc(100vh - 260px)', display: 'flex', flexDirection: 'column' }}>
         <PurchaseList
           purchases={filteredPurchases}
           loading={loading}

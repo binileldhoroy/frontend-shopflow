@@ -320,146 +320,118 @@ const Sales: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-            <ShoppingCart className="w-7 h-7 text-primary-600" />
-            Sales History
-          </h1>
-          <p className="text-gray-600 mt-1">View all sales transactions</p>
+      <div className="page-header">
+        <div className="page-header-left">
+          <div className="page-header-icon">
+            <ShoppingCart className="w-5 h-5" />
+          </div>
+          <div>
+            <h1>Sales History</h1>
+            <p>View and manage all sales transactions</p>
+          </div>
         </div>
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div className="card">
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 bg-primary-100 rounded-lg flex items-center justify-center">
-              <ShoppingCart className="w-6 h-6 text-primary-600" />
-            </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="stat-card">
+          <div className="stat-card-stripe accent-indigo" />
+          <div className="flex items-center justify-between gap-3">
             <div>
-              <p className="text-sm text-gray-600">Total Sales</p>
-              <p className="text-2xl font-bold text-gray-900">{totalSales}</p>
+              <p className="stat-card-label">Total Sales</p>
+              <p className="stat-card-value">{totalSales}</p>
+            </div>
+            <div className="stat-card-icon bg-primary-100 text-primary-600">
+              <ShoppingCart className="w-5 h-5" />
             </div>
           </div>
         </div>
-        <div className="card">
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 bg-success-100 rounded-lg flex items-center justify-center">
-              <DollarSign className="w-6 h-6 text-success-600" />
-            </div>
+        <div className="stat-card">
+          <div className="stat-card-stripe accent-emerald" />
+          <div className="flex items-center justify-between gap-3">
             <div>
-              <p className="text-sm text-gray-600">Total Revenue</p>
-              <p className="text-2xl font-bold text-gray-900">₹{totalRevenue.toFixed(2)}</p>
+              <p className="stat-card-label">Total Revenue</p>
+              <p className="stat-card-value">₹{totalRevenue.toFixed(2)}</p>
+            </div>
+            <div className="stat-card-icon bg-success-100 text-success-600">
+              <DollarSign className="w-5 h-5" />
             </div>
           </div>
         </div>
       </div>
 
       {/* Filters */}
-      <div className="card">
-        <div className="flex flex-col md:flex-row gap-4">
-          <div className="flex-1">
-            <label className="label">Start Date</label>
-            <input
-              type="date"
-              value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
-              className="input-field"
-            />
-          </div>
-          <div className="flex-1">
-            <label className="label">End Date</label>
-            <input
-              type="date"
-              value={endDate}
-              onChange={(e) => setEndDate(e.target.value)}
-              className="input-field"
-            />
-          </div>
-          <div className="flex-1">
-             <label className="label">Payment Method</label>
-             <select
-               value={paymentMethod}
-               onChange={(e) => setPaymentMethod(e.target.value)}
-               className="input-field"
-             >
-               <option value="">All Methods</option>
-               <option value="cash">Cash</option>
-               <option value="card">Card</option>
-               <option value="upi">UPI</option>
-               <option value="net_banking">Net Banking</option>
-             </select>
-          </div>
-          <div className="flex items-end">
-            <button
-              onClick={() => {
-                setStartDate(format(subMonths(new Date(), 1), 'yyyy-MM-dd'));
-                setEndDate(format(new Date(), 'yyyy-MM-dd'));
-                setPaymentMethod('');
-              }}
-              className="btn btn-secondary"
-            >
-              Reset Filters
-            </button>
-          </div>
-        </div>
+      <div className="filter-bar">
+        <Calendar className="w-4 h-4 text-gray-400 flex-shrink-0" />
+        <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="input-field w-36" />
+        <span className="text-gray-400 text-sm">to</span>
+        <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="input-field w-36" />
+        <select value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value)} className="input-field w-auto min-w-[140px]">
+          <option value="">All Methods</option>
+          <option value="cash">Cash</option>
+          <option value="card">Card</option>
+          <option value="upi">UPI</option>
+          <option value="net_banking">Net Banking</option>
+        </select>
+        <button
+          onClick={() => { setStartDate(format(subMonths(new Date(), 1), 'yyyy-MM-dd')); setEndDate(format(new Date(), 'yyyy-MM-dd')); setPaymentMethod(''); }}
+          className="btn btn-outline-secondary text-sm px-3 ml-auto"
+        >
+          Reset
+        </button>
       </div>
 
       {/* Sales Table */}
-      <div className="card">
+      <div className="section-card">
         {loading ? (
-          <div className="text-center py-12">
-            <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
-            <p className="text-gray-600 mt-4">Loading sales...</p>
+          <div className="loading-center">
+            <div className="spinner" />
+            <span className="text-sm text-gray-500">Loading sales…</span>
           </div>
         ) : sales.length === 0 ? (
-          <div className="text-center py-12">
-            <Calendar className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-            <p className="text-gray-600">No sales found</p>
+          <div className="empty-state">
+            <div className="empty-state-icon"><Calendar className="w-6 h-6" /></div>
+            <p className="text-gray-700 font-medium">No sales found</p>
+            <p className="text-sm text-gray-400 mt-1">Try adjusting the date range</p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full">
+          <div className="table-scroll">
+            <table className="data-table">
               <thead>
-                <tr className="border-b border-gray-200">
-                  <th className="text-left py-3 px-4 font-medium text-gray-700">Order #</th>
-                  <th className="text-left py-3 px-4 font-medium text-gray-700">Date</th>
-                  <th className="text-left py-3 px-4 font-medium text-gray-700">Customer</th>
-                  <th className="text-left py-3 px-4 font-medium text-gray-700">Payment</th>
-                  <th className="text-right py-3 px-4 font-medium text-gray-700">Subtotal</th>
-                  <th className="text-right py-3 px-4 font-medium text-gray-700">GST</th>
-                  <th className="text-right py-3 px-4 font-medium text-gray-700">Total</th>
-                  <th className="text-center py-3 px-4 font-medium text-gray-700">Status</th>
-                  <th className="text-right py-3 px-4 font-medium text-gray-700">Actions</th>
+                <tr>
+                  <th>Order #</th>
+                  <th>Date</th>
+                  <th>Customer</th>
+                  <th className="hidden md:table-cell">Payment</th>
+                  <th className="th-right hidden sm:table-cell">Subtotal</th>
+                  <th className="th-right hidden lg:table-cell">GST</th>
+                  <th className="th-right">Total</th>
+                  <th className="th-center">Status</th>
+                  <th className="th-right">Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {sales.map((sale) => (
-                  <tr key={sale.id} className="border-b border-gray-100 hover:bg-gray-50">
-                    <td className="py-3 px-4 font-medium text-gray-900">{sale.order_number}</td>
-                    <td className="py-3 px-4 text-gray-600">
-                      {format(new Date(sale.sale_date), 'MMM dd, yyyy')}
-                    </td>
-                    <td className="py-3 px-4 text-gray-600">{sale.customer_name || 'Guest'}</td>
-                    <td className="py-3 px-4 text-gray-600 capitalize">{sale.payment_method?.replace('_', ' ') || '-'}</td>
-                    <td className="py-3 px-4 text-right text-gray-900">₹{sale.subtotal}</td>
-                    <td className="py-3 px-4 text-right text-gray-600">₹{sale.gst_amount}</td>
-                    <td className="py-3 px-4 text-right font-medium text-gray-900">
-                      ₹{sale.total_amount}
-                    </td>
-                    <td className="py-3 px-4 text-center">
+                  <tr key={sale.id}>
+                    <td className="font-semibold text-primary-600 text-xs">{sale.order_number}</td>
+                    <td className="text-gray-600 whitespace-nowrap">{format(new Date(sale.sale_date), 'MMM dd, yyyy')}</td>
+                    <td className="text-gray-600">{sale.customer_name || 'Guest'}</td>
+                    <td className="text-gray-600 capitalize hidden md:table-cell">{sale.payment_method?.replace('_', ' ') || '—'}</td>
+                    <td className="td-right text-gray-900 hidden sm:table-cell">₹{sale.subtotal}</td>
+                    <td className="td-right text-gray-500 hidden lg:table-cell">₹{sale.gst_amount}</td>
+                    <td className="td-right font-semibold text-gray-900">₹{sale.total_amount}</td>
+                    <td className="td-center">
                       <span className={`badge ${sale.status === 'completed' ? 'badge-success' : 'badge-warning'}`}>
                         {sale.status}
                       </span>
                     </td>
-                    <td className="py-3 px-4">
-                      <div className="flex items-center justify-end gap-2">
+                    <td className="td-right">
+                      <div className="flex items-center justify-end gap-1">
                         <button
                           onClick={() => setSelectedSaleId(sale.id)}
-                          className="p-2 text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
+                          className="action-btn action-btn-primary"
                           title="View Details"
                         >
                           <Eye className="w-4 h-4" />
@@ -469,7 +441,7 @@ const Sales: React.FC = () => {
                             setSelectedSaleId(sale.id);
                             setTimeout(() => handleDownloadInvoice(), 500);
                           }}
-                          className="p-2 text-gray-600 hover:bg-gray-50 rounded-lg transition-colors"
+                          className="action-btn"
                           title="Download Invoice"
                         >
                           <Download className="w-4 h-4" />
@@ -485,9 +457,9 @@ const Sales: React.FC = () => {
 
         {/* Pagination */}
         {!loading && totalCount > 0 && (
-          <div className="flex items-center justify-between pt-4 border-t border-gray-200">
+          <div className="pagination-bar">
             <div className="flex items-center gap-2">
-              <span className="text-sm text-gray-600">Show</span>
+              <span className="text-sm text-gray-500">Show</span>
               <select
                 value={pageSize}
                 onChange={(e) => setPageSize(Number(e.target.value))}
@@ -498,44 +470,24 @@ const Sales: React.FC = () => {
                 <option value={50}>50</option>
                 <option value={100}>100</option>
               </select>
-              <span className="text-sm text-gray-600 whitespace-nowrap">
-                entries (Showing {startIndex + 1}-{endIndex} of {totalCount})
+              <span className="text-sm text-gray-500 whitespace-nowrap">
+                entries ({startIndex + 1}–{endIndex} of {totalCount})
               </span>
             </div>
 
             <div className="flex items-center gap-1">
-              <button
-                onClick={() => handlePageChange(currentPage - 1)}
-                disabled={currentPage === 1}
-                className="px-3 py-1 text-sm border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                Previous
-              </button>
-
+              <button onClick={() => handlePageChange(currentPage - 1)} disabled={currentPage === 1} className="pag-btn">‹</button>
               {getPageNumbers().map((page, index) => (
                 <button
                   key={index}
                   onClick={() => typeof page === 'number' && handlePageChange(page)}
                   disabled={page === '...'}
-                  className={`px-3 py-1 text-sm border rounded ${
-                    page === currentPage
-                      ? 'bg-primary-600 text-white border-primary-600'
-                      : page === '...'
-                      ? 'border-transparent cursor-default'
-                      : 'border-gray-300 hover:bg-gray-50'
-                  }`}
+                  className={`pag-btn ${page === currentPage ? 'active' : ''} ${page === '...' ? 'dots' : ''}`}
                 >
                   {page}
                 </button>
               ))}
-
-              <button
-                onClick={() => handlePageChange(currentPage + 1)}
-                disabled={currentPage === totalPages}
-                className="px-3 py-1 text-sm border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                Next
-              </button>
+              <button onClick={() => handlePageChange(currentPage + 1)} disabled={currentPage === totalPages} className="pag-btn">›</button>
             </div>
           </div>
         )}

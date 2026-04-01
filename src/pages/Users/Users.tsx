@@ -156,41 +156,35 @@ const Users: React.FC = () => {
   );
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-            <UsersIcon className="w-7 h-7 text-primary-600" />
-            Users
-          </h1>
-          <p className="text-gray-600 mt-1">Manage system users and access roles</p>
+      <div className="page-header">
+        <div className="page-header-left">
+          <div className="page-header-icon">
+            <UsersIcon className="w-5 h-5" />
+          </div>
+          <div>
+            <h1>Users</h1>
+            <p>Manage system users and access roles</p>
+          </div>
         </div>
-        <button
-          onClick={() => setShowAddModal(true)}
-          className="btn btn-primary flex items-center gap-2"
-        >
-          <Plus className="w-4 h-4" />
+        <button onClick={() => setShowAddModal(true)} className="btn btn-primary self-start">
+          <Plus className="w-4 h-4 inline mr-1.5" />
           Add User
         </button>
       </div>
 
-      {/* Filters & Search */}
-      <div className="card">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-          <input
-            type="text"
-            placeholder="Search users..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="input-field pl-10"
-          />
+      {/* Search */}
+      <div className="filter-bar">
+        <div className="search-wrap flex-1 max-w-md">
+          <Search className="search-icon" />
+          <input type="text" placeholder="Search users…" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="input-field" />
         </div>
+        <span className="text-sm text-gray-500 ml-auto">{filteredUsers.length} user{filteredUsers.length !== 1 ? 's' : ''}</span>
       </div>
 
-      {/* Users List */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      {/* Users Grid */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {loading ? (
              // Loading skeleton
              Array.from({ length: 6 }).map((_, i) => (

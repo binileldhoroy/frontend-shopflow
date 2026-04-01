@@ -29,7 +29,7 @@ import { format, subDays } from 'date-fns';
 import axiosInstance from '@api/axios';
 import { API_ENDPOINTS } from '@api/endpoints';
 
-const COLORS = ['#2563eb', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4'];
+const COLORS = ['#0d9158', '#10b981', '#f59e0b', '#ef4444', '#16a34a', '#06b6d4'];
 
 interface DailySalesData {
   total_revenue: string;
@@ -144,15 +144,27 @@ const CompanyDashboard: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* Welcome Header */}
-      <div className="bg-white rounded-lg shadow-md p-6">
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">
-          Welcome back, {user?.first_name || user?.username}!
-        </h1>
-        <p className="text-gray-600">
+      <div className="bg-[#0F1F18] rounded-xl p-5 flex items-center justify-between overflow-hidden relative">
+        <div className="absolute -right-8 -top-8 w-36 h-36 bg-emerald-500/10 rounded-full pointer-events-none" />
+        <div className="absolute right-16 bottom-0 w-20 h-20 bg-green-500/10 rounded-full pointer-events-none" />
+        <div className="relative z-10">
+          <h1 className="text-xl font-bold text-white mb-0.5">
+            Welcome back, {user?.first_name || user?.username}!
+          </h1>
+          <p className="text-slate-400 text-sm">
             {isAdmin
-            ? 'You are logged in as a Company Admin. You have full access to your company.'
-            : `You are logged in as ${user?.role.replace('_', ' ')}.`}
-        </p>
+              ? 'Company Admin · Full access'
+              : `Logged in as ${user?.role.replace(/_/g, ' ')}`}
+          </p>
+        </div>
+        <div className="relative z-10 hidden sm:block">
+          <button
+            onClick={() => navigate('/pos')}
+            className="btn btn-primary text-sm px-5"
+          >
+            New Sale
+          </button>
+        </div>
       </div>
 
       {/* Metrics Cards */}
@@ -206,7 +218,7 @@ const CompanyDashboard: React.FC = () => {
               <Line
                 type="monotone"
                 dataKey="sales"
-                stroke="#2563eb"
+                stroke="#0d9158"
                 strokeWidth={2}
                 name="Orders"
               />
@@ -333,23 +345,23 @@ const CompanyDashboard: React.FC = () => {
         </div>
 
         <div className="card">
-          <h3 className="text-sm font-medium text-gray-600 mb-2">Quick Actions</h3>
+          <h3 className="text-sm font-semibold text-gray-700 mb-3">Quick Actions</h3>
           <div className="space-y-2">
             <button
               onClick={() => navigate('/pos')}
-              className="block w-full btn btn-primary text-sm py-2"
+              className="w-full btn btn-primary text-sm"
             >
               New Sale
             </button>
             <button
               onClick={() => navigate('/products')}
-              className="block w-full btn btn-outline-secondary text-sm py-2"
+              className="w-full btn btn-outline-secondary text-sm"
             >
               Add Product
             </button>
             <button
               onClick={() => navigate('/sales')}
-              className="block w-full btn btn-outline-secondary text-sm py-2"
+              className="w-full btn btn-outline-secondary text-sm"
             >
               View Sales
             </button>
@@ -370,36 +382,33 @@ interface MetricCardProps {
 }
 
 function MetricCard({ title, value, change, trend, icon: Icon, color }: MetricCardProps) {
-  const colorClasses = {
-    primary: 'bg-primary-50 text-primary-600',
-    success: 'bg-success-50 text-success-600',
-    warning: 'bg-warning-50 text-warning-600',
-    danger: 'bg-danger-50 text-danger-600',
-  };
+  const cfg = {
+    primary: { stripe: 'accent-indigo', icon: 'bg-primary-100 text-primary-600' },
+    success: { stripe: 'accent-emerald', icon: 'bg-success-100 text-success-600' },
+    warning: { stripe: 'accent-amber', icon: 'bg-warning-100 text-warning-600' },
+    danger:  { stripe: 'accent-rose',   icon: 'bg-danger-100 text-danger-600'  },
+  }[color];
 
   return (
-    <div className="card">
-      <div className="flex items-center justify-between">
-        <div>
-          <p className="text-sm text-gray-600 mb-1">{title}</p>
-          <p className="text-2xl font-bold text-gray-900">{value}</p>
-          <div className="flex items-center gap-1 mt-2">
+    <div className="stat-card">
+      <div className={`stat-card-stripe ${cfg.stripe}`} />
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex-1 min-w-0">
+          <p className="stat-card-label truncate">{title}</p>
+          <p className="stat-card-value">{value}</p>
+          <div className="flex items-center gap-1 mt-1.5">
             {trend === 'up' ? (
-              <TrendingUp className="w-4 h-4 text-success-600" />
+              <TrendingUp className="w-3.5 h-3.5 text-success-600 flex-shrink-0" />
             ) : (
-              <TrendingDown className="w-4 h-4 text-danger-600" />
+              <TrendingDown className="w-3.5 h-3.5 text-danger-600 flex-shrink-0" />
             )}
-            <span
-              className={`text-sm font-medium ${
-                trend === 'up' ? 'text-success-600' : 'text-danger-600'
-              }`}
-            >
+            <span className={`text-xs font-medium ${trend === 'up' ? 'text-success-600' : 'text-danger-600'}`}>
               {change}
             </span>
           </div>
         </div>
-        <div className={`p-3 rounded-lg ${colorClasses[color]}`}>
-          <Icon className="w-6 h-6" />
+        <div className={`stat-card-icon ${cfg.icon}`}>
+          <Icon className="w-5 h-5" />
         </div>
       </div>
     </div>

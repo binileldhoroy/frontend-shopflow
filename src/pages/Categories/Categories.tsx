@@ -125,111 +125,97 @@ const Categories: React.FC = () => {
   );
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-            <Tag className="w-7 h-7 text-primary-600" />
-            Categories
-          </h1>
-          <p className="text-gray-600 mt-1">Manage product categories</p>
+      <div className="page-header">
+        <div className="page-header-left">
+          <div className="page-header-icon">
+            <Tag className="w-5 h-5" />
+          </div>
+          <div>
+            <h1>Categories</h1>
+            <p>Manage product categories</p>
+          </div>
         </div>
-        <button
-          onClick={handleAddNew}
-          className="btn btn-primary flex items-center gap-2"
-        >
-          <Plus className="w-5 h-5" />
+        <button onClick={handleAddNew} className="btn btn-primary self-start">
+          <Plus className="w-4 h-4 inline mr-1.5" />
           Add Category
         </button>
       </div>
 
-      {/* Search and Filters */}
-      <div className="card">
-        <div className="flex items-center gap-4">
-          <div className="flex-1 relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-            <input
-              type="text"
-              placeholder="Search categories..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="input-field pl-10"
-            />
-          </div>
-          <div className="text-sm text-gray-600">
-            {filteredCategories.length} {filteredCategories.length === 1 ? 'category' : 'categories'}
-          </div>
+      {/* Filter Bar */}
+      <div className="filter-bar">
+        <div className="search-wrap flex-1 max-w-md">
+          <Search className="search-icon" />
+          <input
+            type="text"
+            placeholder="Search categories…"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="input-field"
+          />
         </div>
+        <span className="text-sm text-gray-500 ml-auto">
+          {filteredCategories.length} {filteredCategories.length === 1 ? 'category' : 'categories'}
+        </span>
       </div>
 
       {/* Categories Grid */}
       {loading ? (
-        <div className="card text-center py-12">
-          <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
-          <p className="text-gray-600 mt-4">Loading categories...</p>
+        <div className="loading-center py-20">
+          <div className="spinner" />
         </div>
       ) : filteredCategories.length === 0 ? (
-        <div className="card text-center py-12">
-          <Tag className="w-16 h-16 mx-auto text-gray-300 mb-4" />
-          <h3 className="text-lg font-semibold text-gray-900 mb-2">
+        <div className="empty-state py-20">
+          <div className="empty-state-icon"><Tag className="w-6 h-6" /></div>
+          <p className="text-gray-700 font-medium">
             {searchTerm ? 'No categories found' : 'No categories yet'}
-          </h3>
-          <p className="text-gray-600 mb-6">
-            {searchTerm
-              ? 'Try adjusting your search terms'
-              : 'Get started by creating your first category'}
+          </p>
+          <p className="text-sm text-gray-400 mt-1">
+            {searchTerm ? 'Try adjusting your search terms' : 'Get started by creating your first category'}
           </p>
           {!searchTerm && (
-            <button
-              onClick={handleAddNew}
-              className="btn btn-primary inline-flex items-center gap-2"
-            >
-              <Plus className="w-5 h-5" />
-              Add Category
+            <button onClick={handleAddNew} className="btn btn-primary mt-4">
+              <Plus className="w-4 h-4 inline mr-1.5" />Add Category
             </button>
           )}
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {filteredCategories.map((category) => (
-            <div key={category.id} className="card hover:shadow-lg transition-shadow">
-              <div className="flex items-start justify-between mb-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 bg-primary-100 rounded-lg flex items-center justify-center">
-                    <Tag className="w-6 h-6 text-primary-600" />
-                  </div>
-                  <div>
-                    <h3 className="font-semibold text-gray-900">{category.name}</h3>
-                    <span className={`badge ${category.is_active ? 'badge-success' : 'badge-secondary'} mt-1`}>
-                      {category.is_active ? 'Active' : 'Inactive'}
-                    </span>
-                  </div>
+            <div key={category.id} className="card hover:shadow-md transition-shadow">
+              <div className="flex items-start gap-3 mb-3">
+                <div className="w-10 h-10 bg-primary-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                  <Tag className="w-5 h-5 text-primary-600" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h3 className="font-semibold text-gray-900 truncate">{category.name}</h3>
+                  <span className={`badge ${category.is_active ? 'badge-success' : 'badge-secondary'} mt-1`}>
+                    {category.is_active ? 'Active' : 'Inactive'}
+                  </span>
                 </div>
               </div>
 
               {category.description && (
-                <p className="text-sm text-gray-600 mb-4 line-clamp-2">
-                  {category.description}
-                </p>
+                <p className="text-sm text-gray-500 mb-3 line-clamp-2">{category.description}</p>
               )}
 
-              <div className="flex items-center gap-2 text-sm text-gray-500 mb-4">
+              <div className="flex items-center gap-1.5 text-sm text-gray-400 mb-4">
                 <Package className="w-4 h-4" />
                 <span>{category.product_count || 0} products</span>
               </div>
 
-              <div className="flex gap-2 pt-4 border-t border-gray-200">
+              <div className="flex gap-2 pt-3 border-t border-gray-100">
                 <button
                   onClick={() => handleEdit(category)}
-                  className="btn btn-outline-primary flex-1 flex items-center justify-center gap-2"
+                  className="btn btn-outline-primary flex-1 text-sm"
                 >
-                  <Edit2 className="w-4 h-4" />
-                  Edit
+                  <Edit2 className="w-4 h-4 inline mr-1" />Edit
                 </button>
                 <button
                   onClick={() => handleDelete(category)}
-                  className="btn btn-outline-danger flex items-center justify-center gap-2 px-4"
+                  className="action-btn action-btn-danger"
+                  title="Delete"
                 >
                   <Trash2 className="w-4 h-4" />
                 </button>

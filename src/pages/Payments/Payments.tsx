@@ -141,131 +141,98 @@ const Payments: React.FC = () => {
     mode.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* Header */}
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-2">
-            <Banknote className="w-8 h-8" />
-            Payments
-          </h1>
-          <p className="text-gray-600 mt-1">Track processed transaction history</p>
+      <div className="page-header">
+        <div className="page-header-left">
+          <div className="page-header-icon">
+            <Banknote className="w-5 h-5" />
+          </div>
+          <div>
+            <h1>Payments</h1>
+            <p>Track all payment transactions</p>
+          </div>
         </div>
-        <button className="btn btn-primary" onClick={handleCreate}>
-          <Plus className="w-5 h-5 inline mr-2" />
+        <button className="btn btn-primary self-start" onClick={handleCreate}>
+          <Plus className="w-4 h-4 inline mr-1.5" />
           Record Payment
         </button>
       </div>
 
       {/* Filters */}
-      <div className="flex gap-4 items-center justify-between">
-        <div className="relative flex-1 max-w-md">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+      <div className="filter-bar">
+        <div className="search-wrap flex-1 min-w-[180px]">
+          <Search className="search-icon" />
           <input
             type="text"
-            className="input-field pl-10"
-            placeholder="Search by ID, amount, or reference..."
+            className="input-field"
+            placeholder="Search payments…"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
-        <div className="flex gap-4">
-          <select
-            className="input-field w-40"
-            value={typeFilter}
-            onChange={(e) => setTypeFilter(e.target.value)}
-          >
-            <option value="">All Types</option>
-            <option value="sale">Sale (Income)</option>
-            <option value="purchase">Purchase (Expense)</option>
-          </select>
-
-          <select
-            className="input-field w-40"
-            value={modeFilter}
-            onChange={(e) => setModeFilter(e.target.value)}
-          >
-            <option value="">All Modes</option>
-            <option value="cash">Cash</option>
-            <option value="card">Card</option>
-            <option value="upi">UPI</option>
-            <option value="bank_transfer">Bank Transfer</option>
-            <option value="cheque">Cheque</option>
-            <option value="other">Other</option>
-          </select>
-        </div>
+        <select className="input-field w-auto min-w-[150px]" value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)}>
+          <option value="">All Types</option>
+          <option value="sale">Income</option>
+          <option value="purchase">Expense</option>
+        </select>
+        <select className="input-field w-auto min-w-[130px]" value={modeFilter} onChange={(e) => setModeFilter(e.target.value)}>
+          <option value="">All Modes</option>
+          <option value="cash">Cash</option>
+          <option value="card">Card</option>
+          <option value="upi">UPI</option>
+          <option value="bank_transfer">Bank Transfer</option>
+          <option value="cheque">Cheque</option>
+          <option value="other">Other</option>
+        </select>
       </div>
 
       {/* Payments Table */}
-      <div className="card flex flex-col min-h-0 overflow-hidden" style={{ height: 'calc(100vh - 200px)' }}>
+      <div className="section-card flex flex-col" style={{ height: 'calc(100vh - 250px)', minHeight: '400px' }}>
         {loading ? (
-          <div className="flex justify-center items-center py-20 flex-1">
-            <div className="w-16 h-16 border-4 border-primary-600 border-t-transparent rounded-full animate-spin"></div>
-          </div>
+          <div className="loading-center flex-1"><div className="spinner" /></div>
         ) : payments.length === 0 ? (
-          <div className="text-center py-12 flex-1">
-            <Inbox className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-            <p className="text-gray-500">No payments found</p>
+          <div className="empty-state flex-1">
+            <div className="empty-state-icon"><Inbox className="w-6 h-6" /></div>
+            <p className="text-gray-700 font-medium">No payments found</p>
           </div>
         ) : (
           <>
-            <div className="flex-1 overflow-x-auto overflow-y-auto">
-              <table className="w-full">
+            <div className="flex-1 table-scroll">
+              <table className="data-table">
                 <thead>
-                  <tr className="border-b border-gray-200">
-                    <th className="text-left py-3 px-4 font-medium text-gray-700">Payment #</th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-700">Date</th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-700">Type</th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-700">Reference</th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-700">Mode</th>
-                    <th className="text-right py-3 px-4 font-medium text-gray-700">Amount</th>
-                    <th className="text-right py-3 px-4 font-medium text-gray-700">Actions</th>
+                  <tr>
+                    <th>Payment #</th>
+                    <th>Date</th>
+                    <th>Type</th>
+                    <th className="hidden md:table-cell">Reference</th>
+                    <th className="hidden sm:table-cell">Mode</th>
+                    <th className="th-right">Amount</th>
+                    <th className="th-right">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   {payments.map((payment) => (
-                    <tr key={payment.id} className="border-b border-gray-100 hover:bg-gray-50">
-                      <td className="py-3 px-4 font-medium text-primary-600">
-                        {payment.payment_number}
+                    <tr key={payment.id}>
+                      <td className="font-semibold text-primary-600 text-xs">{payment.payment_number}</td>
+                      <td className="text-gray-600 whitespace-nowrap">
+                        <div>{new Date(payment.payment_date).toLocaleDateString()}</div>
+                        <div className="text-xs text-gray-400">{new Date(payment.payment_date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
                       </td>
-                      <td className="py-3 px-4 text-gray-600">
-                        {new Date(payment.payment_date).toLocaleDateString()}
-                        <div className="text-xs text-gray-400">
-                          {new Date(payment.payment_date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                        </div>
+                      <td>{getBadge(payment)}</td>
+                      <td className="hidden md:table-cell text-gray-500 text-sm">
+                        {payment.sale_order_number ? <span className="font-mono text-xs">{payment.sale_order_number}</span>
+                          : payment.purchase_order_number ? <span className="font-mono text-xs">{payment.purchase_order_number}</span>
+                          : <span className="text-gray-300">—</span>}
                       </td>
-                      <td className="py-3 px-4">{getBadge(payment)}</td>
-                      <td className="py-3 px-4 text-gray-600">
-                        {payment.sale_order_number && (
-                          <div className="text-sm">Sale: <span className="font-mono">{payment.sale_order_number}</span></div>
-                        )}
-                        {payment.purchase_order_number && (
-                          <div className="text-sm">PO: <span className="font-mono">{payment.purchase_order_number}</span></div>
-                        )}
-                        {!payment.sale_order_number && !payment.purchase_order_number && (
-                          payment.notes
-                            ? <span className="text-xs text-gray-500 truncate max-w-[150px] block">{payment.notes}</span>
-                            : <span className="text-gray-400">-</span>
-                        )}
+                      <td className="hidden sm:table-cell">
+                        <span className="badge badge-primary">{formatMode(payment.payment_mode)}</span>
                       </td>
-                      <td className="py-3 px-4">
-                        <span className="capitalize px-2 py-1 bg-gray-100 rounded text-xs font-medium">
-                          {formatMode(payment.payment_mode)}
-                        </span>
-                        {payment.reference_number && (
-                          <div className="text-xs text-gray-500 mt-1">Ref: {payment.reference_number}</div>
-                        )}
+                      <td className={`td-right font-bold ${payment.payment_type === 'sale' ? 'text-success-600' : 'text-danger-600'}`}>
+                        {payment.payment_type === 'sale' ? '+' : '−'}₹{parseFloat(String(payment.amount)).toFixed(2)}
                       </td>
-                      <td className={`py-3 px-4 text-right font-bold ${payment.payment_type === 'sale' ? 'text-success-600' : 'text-danger-600'}`}>
-                        {payment.payment_type === 'sale' ? '+ ' : '- '}
-                        ₹{parseFloat(String(payment.amount)).toFixed(2)}
-                      </td>
-                      <td className="py-3 px-4 text-right">
-                        <button
-                          className="btn btn-outline-secondary p-1"
-                          onClick={() => handleView(payment)}
-                          title="View Details"
-                        >
+                      <td className="td-right">
+                        <button className="action-btn action-btn-primary" onClick={() => handleView(payment)} title="View">
                           <Eye className="w-4 h-4" />
                         </button>
                       </td>
@@ -277,57 +244,25 @@ const Payments: React.FC = () => {
 
             {/* Pagination */}
             {totalCount > 0 && (
-              <div className="flex flex-wrap items-center justify-between gap-4 pt-4 mt-2 border-t border-gray-200 shrink-0 px-4 pb-4">
+              <div className="pagination-bar shrink-0 px-4 pb-2">
                 <div className="flex items-center gap-2">
-                  <span className="text-sm text-gray-600">Show</span>
-                  <select
-                    value={pageSize}
-                    onChange={(e) => setPageSize(Number(e.target.value))}
-                    className="input-field py-1 px-2 text-sm w-20"
-                  >
+                  <span className="text-sm text-gray-500">Show</span>
+                  <select value={pageSize} onChange={(e) => setPageSize(Number(e.target.value))} className="input-field py-1 px-2 text-sm w-20">
                     <option value={10}>10</option>
                     <option value={25}>25</option>
                     <option value={50}>50</option>
                     <option value={100}>100</option>
                   </select>
-                  <span className="text-sm text-gray-600 whitespace-nowrap">
-                    entries (Showing {(currentPage - 1) * pageSize + 1}–{Math.min(currentPage * pageSize, totalCount)} of {totalCount})
+                  <span className="text-sm text-gray-500 whitespace-nowrap">
+                    entries ({(currentPage - 1) * pageSize + 1}–{Math.min(currentPage * pageSize, totalCount)} of {totalCount})
                   </span>
                 </div>
-
                 <div className="flex items-center gap-1">
-                  <button
-                    onClick={() => handlePageChange(currentPage - 1)}
-                    disabled={currentPage === 1}
-                    className="px-3 py-1 text-sm border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    Previous
-                  </button>
-
+                  <button onClick={() => handlePageChange(currentPage - 1)} disabled={currentPage === 1} className="pag-btn">‹</button>
                   {getPageNumbers().map((page, index) => (
-                    <button
-                      key={index}
-                      onClick={() => typeof page === 'number' && handlePageChange(page)}
-                      disabled={page === '...'}
-                      className={`px-3 py-1 text-sm border rounded ${
-                        page === currentPage
-                          ? 'bg-primary-600 text-white border-primary-600'
-                          : page === '...'
-                          ? 'border-transparent cursor-default'
-                          : 'border-gray-300 hover:bg-gray-50'
-                      }`}
-                    >
-                      {page}
-                    </button>
+                    <button key={index} onClick={() => typeof page === 'number' && handlePageChange(page)} disabled={page === '...'} className={`pag-btn ${page === currentPage ? 'active' : ''} ${page === '...' ? 'dots' : ''}`}>{page}</button>
                   ))}
-
-                  <button
-                    onClick={() => handlePageChange(currentPage + 1)}
-                    disabled={currentPage === totalPages}
-                    className="px-3 py-1 text-sm border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    Next
-                  </button>
+                  <button onClick={() => handlePageChange(currentPage + 1)} disabled={currentPage === totalPages} className="pag-btn">›</button>
                 </div>
               </div>
             )}

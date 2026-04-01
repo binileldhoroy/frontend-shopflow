@@ -112,54 +112,60 @@ const Reports: React.FC = () => {
   ];
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold text-gray-800">Reports</h1>
-
-        <div className="flex items-center gap-2">
-           <div className="flex items-center gap-2 bg-white px-3 py-2 rounded-lg border shadow-sm">
-             <Calendar className="w-4 h-4 text-gray-500" />
-             <span className="text-sm font-medium text-gray-700 mr-2">From:</span>
-             <input
-               type="date"
-               value={dateRange.start_date}
-               onChange={(e) => setDateRange(prev => ({ ...prev, start_date: e.target.value }))}
-               className="text-sm border-gray-300 rounded-md focus:ring-primary-500 focus:border-primary-500"
-             />
-             <span className="text-gray-400 mx-2">to</span>
-             <input
-               type="date"
-               value={dateRange.end_date}
-               onChange={(e) => setDateRange(prev => ({ ...prev, end_date: e.target.value }))}
-               className="text-sm border-gray-300 rounded-md focus:ring-primary-500 focus:border-primary-500"
-             />
-           </div>
+    <div className="space-y-4">
+      {/* Header */}
+      <div className="page-header">
+        <div className="page-header-left">
+          <div className="page-header-icon">
+            <BarChart2 className="w-5 h-5" />
+          </div>
+          <div>
+            <h1>Reports</h1>
+            <p>Financial reports, GST data, and account statements</p>
+          </div>
+        </div>
+        <div className="filter-bar !mb-0 !py-2">
+          <Calendar className="w-4 h-4 text-gray-400 flex-shrink-0" />
+          <input
+            type="date"
+            value={dateRange.start_date}
+            onChange={(e) => setDateRange(prev => ({ ...prev, start_date: e.target.value }))}
+            className="input-field text-sm w-36"
+          />
+          <span className="text-gray-400 text-sm">to</span>
+          <input
+            type="date"
+            value={dateRange.end_date}
+            onChange={(e) => setDateRange(prev => ({ ...prev, end_date: e.target.value }))}
+            className="input-field text-sm w-36"
+          />
         </div>
       </div>
 
-      <div className="grid grid-cols-12 gap-6 h-[calc(100vh-140px)]">
+      <div className="grid grid-cols-1 md:grid-cols-12 gap-4" style={{ height: 'calc(100vh - 200px)', minHeight: '500px' }}>
         {/* Sidebar Navigation */}
-        <div className="col-span-3 bg-white rounded-xl shadow-sm border p-4 h-full overflow-y-auto">
-          <div className="space-y-1">
+        <div className="md:col-span-3 section-card p-3 h-full overflow-y-auto">
+          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider px-2 mb-2">Report Type</p>
+          <div className="space-y-0.5">
             {tabs.map(tab => (
               <button
                 key={tab.id}
                 onClick={() => { setActiveTab(tab.id); setReportData(null); }}
-                className={`w-full flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-lg transition-colors
+                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all
                   ${activeTab === tab.id
-                    ? 'bg-primary-50 text-primary-700'
-                    : 'text-gray-600 hover:bg-gray-50'
+                    ? 'bg-primary-600 text-white'
+                    : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
                   }`}
               >
-                <tab.icon className={`w-5 h-5 ${activeTab === tab.id ? 'text-primary-600' : 'text-gray-400'}`} />
-                {tab.label}
+                <tab.icon className="w-4 h-4 flex-shrink-0" />
+                <span className="truncate">{tab.label}</span>
               </button>
             ))}
           </div>
         </div>
 
         {/* Main Content Area */}
-        <div className="col-span-9 bg-white rounded-xl shadow-sm border p-6 h-full overflow-y-auto">
+        <div className="md:col-span-9 section-card p-5 h-full overflow-y-auto">
           {activeTab === 'account-statement' && (
               <div className="mb-6 flex gap-4 p-4 bg-gray-50 rounded-lg border">
                   <select

@@ -8,59 +8,43 @@ const Settings: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'profile' | 'company' | 'tiers'>('profile');
 
   return (
-    <div className="h-full flex flex-col">
+    <div className="space-y-4">
       {/* Header */}
-      <div className="px-6 py-5 border-b border-gray-100 bg-white">
-        <h1 className="text-2xl font-bold text-gray-900">Settings</h1>
-        <p className="text-gray-500 mt-1">Manage your account and company preferences</p>
-      </div>
-
-      <div className="flex-1 overflow-auto bg-gray-50/50 p-6">
-        <div className="max-w-4xl mx-auto space-y-6">
-          {/* Tabs */}
-          <div className="bg-white p-1 rounded-xl shadow-sm border border-gray-100 inline-flex">
-            <button
-              onClick={() => setActiveTab('profile')}
-              className={`flex items-center gap-2 px-6 py-2.5 rounded-lg text-sm font-medium transition-all ${
-                activeTab === 'profile'
-                  ? 'bg-primary-50 text-primary-700 shadow-sm'
-                  : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
-              }`}
-            >
-              <User className="w-4 h-4" />
-              Profile
-            </button>
-            <button
-              onClick={() => setActiveTab('company')}
-              className={`flex items-center gap-2 px-6 py-2.5 rounded-lg text-sm font-medium transition-all ${
-                activeTab === 'company'
-                  ? 'bg-primary-50 text-primary-700 shadow-sm'
-                  : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
-              }`}
-            >
-              <Building2 className="w-4 h-4" />
-              Company
-            </button>
-            <button
-              onClick={() => setActiveTab('tiers')}
-              className={`flex items-center gap-2 px-6 py-2.5 rounded-lg text-sm font-medium transition-all ${
-                activeTab === 'tiers'
-                  ? 'bg-primary-50 text-primary-700 shadow-sm'
-                  : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
-              }`}
-            >
-              <Tag className="w-4 h-4" />
-              Price Tiers
-            </button>
+      <div className="page-header">
+        <div className="page-header-left">
+          <div className="page-header-icon">
+            <User className="w-5 h-5" />
           </div>
-
-          {/* Content */}
-          <div className="min-h-[400px]">
-            {activeTab === 'profile' && <ProfileSettings />}
-            {activeTab === 'company' && <CompanySettings />}
-            {activeTab === 'tiers' && <PriceTiersSettings />}
+          <div>
+            <h1>Settings</h1>
+            <p>Manage your account and company preferences</p>
           </div>
         </div>
+      </div>
+
+      {/* Tabs */}
+      <div className="tab-nav">
+        {([
+          { key: 'profile', label: 'Profile', icon: User },
+          { key: 'company', label: 'Company', icon: Building2 },
+          { key: 'tiers', label: 'Price Tiers', icon: Tag },
+        ] as const).map(({ key, label, icon: Icon }) => (
+          <button
+            key={key}
+            onClick={() => setActiveTab(key)}
+            className={`tab-btn ${activeTab === key ? 'active' : ''}`}
+          >
+            <Icon className="w-4 h-4" />
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {/* Content */}
+      <div className="min-h-[400px]">
+        {activeTab === 'profile' && <ProfileSettings />}
+        {activeTab === 'company' && <CompanySettings />}
+        {activeTab === 'tiers' && <PriceTiersSettings />}
       </div>
     </div>
   );

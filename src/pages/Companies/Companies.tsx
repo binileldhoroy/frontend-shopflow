@@ -145,66 +145,62 @@ const Companies: React.FC = () => {
   });
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* Header */}
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-2">
-            <Building2 className="w-8 h-8" />
-            Companies
-          </h1>
-          <p className="text-gray-600 mt-1">Manage all companies in the system</p>
+      <div className="page-header">
+        <div className="page-header-left">
+          <div className="page-header-icon">
+            <Building2 className="w-5 h-5" />
+          </div>
+          <div>
+            <h1>Companies</h1>
+            <p>Manage all companies in the system</p>
+          </div>
         </div>
-        <button className="btn btn-primary" onClick={handleAddCompany}>
-          <Plus className="w-5 h-5 inline mr-2" />
+        <button className="btn btn-primary self-start" onClick={handleAddCompany}>
+          <Plus className="w-4 h-4 inline mr-1.5" />
           Add Company
         </button>
       </div>
 
-      {/* Filters */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="md:col-span-2">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-            <input
-              type="text"
-              className="input-field pl-10"
-              placeholder="Search companies..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-          </div>
+      {/* Filter Bar */}
+      <div className="filter-bar">
+        <div className="search-wrap flex-1 max-w-md">
+          <Search className="search-icon" />
+          <input
+            type="text"
+            className="input-field"
+            placeholder="Search companies…"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
         </div>
-        <div className="flex items-center justify-between gap-4">
-          <select
-            className="input-field flex-1"
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-          >
-            <option value="">All Status</option>
-            <option value="active">Active</option>
-            <option value="inactive">Inactive</option>
-          </select>
-          <span className="text-gray-600 whitespace-nowrap">
-            {filteredCompanies.length} compan{filteredCompanies.length !== 1 ? 'ies' : 'y'}
-          </span>
+        <div className="flex gap-2">
+          {(['', 'active', 'inactive'] as const).map(v => (
+            <button key={v || 'all'} onClick={() => setStatusFilter(v)} className={`filter-chip ${statusFilter === v ? 'active' : ''}`}>
+              {v === '' ? 'All' : v.charAt(0).toUpperCase() + v.slice(1)}
+            </button>
+          ))}
         </div>
+        <span className="text-sm text-gray-500 ml-auto whitespace-nowrap">
+          {filteredCompanies.length} compan{filteredCompanies.length !== 1 ? 'ies' : 'y'}
+        </span>
       </div>
 
       {/* Companies Grid */}
       {reduxLoading ? (
-        <div className="flex justify-center items-center py-20">
-          <div className="w-16 h-16 border-4 border-primary-600 border-t-transparent rounded-full animate-spin"></div>
+        <div className="loading-center py-20">
+          <div className="spinner" />
         </div>
       ) : filteredCompanies.length === 0 ? (
-        <div className="card text-center py-12">
-          <Inbox className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-          <p className="text-gray-500">No companies found</p>
+        <div className="empty-state py-20">
+          <div className="empty-state-icon"><Inbox className="w-6 h-6" /></div>
+          <p className="text-gray-700 font-medium">No companies found</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {filteredCompanies.map(company => (
-            <div key={company.id} className="card">
+            <div key={company.id} className="card hover:shadow-md transition-shadow">
               <div className="flex items-start gap-3 mb-4">
                 {company.logo ? (
                   <img
@@ -212,59 +208,47 @@ const Companies: React.FC = () => {
                     alt={company.company_name}
                     className="w-12 h-12 object-cover rounded-lg"
                     onError={(e) => {
-                      // Fallback if image fails to load
                       e.currentTarget.style.display = 'none';
                       const fallback = e.currentTarget.nextElementSibling;
                       if (fallback) fallback.classList.remove('hidden');
                     }}
                   />
                 ) : null}
-                <div className={`w-12 h-12 bg-primary-100 rounded-lg flex items-center justify-center ${company.logo ? 'hidden' : ''}`}>
+                <div className={`w-12 h-12 bg-primary-100 rounded-lg flex items-center justify-center flex-shrink-0 ${company.logo ? 'hidden' : ''}`}>
                   <Building2 className="w-6 h-6 text-primary-600" />
                 </div>
-                <div className="flex-1">
-                  <h5 className="font-semibold text-gray-900">{company.company_name}</h5>
+                <div className="flex-1 min-w-0">
+                  <h5 className="font-semibold text-gray-900 truncate">{company.company_name}</h5>
                   <span className={`badge ${company.is_active ? 'badge-success' : 'badge-secondary'} mt-1`}>
                     {company.is_active ? 'Active' : 'Inactive'}
                   </span>
                 </div>
               </div>
 
-              <div className="space-y-2 mb-4">
+              <div className="space-y-1.5 mb-4">
                 <p className="flex items-center gap-2 text-sm text-gray-600">
-                  <Mail className="w-4 h-4" />
-                  {company.email}
+                  <Mail className="w-4 h-4 flex-shrink-0" />
+                  <span className="truncate">{company.email}</span>
                 </p>
                 <p className="flex items-center gap-2 text-sm text-gray-600">
-                  <Phone className="w-4 h-4" />
+                  <Phone className="w-4 h-4 flex-shrink-0" />
                   {company.phone}
                 </p>
                 <p className="flex items-center gap-2 text-sm text-gray-600">
-                  <MapPin className="w-4 h-4" />
+                  <MapPin className="w-4 h-4 flex-shrink-0" />
                   {company.city}, {company.state}
                 </p>
-
               </div>
 
-              <div className="flex gap-2 mb-3">
-                 <button
-                   className="btn btn-outline-secondary text-sm w-full"
-                   onClick={() => window.location.href = `/companies/${company.id}`}
-                 >
-                   View Details
-                 </button>
-              </div>
-
-              <div className="flex gap-2">
+              <div className="flex gap-2 pt-3 border-t border-gray-100">
                 <button
                   className="btn btn-outline-primary text-sm flex-1"
                   onClick={() => handleEditCompany(company)}
                 >
-                  <Edit2 className="w-4 h-4 inline mr-1" />
-                  Edit
+                  <Edit2 className="w-4 h-4 inline mr-1" />Edit
                 </button>
                 <button
-                  className={`btn ${company.is_active ? 'btn-outline-warning' : 'btn-outline-success'} text-sm flex-1`}
+                  className={`btn text-sm flex-1 ${company.is_active ? 'btn-outline-warning' : 'btn-outline-success'}`}
                   onClick={() => handleToggleStatus(company)}
                 >
                   {company.is_active ? (
@@ -274,8 +258,9 @@ const Companies: React.FC = () => {
                   )}
                 </button>
                 <button
-                  className="btn btn-outline-danger text-sm"
+                  className="action-btn action-btn-danger"
                   onClick={() => handleDeleteCompany(company)}
+                  title="Delete"
                 >
                   <Trash2 className="w-4 h-4" />
                 </button>

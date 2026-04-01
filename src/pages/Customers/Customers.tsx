@@ -167,292 +167,198 @@ const Customers: React.FC = () => {
   const guestCustomers = customers.filter(c => c.is_guest).length;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-            <Users className="w-7 h-7 text-primary-600" />
-            Customers
-          </h1>
-          <p className="text-gray-600 mt-1">Manage customer information</p>
+      <div className="page-header">
+        <div className="page-header-left">
+          <div className="page-header-icon">
+            <Users className="w-5 h-5" />
+          </div>
+          <div>
+            <h1>Customers</h1>
+            <p>Manage customer information and accounts</p>
+          </div>
         </div>
         <button
-          onClick={() => {
-            setSelectedCustomer(null);
-            setShowFormModal(true);
-          }}
-          className="btn btn-primary flex items-center gap-2"
+          onClick={() => { setSelectedCustomer(null); setShowFormModal(true); }}
+          className="btn btn-primary self-start"
         >
-          <Plus className="w-5 h-5" />
+          <Plus className="w-4 h-4 inline mr-1.5" />
           Add Customer
         </button>
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="card">
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 bg-primary-100 rounded-lg flex items-center justify-center">
-              <Users className="w-6 h-6 text-primary-600" />
-            </div>
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="stat-card">
+          <div className="stat-card-stripe accent-indigo" />
+          <div className="flex items-center justify-between gap-3">
             <div>
-              <p className="text-sm text-gray-600">Total Customers</p>
-              <p className="text-2xl font-bold text-gray-900">{totalCustomers}</p>
+              <p className="stat-card-label">Total Customers</p>
+              <p className="stat-card-value">{totalCustomers}</p>
+            </div>
+            <div className="stat-card-icon bg-primary-100 text-primary-600">
+              <Users className="w-5 h-5" />
             </div>
           </div>
         </div>
-        <div className="card">
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 bg-success-100 rounded-lg flex items-center justify-center">
-              <UserCheck className="w-6 h-6 text-success-600" />
-            </div>
+        <div className="stat-card">
+          <div className="stat-card-stripe accent-emerald" />
+          <div className="flex items-center justify-between gap-3">
             <div>
-              <p className="text-sm text-gray-600">Registered</p>
-              <p className="text-2xl font-bold text-gray-900">{registeredCustomers}</p>
+              <p className="stat-card-label">Registered</p>
+              <p className="stat-card-value">{registeredCustomers}</p>
+            </div>
+            <div className="stat-card-icon bg-success-100 text-success-600">
+              <UserCheck className="w-5 h-5" />
             </div>
           </div>
         </div>
-        <div className="card">
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 bg-warning-100 rounded-lg flex items-center justify-center">
-              <Users className="w-6 h-6 text-warning-600" />
-            </div>
+        <div className="stat-card">
+          <div className="stat-card-stripe accent-amber" />
+          <div className="flex items-center justify-between gap-3">
             <div>
-              <p className="text-sm text-gray-600">Guest</p>
-              <p className="text-2xl font-bold text-gray-900">{guestCustomers}</p>
+              <p className="stat-card-label">Guest</p>
+              <p className="stat-card-value">{guestCustomers}</p>
+            </div>
+            <div className="stat-card-icon bg-warning-100 text-warning-600">
+              <Users className="w-5 h-5" />
             </div>
           </div>
         </div>
       </div>
 
       {/* Filters */}
-      <div className="card">
-        <div className="flex flex-col md:flex-row gap-4">
-          <div className="flex-1 relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-            <input
-              type="text"
-              placeholder="Search by name, email, or phone..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="input-field pl-10"
-            />
-          </div>
-          <div className="flex gap-2">
+      <div className="filter-bar">
+        <div className="search-wrap flex-1 min-w-[200px]">
+          <Search className="search-icon" />
+          <input
+            type="text"
+            placeholder="Search by name, email, or phone…"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="input-field"
+          />
+        </div>
+        <div className="flex gap-2 flex-wrap">
+          {(['all', 'registered', 'guest'] as const).map(t => (
             <button
-              onClick={() => setFilterType('all')}
-              className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                filterType === 'all'
-                  ? 'bg-primary-600 text-white'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
+              key={t}
+              onClick={() => setFilterType(t)}
+              className={`filter-chip ${filterType === t ? 'active' : ''}`}
             >
-              All
+              {t.charAt(0).toUpperCase() + t.slice(1)}
             </button>
-            <button
-              onClick={() => setFilterType('registered')}
-              className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                filterType === 'registered'
-                  ? 'bg-primary-600 text-white'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
-            >
-              Registered
-            </button>
-            <button
-              onClick={() => setFilterType('guest')}
-              className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                filterType === 'guest'
-                  ? 'bg-primary-600 text-white'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
-            >
-              Guest
-            </button>
-          </div>
+          ))}
         </div>
       </div>
 
       {/* Customers Table */}
-      <div className="card flex flex-col min-h-0 overflow-hidden" style={{ height: 'calc(100vh - 200px)' }}>
+      <div className="section-card flex flex-col" style={{ height: 'calc(100vh - 360px)', minHeight: '360px' }}>
         {loading ? (
-          <div className="text-center py-12 flex-1">
-            <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
-            <p className="text-gray-600 mt-4">Loading customers...</p>
+          <div className="loading-center flex-1">
+            <div className="spinner" />
+            <span className="text-sm text-gray-500">Loading customers…</span>
           </div>
         ) : customers.length === 0 ? (
-          <div className="text-center py-12 flex-1">
-            <Users className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-            <p className="text-gray-600 mb-4">No customers found</p>
-            <button
-              onClick={() => setShowFormModal(true)}
-              className="btn btn-primary"
-            >
-              Add Your First Customer
+          <div className="empty-state flex-1">
+            <div className="empty-state-icon">
+              <Users className="w-6 h-6" />
+            </div>
+            <p className="text-gray-700 font-medium">No customers found</p>
+            <p className="text-sm text-gray-400 mt-1 mb-4">Add your first customer to get started</p>
+            <button onClick={() => setShowFormModal(true)} className="btn btn-primary text-sm">
+              Add Customer
             </button>
           </div>
         ) : (
           <>
-            <div className="flex-1 overflow-x-auto overflow-y-auto">
-              <table className="w-full">
+            <div className="flex-1 table-scroll">
+              <table className="data-table">
                 <thead>
-                  <tr className="border-b border-gray-200">
-                    <th className="text-left py-3 px-4 font-medium text-gray-700">Name</th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-700">Contact</th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-700">Location</th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-700">GSTIN</th>
-                    <th className="text-center py-3 px-4 font-medium text-gray-700">Type</th>
-                    <th className="text-right py-3 px-4 font-medium text-gray-700">Actions</th>
+                  <tr>
+                    <th>Name</th>
+                    <th>Contact</th>
+                    <th className="hidden md:table-cell">Location</th>
+                    <th className="hidden lg:table-cell">GSTIN</th>
+                    <th className="th-center">Type</th>
+                    <th className="th-right">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   {customers.map((customer) => (
-                  <tr key={customer.id} className="border-b border-gray-100 hover:bg-gray-50">
-                    <td className="py-3 px-4">
-                      <div className="font-medium text-gray-900">{customer.name}</div>
-                    </td>
-                    <td className="py-3 px-4">
-                      <div className="space-y-1">
-                        {customer.email && (
-                          <div className="flex items-center gap-1 text-sm text-gray-600">
-                            <Mail className="w-3 h-3" />
-                            {customer.email}
-                          </div>
-                        )}
-                        {customer.phone && (
-                          <div className="flex items-center gap-1 text-sm text-gray-600">
-                            <Phone className="w-3 h-3" />
-                            {customer.phone}
-                          </div>
-                        )}
-                        {!customer.email && !customer.phone && <span className="text-gray-400">-</span>}
-                      </div>
-                    </td>
-                    <td className="py-3 px-4 text-sm text-gray-600">
-                      {customer.city && customer.state ? (
-                        <div>
-                          {customer.city}, {customer.state.name}
-                          {customer.pincode && ` - ${customer.pincode}`}
+                    <tr key={customer.id}>
+                      <td className="font-semibold text-gray-900">{customer.name}</td>
+                      <td>
+                        <div className="space-y-0.5">
+                          {customer.email && (
+                            <div className="flex items-center gap-1.5 text-xs text-gray-500">
+                              <Mail className="w-3 h-3 flex-shrink-0" />{customer.email}
+                            </div>
+                          )}
+                          {customer.phone && (
+                            <div className="flex items-center gap-1.5 text-xs text-gray-500">
+                              <Phone className="w-3 h-3 flex-shrink-0" />{customer.phone}
+                            </div>
+                          )}
+                          {!customer.email && !customer.phone && <span className="text-gray-300 text-xs">—</span>}
                         </div>
-                      ) : (
-                        <span className="text-gray-400">-</span>
-                      )}
-                    </td>
-                    <td className="py-3 px-4 text-sm text-gray-600">
-                      {customer.gstin || <span className="text-gray-400">-</span>}
-                    </td>
-                    <td className="py-3 px-4 text-center">
-                      <span
-                        className={`badge ${
-                          customer.is_guest ? 'badge-warning' : 'badge-success'
-                        }`}
-                      >
-                        {customer.is_guest ? (
-                          <>
-                            <Users className="w-3 h-3" />
-                            Guest
-                          </>
-                        ) : (
-                          <>
-                            <UserCheck className="w-3 h-3" />
-                            Registered
-                          </>
-                        )}
-                      </span>
-                    </td>
-                    <td className="py-3 px-4">
-                      <div className="flex items-center justify-end gap-2">
-                        {!customer.is_guest && (
-                          <button
-                            onClick={() => navigate(`/customers/${customer.id}/ledger`)}
-                            className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                            title="Credit Ledger"
-                          >
-                            <Receipt className="w-4 h-4" />
+                      </td>
+                      <td className="text-sm text-gray-500 hidden md:table-cell">
+                        {customer.city && customer.state
+                          ? `${customer.city}, ${customer.state.name}`
+                          : <span className="text-gray-300">—</span>}
+                      </td>
+                      <td className="text-xs font-mono text-gray-500 hidden lg:table-cell">
+                        {customer.gstin || <span className="text-gray-300">—</span>}
+                      </td>
+                      <td className="td-center">
+                        <span className={`badge ${customer.is_guest ? 'badge-warning' : 'badge-success'}`}>
+                          {customer.is_guest ? 'Guest' : 'Registered'}
+                        </span>
+                      </td>
+                      <td>
+                        <div className="flex items-center justify-end gap-1">
+                          {!customer.is_guest && (
+                            <button className="action-btn action-btn-success" onClick={() => navigate(`/customers/${customer.id}/ledger`)} title="Ledger">
+                              <Receipt className="w-4 h-4" />
+                            </button>
+                          )}
+                          <button className="action-btn action-btn-primary" onClick={() => { setSelectedCustomer(customer); setShowFormModal(true); }} title="Edit">
+                            <Edit className="w-4 h-4" />
                           </button>
-                        )}
-                        <button
-                          onClick={() => {
-                            setSelectedCustomer(customer);
-                            setShowFormModal(true);
-                          }}
-                          className="p-2 text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
-                          title="Edit"
-                        >
-                          <Edit className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={() => {
-                            setSelectedCustomer(customer);
-                            setShowDeleteModal(true);
-                          }}
-                          className="p-2 text-danger-600 hover:bg-danger-50 rounded-lg transition-colors"
-                          title="Delete"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                          <button className="action-btn action-btn-danger" onClick={() => { setSelectedCustomer(customer); setShowDeleteModal(true); }} title="Delete">
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
                 </tbody>
               </table>
             </div>
 
             {/* Pagination */}
             {totalCount > 0 && (
-              <div className="flex flex-wrap items-center justify-between gap-4 pt-4 mt-4 border-t border-gray-200 shrink-0 mx-4 mb-4">
-                <div className="flex items-center gap-2">
-                  <span className="text-sm text-gray-600">Show</span>
-                  <select
-                    value={pageSize}
-                    onChange={(e) => setPageSize(Number(e.target.value))}
-                    className="input-field py-1 px-2 text-sm w-20"
-                  >
+              <div className="pagination-bar px-4 pb-3 shrink-0">
+                <div className="flex items-center gap-2 text-sm text-gray-500">
+                  <span>Show</span>
+                  <select value={pageSize} onChange={(e) => setPageSize(Number(e.target.value))} className="input-field py-1 px-2 text-xs w-16">
                     <option value={10}>10</option>
                     <option value={25}>25</option>
                     <option value={50}>50</option>
                     <option value={100}>100</option>
                   </select>
-                  <span className="text-sm text-gray-600 whitespace-nowrap">
-                    entries (Showing {(currentPage - 1) * pageSize + 1}-{Math.min(currentPage * pageSize, totalCount)} of {totalCount})
+                  <span className="hidden sm:inline whitespace-nowrap">
+                    {(currentPage - 1) * pageSize + 1}–{Math.min(currentPage * pageSize, totalCount)} of {totalCount}
                   </span>
                 </div>
-
                 <div className="flex items-center gap-1">
-                  <button
-                    onClick={() => handlePageChange(currentPage - 1)}
-                    disabled={currentPage === 1}
-                    className="px-3 py-1 text-sm border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    Previous
-                  </button>
-
-                  {getPageNumbers().map((page, index) => (
-                    <button
-                      key={index}
-                      onClick={() => typeof page === 'number' && handlePageChange(page)}
-                      disabled={page === '...'}
-                      className={`px-3 py-1 text-sm border rounded ${
-                        page === currentPage
-                          ? 'bg-primary-600 text-white border-primary-600'
-                          : page === '...'
-                          ? 'border-transparent cursor-default'
-                          : 'border-gray-300 hover:bg-gray-50'
-                      }`}
-                    >
-                      {page}
-                    </button>
+                  <button onClick={() => handlePageChange(currentPage - 1)} disabled={currentPage === 1} className="pag-btn">‹</button>
+                  {getPageNumbers().map((page, i) => (
+                    <button key={i} onClick={() => typeof page === 'number' && handlePageChange(page)} disabled={page === '...'} className={`pag-btn ${page === currentPage ? 'active' : ''} ${page === '...' ? 'dots' : ''}`}>{page}</button>
                   ))}
-
-                  <button
-                    onClick={() => handlePageChange(currentPage + 1)}
-                    disabled={currentPage === totalPages}
-                    className="px-3 py-1 text-sm border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    Next
-                  </button>
+                  <button onClick={() => handlePageChange(currentPage + 1)} disabled={currentPage === totalPages} className="pag-btn">›</button>
                 </div>
               </div>
             )}

@@ -168,35 +168,43 @@ const Inventory: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* Header */}
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-2">
-            <Package className="w-8 h-8" />
-            Inventory Management
-          </h1>
-          <p className="text-gray-600 mt-1">Monitor stock levels and movements</p>
+      <div className="page-header">
+        <div className="page-header-left">
+          <div className="page-header-icon">
+            <Package className="w-5 h-5" />
+          </div>
+          <div>
+            <h1>Inventory</h1>
+            <p>Monitor stock levels and movements</p>
+          </div>
         </div>
-        <button
-          onClick={() => setShowMovements(!showMovements)}
-          className="btn btn-secondary"
-        >
-          {showMovements ? 'Show Stock Levels' : 'Show Movements'}
-        </button>
+        <div className="flex items-center gap-2 self-start">
+          <div className="tab-nav">
+            <button className={`tab-btn ${!showMovements ? 'active' : ''}`} onClick={() => setShowMovements(false)}>
+              Stock Levels
+            </button>
+            <button className={`tab-btn ${showMovements ? 'active' : ''}`} onClick={() => setShowMovements(true)}>
+              Movements
+            </button>
+          </div>
+        </div>
       </div>
 
       {/* Search Bar - Only show for Stock Levels view */}
       {!showMovements && (
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-          <input
-            type="text"
-            className="input-field pl-10"
-            placeholder="Search products by name or SKU..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
+        <div className="filter-bar">
+          <div className="search-wrap flex-1 max-w-md">
+            <Search className="search-icon" />
+            <input
+              type="text"
+              className="input-field"
+              placeholder="Search products by name or SKU…"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </div>
         </div>
       )}
 
@@ -229,114 +237,69 @@ const Inventory: React.FC = () => {
 
       {showMovements ? (
         /* Stock Movements Table */
-        <div className="card flex flex-col min-h-0 overflow-hidden" style={{ height: 'calc(100vh - 200px)' }}>
-          <h3 className="text-lg font-semibold mb-4 shrink-0">Stock Movements</h3>
+        <div className="section-card flex flex-col" style={{ height: 'calc(100vh - 220px)', minHeight: '400px' }}>
           {loading ? (
-            <div className="flex justify-center items-center py-20 flex-1">
-              <div className="w-16 h-16 border-4 border-primary-600 border-t-transparent rounded-full animate-spin"></div>
-            </div>
+            <div className="loading-center flex-1"><div className="spinner" /></div>
           ) : movements.length === 0 ? (
-            <div className="text-center py-12 flex-1">
-              <Inbox className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-              <p className="text-gray-500">No stock movements recorded</p>
+            <div className="empty-state flex-1">
+              <div className="empty-state-icon"><Inbox className="w-6 h-6" /></div>
+              <p className="text-gray-700 font-medium">No stock movements recorded</p>
             </div>
           ) : (
             <>
-              <div className="flex-1 overflow-x-auto overflow-y-auto">
-                <table className="w-full">
+              <div className="flex-1 table-scroll">
+                <table className="data-table">
                   <thead>
-                    <tr className="border-b border-gray-200">
-                      <th className="text-left py-3 px-4 font-medium text-gray-700">Date</th>
-                      <th className="text-left py-3 px-4 font-medium text-gray-700">Product</th>
-                      <th className="text-left py-3 px-4 font-medium text-gray-700">Type</th>
-                      <th className="text-right py-3 px-4 font-medium text-gray-700">Quantity</th>
-                      <th className="text-left py-3 px-4 font-medium text-gray-700">Reference</th>
-                      <th className="text-left py-3 px-4 font-medium text-gray-700">Notes</th>
+                    <tr>
+                      <th>Date</th>
+                      <th>Product</th>
+                      <th>Type</th>
+                      <th className="th-right">Quantity</th>
+                      <th className="hidden md:table-cell">Reference</th>
+                      <th className="hidden lg:table-cell">Notes</th>
                     </tr>
                   </thead>
                   <tbody>
-                  {movements.map((movement) => (
-                    <tr key={movement.id} className="border-b border-gray-100 hover:bg-gray-50">
-                      <td className="py-3 px-4 text-gray-600">
-                        {new Date(movement.created_at).toLocaleDateString()}
-                      </td>
-                      <td className="py-3 px-4 font-medium text-gray-900">
-                        {movement.product_name}
-                      </td>
-                      <td className="py-3 px-4">
-                        <span className={`badge ${getMovementBadgeClass(movement.movement_type)} flex items-center gap-1 w-fit`}>
-                          {getMovementIcon(movement.movement_type)}
-                          {getMovementLabel(movement.movement_type)}
-                        </span>
-                      </td>
-                      <td className="py-3 px-4 text-right font-medium">
-                        {getQuantityDisplay(movement)}
-                      </td>
-                      <td className="py-3 px-4 text-gray-600">
-                        {movement.reference_number || '-'}
-                      </td>
-                      <td className="py-3 px-4 text-gray-600">
-                        {movement.notes || '-'}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                    {movements.map((movement) => (
+                      <tr key={movement.id}>
+                        <td className="text-gray-500 whitespace-nowrap">{new Date(movement.created_at).toLocaleDateString()}</td>
+                        <td className="font-semibold text-gray-900">{movement.product_name}</td>
+                        <td>
+                          <span className={`badge ${getMovementBadgeClass(movement.movement_type)} inline-flex items-center gap-1`}>
+                            {getMovementIcon(movement.movement_type)}
+                            {getMovementLabel(movement.movement_type)}
+                          </span>
+                        </td>
+                        <td className="td-right font-semibold">{getQuantityDisplay(movement)}</td>
+                        <td className="text-gray-500 hidden md:table-cell">{movement.reference_number || '—'}</td>
+                        <td className="text-gray-500 hidden lg:table-cell">{movement.notes || '—'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
 
             {/* Pagination for Movements */}
             {totalCount > 0 && (
-              <div className="flex flex-wrap items-center justify-between gap-4 pt-4 mt-4 border-t border-gray-200 shrink-0 mx-4 mb-4">
+              <div className="pagination-bar shrink-0 mx-4 mb-2">
                 <div className="flex items-center gap-2">
-                  <span className="text-sm text-gray-600">Show</span>
-                  <select
-                    value={pageSize}
-                    onChange={(e) => setPageSize(Number(e.target.value))}
-                    className="input-field py-1 px-2 text-sm w-20"
-                  >
+                  <span className="text-sm text-gray-500">Show</span>
+                  <select value={pageSize} onChange={(e) => setPageSize(Number(e.target.value))} className="input-field py-1 px-2 text-sm w-20">
                     <option value={10}>10</option>
                     <option value={25}>25</option>
                     <option value={50}>50</option>
                     <option value={100}>100</option>
                   </select>
-                  <span className="text-sm text-gray-600 whitespace-nowrap">
-                    entries (Showing {(currentPage - 1) * pageSize + 1}-{Math.min(currentPage * pageSize, totalCount)} of {totalCount})
+                  <span className="text-sm text-gray-500 whitespace-nowrap">
+                    entries ({(currentPage - 1) * pageSize + 1}–{Math.min(currentPage * pageSize, totalCount)} of {totalCount})
                   </span>
                 </div>
-
                 <div className="flex items-center gap-1">
-                  <button
-                    onClick={() => handlePageChange(currentPage - 1)}
-                    disabled={currentPage === 1}
-                    className="px-3 py-1 text-sm border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    Previous
-                  </button>
-
+                  <button onClick={() => handlePageChange(currentPage - 1)} disabled={currentPage === 1} className="pag-btn">‹</button>
                   {getPageNumbers().map((page, index) => (
-                    <button
-                      key={index}
-                      onClick={() => typeof page === 'number' && handlePageChange(page)}
-                      disabled={page === '...'}
-                      className={`px-3 py-1 text-sm border rounded ${
-                        page === currentPage
-                          ? 'bg-primary-600 text-white border-primary-600'
-                          : page === '...'
-                          ? 'border-transparent cursor-default'
-                          : 'border-gray-300 hover:bg-gray-50'
-                      }`}
-                    >
-                      {page}
-                    </button>
+                    <button key={index} onClick={() => typeof page === 'number' && handlePageChange(page)} disabled={page === '...'} className={`pag-btn ${page === currentPage ? 'active' : ''} ${page === '...' ? 'dots' : ''}`}>{page}</button>
                   ))}
-
-                  <button
-                    onClick={() => handlePageChange(currentPage + 1)}
-                    disabled={currentPage === totalPages}
-                    className="px-3 py-1 text-sm border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    Next
-                  </button>
+                  <button onClick={() => handlePageChange(currentPage + 1)} disabled={currentPage === totalPages} className="pag-btn">›</button>
                 </div>
               </div>
             )}
@@ -345,135 +308,93 @@ const Inventory: React.FC = () => {
         </div>
       ) : (
         /* Stock Levels Table */
-        <div className="card flex flex-col min-h-0 overflow-hidden" style={{ height: 'calc(100vh - 320px)' }}>
-          <h3 className="text-lg font-semibold mb-4 shrink-0">Stock Levels</h3>
+        <div className="section-card flex flex-col" style={{ height: 'calc(100vh - 320px)', minHeight: '400px' }}>
           {loading ? (
-            <div className="flex justify-center items-center py-20 flex-1">
-              <div className="w-16 h-16 border-4 border-primary-600 border-t-transparent rounded-full animate-spin"></div>
-            </div>
+            <div className="loading-center flex-1"><div className="spinner" /></div>
           ) : stock.length === 0 ? (
-            <div className="text-center py-12 flex-1">
-              <Package className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-              <p className="text-gray-500">No stock records found</p>
+            <div className="empty-state flex-1">
+              <div className="empty-state-icon"><Package className="w-6 h-6" /></div>
+              <p className="text-gray-700 font-medium">No stock records found</p>
             </div>
           ) : (
             <>
-              <div className="flex-1 overflow-x-auto overflow-y-auto">
-                <table className="w-full">
+              <div className="flex-1 table-scroll">
+                <table className="data-table">
                   <thead>
-                    <tr className="border-b border-gray-200">
-                      <th className="text-left py-3 px-4 font-medium text-gray-700">Product</th>
-                      <th className="text-right py-3 px-4 font-medium text-gray-700">Current Stock</th>
-                      <th className="text-right py-3 px-4 font-medium text-gray-700">Reorder Level</th>
-                      <th className="text-center py-3 px-4 font-medium text-gray-700">Status</th>
-                      <th className="text-right py-3 px-4 font-medium text-gray-700">Actions</th>
+                    <tr>
+                      <th>Product</th>
+                      <th className="th-right">Current Stock</th>
+                      <th className="th-right hidden sm:table-cell">Reorder Level</th>
+                      <th className="th-center">Status</th>
+                      <th className="th-right">Actions</th>
                     </tr>
                   </thead>
-                <tbody>
-                  {stock.map((item) => (
-                    <tr key={item.id} className="border-b border-gray-100 hover:bg-gray-50">
-                      <td className="py-3 px-4 font-medium text-gray-900">
-                        {item.product_name}
-                        <div className="text-sm text-gray-500 font-normal">{item.sku}</div>
-                      </td>
-                      <td className="py-3 px-4 text-right">
-                        <span className={`font-medium ${
-                          item.is_out_of_stock ? 'text-danger-600' :
-                          item.is_low_stock ? 'text-warning-600' :
-                          'text-gray-900'
-                        }`}>
-                          {item.quantity}
-                        </span>
-                      </td>
-                      <td className="py-3 px-4 text-right text-gray-600">
-                        {item.reorder_level}
-                      </td>
-                      <td className="py-3 px-4 text-center">
-                        {item.is_out_of_stock ? (
-                          <span className="badge badge-danger">Out of Stock</span>
-                        ) : item.is_low_stock ? (
-                          <span className="badge badge-warning">Low Stock</span>
-                        ) : (
-                          <span className="badge badge-success">In Stock</span>
-                        )}
-                      </td>
-                      <td className="py-3 px-4">
-                        <div className="flex items-center justify-end">
+                  <tbody>
+                    {stock.map((item) => (
+                      <tr key={item.id}>
+                        <td>
+                          <span className="font-semibold text-gray-900">{item.product_name}</span>
+                          <div className="text-xs text-gray-400">{item.sku}</div>
+                        </td>
+                        <td className="td-right">
+                          <span className={`font-semibold ${
+                            item.is_out_of_stock ? 'text-danger-600' :
+                            item.is_low_stock ? 'text-warning-600' :
+                            'text-gray-900'
+                          }`}>
+                            {item.quantity}
+                          </span>
+                        </td>
+                        <td className="td-right text-gray-500 hidden sm:table-cell">{item.reorder_level}</td>
+                        <td className="td-center">
+                          {item.is_out_of_stock ? (
+                            <span className="badge badge-danger">Out of Stock</span>
+                          ) : item.is_low_stock ? (
+                            <span className="badge badge-warning">Low Stock</span>
+                          ) : (
+                            <span className="badge badge-success">In Stock</span>
+                          )}
+                        </td>
+                        <td className="td-right">
                           <button
-                            onClick={() => {
-                              setSelectedProduct(item);
-                              setShowAdjustmentModal(true);
-                            }}
-                            className="btn btn-primary btn-sm flex items-center gap-1"
+                            onClick={() => { setSelectedProduct(item); setShowAdjustmentModal(true); }}
+                            className="action-btn action-btn-primary"
+                            title="Adjust Stock"
                           >
                             <Plus className="w-4 h-4" />
-                            Adjust
                           </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-
-            {/* Pagination for Stock Levels */}
-            {totalCount > 0 && (
-              <div className="flex flex-wrap items-center justify-between gap-4 pt-4 mt-4 border-t border-gray-200 shrink-0 mx-4 mb-4">
-                <div className="flex items-center gap-2">
-                  <span className="text-sm text-gray-600">Show</span>
-                  <select
-                    value={pageSize}
-                    onChange={(e) => setPageSize(Number(e.target.value))}
-                    className="input-field py-1 px-2 text-sm w-20"
-                  >
-                    <option value={10}>10</option>
-                    <option value={25}>25</option>
-                    <option value={50}>50</option>
-                    <option value={100}>100</option>
-                  </select>
-                  <span className="text-sm text-gray-600 whitespace-nowrap">
-                    entries (Showing {(currentPage - 1) * pageSize + 1}-{Math.min(currentPage * pageSize, totalCount)} of {totalCount})
-                  </span>
-                </div>
-
-                <div className="flex items-center gap-1">
-                  <button
-                    onClick={() => handlePageChange(currentPage - 1)}
-                    disabled={currentPage === 1}
-                    className="px-3 py-1 text-sm border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    Previous
-                  </button>
-
-                  {getPageNumbers().map((page, index) => (
-                    <button
-                      key={index}
-                      onClick={() => typeof page === 'number' && handlePageChange(page)}
-                      disabled={page === '...'}
-                      className={`px-3 py-1 text-sm border rounded ${
-                        page === currentPage
-                          ? 'bg-primary-600 text-white border-primary-600'
-                          : page === '...'
-                          ? 'border-transparent cursor-default'
-                          : 'border-gray-300 hover:bg-gray-50'
-                      }`}
-                    >
-                      {page}
-                    </button>
-                  ))}
-
-                  <button
-                    onClick={() => handlePageChange(currentPage + 1)}
-                    disabled={currentPage === totalPages}
-                    className="px-3 py-1 text-sm border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    Next
-                  </button>
-                </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
-            )}
-          </>
+
+              {/* Pagination for Stock Levels */}
+              {totalCount > 0 && (
+                <div className="pagination-bar shrink-0 mx-4 mb-2">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-gray-500">Show</span>
+                    <select value={pageSize} onChange={(e) => setPageSize(Number(e.target.value))} className="input-field py-1 px-2 text-sm w-20">
+                      <option value={10}>10</option>
+                      <option value={25}>25</option>
+                      <option value={50}>50</option>
+                      <option value={100}>100</option>
+                    </select>
+                    <span className="text-sm text-gray-500 whitespace-nowrap">
+                      entries ({(currentPage - 1) * pageSize + 1}–{Math.min(currentPage * pageSize, totalCount)} of {totalCount})
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <button onClick={() => handlePageChange(currentPage - 1)} disabled={currentPage === 1} className="pag-btn">‹</button>
+                    {getPageNumbers().map((page, index) => (
+                      <button key={index} onClick={() => typeof page === 'number' && handlePageChange(page)} disabled={page === '...'} className={`pag-btn ${page === currentPage ? 'active' : ''} ${page === '...' ? 'dots' : ''}`}>{page}</button>
+                    ))}
+                    <button onClick={() => handlePageChange(currentPage + 1)} disabled={currentPage === totalPages} className="pag-btn">›</button>
+                  </div>
+                </div>
+              )}
+            </>
           )}
         </div>
       )}
