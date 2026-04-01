@@ -23,215 +23,263 @@ import {
   Zap,
   Wallet,
   FileClock,
+  Store,
 } from 'lucide-react';
 
-const iconMap: Record<string, React.ElementType> = {
-  speedometer2: LayoutDashboard,
-  building: Building2,
-  calculator: Calculator,
-  'box-seam': Package,
-  tags: Tags,
-  'cart-check': ShoppingCart,
-  people: Users,
-  'file-earmark-text': FileText,
-  boxes: Boxes,
-  'bag-plus': ShoppingBag,
-  truck: Truck,
-  'credit-card': CreditCard,
-  'graph-up': TrendingUp,
-  'person-badge': UserCog,
-  gear: Settings,
-  zap: Zap,
-  wallet: Wallet,
-  'file-clock': FileClock,
-};
+interface NavItem {
+  path: string;
+  icon: React.ElementType;
+  label: string;
+  roles: UserRole[];
+}
+
+interface NavGroup {
+  label: string | null;
+  items: NavItem[];
+}
+
+const navGroups: NavGroup[] = [
+  {
+    label: null,
+    items: [
+      {
+        path: '/dashboard',
+        icon: LayoutDashboard,
+        label: 'Dashboard',
+        roles: [UserRole.SUPER_USER, UserRole.ADMIN, UserRole.MANAGER, UserRole.CASHIER, UserRole.INVENTORY_STAFF],
+      },
+      {
+        path: '/companies',
+        icon: Building2,
+        label: 'Companies',
+        roles: [UserRole.SUPER_USER],
+      },
+    ],
+  },
+  {
+    label: 'Sales',
+    items: [
+      {
+        path: '/pos',
+        icon: Calculator,
+        label: 'POS',
+        roles: [UserRole.SUPER_USER, UserRole.ADMIN, UserRole.MANAGER, UserRole.CASHIER],
+      },
+      {
+        path: '/quick-sale',
+        icon: Zap,
+        label: 'Quick Sale',
+        roles: [UserRole.SUPER_USER, UserRole.ADMIN, UserRole.MANAGER, UserRole.CASHIER],
+      },
+      {
+        path: '/sales',
+        icon: ShoppingCart,
+        label: 'Sales',
+        roles: [UserRole.SUPER_USER, UserRole.ADMIN, UserRole.MANAGER, UserRole.CASHIER],
+      },
+      {
+        path: '/advance-invoices',
+        icon: FileClock,
+        label: 'Advance Invoices',
+        roles: [UserRole.SUPER_USER, UserRole.ADMIN, UserRole.MANAGER, UserRole.CASHIER],
+      },
+      {
+        path: '/register-sessions',
+        icon: Wallet,
+        label: 'Daily Balances',
+        roles: [UserRole.SUPER_USER, UserRole.ADMIN, UserRole.MANAGER],
+      },
+      {
+        path: '/customers',
+        icon: Users,
+        label: 'Customers',
+        roles: [UserRole.SUPER_USER, UserRole.ADMIN, UserRole.MANAGER, UserRole.CASHIER],
+      },
+    ],
+  },
+  {
+    label: 'Inventory',
+    items: [
+      {
+        path: '/products',
+        icon: Package,
+        label: 'Products',
+        roles: [UserRole.SUPER_USER, UserRole.ADMIN, UserRole.MANAGER, UserRole.INVENTORY_STAFF],
+      },
+      {
+        path: '/categories',
+        icon: Tags,
+        label: 'Categories',
+        roles: [UserRole.SUPER_USER, UserRole.ADMIN, UserRole.MANAGER, UserRole.INVENTORY_STAFF],
+      },
+      {
+        path: '/inventory',
+        icon: Boxes,
+        label: 'Inventory',
+        roles: [UserRole.SUPER_USER, UserRole.ADMIN, UserRole.MANAGER, UserRole.INVENTORY_STAFF],
+      },
+      {
+        path: '/purchases',
+        icon: ShoppingBag,
+        label: 'Purchases',
+        roles: [UserRole.SUPER_USER, UserRole.ADMIN, UserRole.MANAGER, UserRole.INVENTORY_STAFF],
+      },
+      {
+        path: '/suppliers',
+        icon: Truck,
+        label: 'Suppliers',
+        roles: [UserRole.SUPER_USER, UserRole.ADMIN, UserRole.MANAGER, UserRole.INVENTORY_STAFF],
+      },
+    ],
+  },
+  {
+    label: 'Finance',
+    items: [
+      {
+        path: '/invoices',
+        icon: FileText,
+        label: 'Invoices',
+        roles: [UserRole.SUPER_USER, UserRole.ADMIN, UserRole.MANAGER],
+      },
+      {
+        path: '/payments',
+        icon: CreditCard,
+        label: 'Payments',
+        roles: [UserRole.SUPER_USER, UserRole.ADMIN, UserRole.MANAGER],
+      },
+    ],
+  },
+  {
+    label: 'Admin',
+    items: [
+      {
+        path: '/reports',
+        icon: TrendingUp,
+        label: 'Reports',
+        roles: [UserRole.SUPER_USER, UserRole.ADMIN, UserRole.MANAGER],
+      },
+      {
+        path: '/users',
+        icon: UserCog,
+        label: 'Users',
+        roles: [UserRole.SUPER_USER, UserRole.ADMIN, UserRole.MANAGER],
+      },
+      {
+        path: '/settings',
+        icon: Settings,
+        label: 'Settings',
+        roles: [UserRole.SUPER_USER, UserRole.ADMIN],
+      },
+    ],
+  },
+];
 
 const Sidebar: React.FC = () => {
   const dispatch = useAppDispatch();
   const { sidebarOpen } = useAppSelector((state) => state.ui);
   const { hasRole } = useAuth();
 
-  const navigationItems = [
-    {
-      path: '/dashboard',
-      icon: 'speedometer2',
-      label: 'Dashboard',
-      roles: [UserRole.SUPER_USER, UserRole.ADMIN, UserRole.MANAGER, UserRole.CASHIER, UserRole.INVENTORY_STAFF],
-    },
-    {
-      path: '/companies',
-      icon: 'building',
-      label: 'Companies',
-      roles: [UserRole.SUPER_USER],
-    },
-    {
-      path: '/pos',
-      icon: 'calculator',
-      label: 'POS',
-      roles: [UserRole.SUPER_USER, UserRole.ADMIN, UserRole.MANAGER, UserRole.CASHIER],
-    },
-    {
-      path: '/quick-sale',
-      icon: 'zap',
-      label: 'Quick Sale',
-      roles: [UserRole.SUPER_USER, UserRole.ADMIN, UserRole.MANAGER, UserRole.CASHIER],
-    },
-    {
-      path: '/products',
-      icon: 'box-seam',
-      label: 'Products',
-      roles: [UserRole.SUPER_USER, UserRole.ADMIN, UserRole.MANAGER, UserRole.INVENTORY_STAFF],
-    },
-    {
-      path: '/categories',
-      icon: 'tags',
-      label: 'Categories',
-      roles: [UserRole.SUPER_USER, UserRole.ADMIN, UserRole.MANAGER, UserRole.INVENTORY_STAFF],
-    },
-    {
-      path: '/sales',
-      icon: 'cart-check',
-      label: 'Sales',
-      roles: [UserRole.SUPER_USER, UserRole.ADMIN, UserRole.MANAGER, UserRole.CASHIER],
-    },
-    {
-      path: '/advance-invoices',
-      icon: 'file-clock',
-      label: 'Advance Invoices',
-      roles: [UserRole.SUPER_USER, UserRole.ADMIN, UserRole.MANAGER, UserRole.CASHIER],
-    },
-    {
-      path: '/register-sessions',
-      icon: 'wallet',
-      label: 'Daily Balances',
-      roles: [UserRole.SUPER_USER, UserRole.ADMIN, UserRole.MANAGER],
-    },
-    {
-      path: '/customers',
-      icon: 'people',
-      label: 'Customers',
-      roles: [UserRole.SUPER_USER, UserRole.ADMIN, UserRole.MANAGER, UserRole.CASHIER],
-    },
-    {
-      path: '/invoices',
-      icon: 'file-earmark-text',
-      label: 'Invoices',
-      roles: [UserRole.SUPER_USER, UserRole.ADMIN, UserRole.MANAGER],
-    },
-    {
-      path: '/inventory',
-      icon: 'boxes',
-      label: 'Inventory',
-      roles: [UserRole.SUPER_USER, UserRole.ADMIN, UserRole.MANAGER, UserRole.INVENTORY_STAFF],
-    },
-    {
-      path: '/purchases',
-      icon: 'bag-plus',
-      label: 'Purchases',
-      roles: [UserRole.SUPER_USER, UserRole.ADMIN, UserRole.MANAGER, UserRole.INVENTORY_STAFF],
-    },
-    {
-      path: '/suppliers',
-      icon: 'truck',
-      label: 'Suppliers',
-      roles: [UserRole.SUPER_USER, UserRole.ADMIN, UserRole.MANAGER, UserRole.INVENTORY_STAFF],
-    },
-    {
-      path: '/payments',
-      icon: 'credit-card',
-      label: 'Payments',
-      roles: [UserRole.SUPER_USER, UserRole.ADMIN, UserRole.MANAGER],
-    },
-    {
-      path: '/reports',
-      icon: 'graph-up',
-      label: 'Reports',
-      roles: [UserRole.SUPER_USER, UserRole.ADMIN, UserRole.MANAGER],
-    },
-    {
-      path: '/users',
-      icon: 'person-badge',
-      label: 'Users',
-      roles: [UserRole.SUPER_USER, UserRole.ADMIN, UserRole.MANAGER],
-    },
-    {
-      path: '/settings',
-      icon: 'gear',
-      label: 'Settings',
-      roles: [UserRole.SUPER_USER, UserRole.ADMIN],
-    },
-  ];
-
-  const filteredItems = navigationItems.filter((item) =>
-    hasRole(item.roles)
-  );
-
   return (
     <>
-      {/* Mobile overlay backdrop */}
+      {/* Mobile overlay */}
       {sidebarOpen && (
         <div
-          className="fixed inset-0 bg-black/50 z-30 md:hidden"
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-30 md:hidden"
           onClick={() => dispatch(setSidebarOpen(false))}
         />
       )}
 
       <aside
-        className={`fixed left-0 top-0 h-screen bg-[#0F1F18] shadow-2xl transition-all duration-300 z-40 ${
-          sidebarOpen ? 'w-64' : 'w-0 overflow-hidden md:w-20 md:overflow-visible'
-        }`}
-      >
-        {/* Branding strip */}
-        <div
-          className={`flex items-center gap-3 px-4 border-b border-white/[0.07] h-[64px] ${
-            !sidebarOpen ? 'md:justify-center' : ''
+        className={`fixed left-0 top-0 h-screen flex flex-col z-40 transition-all duration-300
+          border-r border-white/[0.07]
+          ${sidebarOpen
+            ? 'w-64 bg-[#0F1F18]'
+            : 'w-0 overflow-hidden md:w-[60px] md:overflow-visible bg-[#0F1F18]'
           }`}
+      >
+        {/* Logo / Brand */}
+        <div
+          className={`flex items-center h-[60px] border-b border-white/[0.07] flex-shrink-0 px-3.5
+            ${!sidebarOpen ? 'md:justify-center' : ''}`}
         >
-          <div className="w-8 h-8 bg-[#0d9158] rounded-lg flex items-center justify-center flex-shrink-0">
-            <span className="text-white font-bold text-sm">S</span>
+          <div className="w-8 h-8 bg-[#0d9158] rounded-lg flex items-center justify-center flex-shrink-0 shadow-lg shadow-green-900/30">
+            <Store className="w-4 h-4 text-white" />
           </div>
           {sidebarOpen && (
-            <span className="text-white font-semibold text-lg whitespace-nowrap">ShopFlow</span>
+            <div className="ml-3 overflow-hidden">
+              <span className="text-white font-semibold text-[15px] tracking-tight whitespace-nowrap">
+                ShopFlow
+              </span>
+              <span className="block text-[10px] font-medium text-[#4a8a6a] tracking-widest uppercase whitespace-nowrap">
+                POS System
+              </span>
+            </div>
           )}
         </div>
 
-        <div className="flex flex-col h-[calc(100%-64px)]">
-          <nav className="flex-1 overflow-y-auto px-2.5 py-4">
-            <div className="space-y-0.5">
-              {filteredItems.map((item) => {
-                const Icon = iconMap[item.icon];
-                return (
+        {/* Navigation */}
+        <nav className="flex-1 overflow-y-auto py-3 px-2 space-y-0.5">
+          {navGroups.map((group) => {
+            const visibleItems = group.items.filter((item) => hasRole(item.roles));
+            if (!visibleItems.length) return null;
+
+            return (
+              <div key={group.label ?? '__main'} className={group.label ? 'mt-4' : ''}>
+                {/* Section label */}
+                {group.label && sidebarOpen && (
+                  <p className="px-3 mb-2 text-[10px] font-semibold uppercase tracking-[0.1em] text-[#4a7060] select-none">
+                    {group.label}
+                  </p>
+                )}
+                {group.label && !sidebarOpen && (
+                  <div className="hidden md:block mx-auto w-6 h-px bg-white/10 mb-2" />
+                )}
+
+                {visibleItems.map((item) => (
                   <NavLink
                     key={item.path}
                     to={item.path}
                     className={({ isActive }) =>
-                      `flex items-center gap-3 px-3.5 py-2.5 rounded-lg transition-all duration-200 group relative ${
-                        isActive
-                          ? 'bg-[#1a3d2b] text-[#4ade80] font-semibold'
-                          : 'text-[#8aab96] hover:bg-white/[0.07] hover:text-white'
-                      } ${!sidebarOpen ? 'md:justify-center' : ''}`
+                      `relative flex items-center gap-3 px-3 py-2 rounded-lg mb-0.5 transition-all duration-150 group
+                      ${isActive
+                        ? 'bg-[#1a3d2b] text-[#4ade80]'
+                        : 'text-[#8aab96] hover:bg-white/[0.07] hover:text-white'
+                      }
+                      ${!sidebarOpen ? 'md:justify-center md:px-0' : ''}`
                     }
                   >
-                    <Icon className="w-[1.125rem] h-[1.125rem] flex-shrink-0" />
-                    <span
-                      className={`text-sm whitespace-nowrap ${
-                        sidebarOpen ? 'block' : 'hidden'
-                      }`}
-                    >
-                      {item.label}
-                    </span>
-                    {/* Tooltip for icon-only collapsed state */}
-                    {!sidebarOpen && (
-                      <span className="absolute left-full ml-3 px-2.5 py-1.5 bg-[#0F1F18] border border-white/10 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-50 hidden md:block pointer-events-none shadow-xl">
-                        {item.label}
-                      </span>
+                    {({ isActive }) => (
+                      <>
+                        {/* Active left border indicator */}
+                        {isActive && (
+                          <span className="absolute left-0 top-2 bottom-2 w-0.5 bg-[#4ade80] rounded-r-full" />
+                        )}
+
+                        <item.icon
+                          className={`w-4 h-4 flex-shrink-0 transition-colors duration-150
+                            ${isActive ? 'text-[#4ade80]' : 'text-[#8aab96] group-hover:text-white'}`}
+                        />
+
+                        {sidebarOpen && (
+                          <span className="text-[13.5px] font-medium leading-none whitespace-nowrap">
+                            {item.label}
+                          </span>
+                        )}
+
+                        {/* Tooltip for collapsed state */}
+                        {!sidebarOpen && (
+                          <span className="absolute left-full ml-3 px-2.5 py-1.5 bg-[#0F1F18] border border-white/10 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-all duration-150 whitespace-nowrap z-50 hidden md:block pointer-events-none shadow-2xl">
+                            {item.label}
+                          </span>
+                        )}
+                      </>
                     )}
                   </NavLink>
-                );
-              })}
-            </div>
-          </nav>
-        </div>
+                ))}
+              </div>
+            );
+          })}
+        </nav>
       </aside>
     </>
   );

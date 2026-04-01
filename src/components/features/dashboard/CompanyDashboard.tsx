@@ -207,41 +207,31 @@ const CompanyDashboard: React.FC = () => {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Sales Trend */}
         <div className="card">
-          <h3 className="text-lg font-semibold mb-4">Sales Trend (Last 7 Days)</h3>
-          <ResponsiveContainer width="100%" height={300}>
+          <h3 className="text-base font-semibold text-gray-800 mb-4">Sales Trend (Last 7 Days)</h3>
+          <ResponsiveContainer width="100%" height={280}>
             <LineChart data={last7Days}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="name" />
-              <YAxis />
-              <Tooltip />
-              <Legend />
-              <Line
-                type="monotone"
-                dataKey="sales"
-                stroke="#0d9158"
-                strokeWidth={2}
-                name="Orders"
+              <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
+              <XAxis dataKey="name" tick={{ fill: '#6B7280', fontSize: 12 }} axisLine={false} tickLine={false} />
+              <YAxis tick={{ fill: '#6B7280', fontSize: 12 }} axisLine={false} tickLine={false} />
+              <Tooltip
+                contentStyle={{ background: '#fff', border: '1px solid #E5E7EB', borderRadius: 8, color: '#111827', fontSize: 12 }}
               />
-              <Line
-                type="monotone"
-                dataKey="revenue"
-                stroke="#10b981"
-                strokeWidth={2}
-                name="Revenue (₹)"
-              />
+              <Legend wrapperStyle={{ fontSize: 12, color: '#6B7280' }} />
+              <Line type="monotone" dataKey="sales" stroke="#0d9158" strokeWidth={2} dot={false} name="Orders" />
+              <Line type="monotone" dataKey="revenue" stroke="#10b981" strokeWidth={2} dot={false} name="Revenue (₹)" />
             </LineChart>
           </ResponsiveContainer>
-          <p className="text-sm text-gray-500 mt-2 text-center">
+          <p className="text-xs text-gray-400 mt-2 text-center">
             Historical data will populate as sales are recorded
           </p>
         </div>
 
         {/* Category Breakdown */}
         <div className="card">
-          <h3 className="text-lg font-semibold mb-4">Category Distribution</h3>
+          <h3 className="text-base font-semibold text-gray-800 mb-4">Category Distribution</h3>
           {hasCategoryData ? (
             <>
-              <ResponsiveContainer width="100%" height={300}>
+              <ResponsiveContainer width="100%" height={280}>
                 <PieChart>
                   <Pie
                     data={categoryData}
@@ -249,27 +239,29 @@ const CompanyDashboard: React.FC = () => {
                     cy="50%"
                     labelLine={false}
                     label={({ name, percent }: any) => `${name} ${(percent * 100).toFixed(0)}%`}
-                    outerRadius={80}
-                    fill="#8884d8"
+                    outerRadius={90}
                     dataKey="value"
+                    stroke="none"
                   >
                     {categoryData.map((_, index) => (
                       <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                     ))}
                   </Pie>
-                  <Tooltip />
+                  <Tooltip
+                    contentStyle={{ background: '#fff', border: '1px solid #E5E7EB', borderRadius: 8, color: '#111827', fontSize: 12 }}
+                  />
                 </PieChart>
               </ResponsiveContainer>
-              <p className="text-sm text-gray-500 mt-2 text-center">
+              <p className="text-xs text-gray-400 mt-2 text-center">
                 {products.length} products across {categoryData.length} categories
               </p>
             </>
           ) : (
-            <div className="h-[300px] flex items-center justify-center text-gray-500">
+            <div className="h-[280px] flex items-center justify-center">
               <div className="text-center">
-                <Package className="w-12 h-12 mx-auto mb-2 text-gray-300" />
-                <p>No products yet</p>
-                <p className="text-sm mt-1">Add products to see category distribution</p>
+                <Package className="w-10 h-10 mx-auto mb-3 text-gray-300" />
+                <p className="text-gray-500 text-sm">No products yet</p>
+                <p className="text-gray-400 text-xs mt-1">Add products to see category distribution</p>
               </div>
             </div>
           )}
@@ -280,7 +272,7 @@ const CompanyDashboard: React.FC = () => {
       {lowStockItems.length > 0 && (
         <div className="card bg-warning-50 border border-warning-200">
           <div className="flex items-start gap-3">
-            <AlertTriangle className="w-5 h-5 text-warning-600 mt-0.5" />
+            <AlertTriangle className="w-5 h-5 text-warning-600 mt-0.5 flex-shrink-0" />
             <div className="flex-1">
               <h3 className="font-semibold text-warning-900">Low Stock Alert</h3>
               <p className="text-sm text-warning-700 mt-1">
@@ -289,8 +281,8 @@ const CompanyDashboard: React.FC = () => {
               <div className="mt-3 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
                 {lowStockItems.map((item) => (
                   <div key={item.id} className="bg-white p-3 rounded-lg border border-warning-200">
-                    <div className="font-medium text-gray-900">{item.name}</div>
-                    <div className="text-sm text-warning-700 mt-1">
+                    <div className="font-medium text-gray-900 text-sm">{item.name}</div>
+                    <div className="text-xs text-warning-700 mt-1">
                       Only {item.quantity || 0} left (Min: {item.reorder_level || 0})
                     </div>
                   </div>
@@ -317,8 +309,7 @@ const CompanyDashboard: React.FC = () => {
             <div className="flex justify-between">
               <span className="text-sm text-gray-600">Avg Order:</span>
               <span className="font-medium">
-                ₹
-                {dailySales?.total_orders && dailySales.total_orders > 0
+                ₹{dailySales?.total_orders && dailySales.total_orders > 0
                   ? (parseFloat(dailySales.total_revenue) / dailySales.total_orders).toFixed(2)
                   : '0.00'}
               </span>

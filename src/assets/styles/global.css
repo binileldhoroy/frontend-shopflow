@@ -1,218 +1,190 @@
 @import "tailwindcss";
 @config "../../../tailwind.config.js";
 
-/* Custom scrollbar */
-::-webkit-scrollbar {
-  width: 0.5rem;
-  height: 0.5rem;
+/* ============================================================
+   SHOPFLOW — Design System (Original Green + Warm Beige Palette)
+   ============================================================ */
+
+:root {
+  --bg:         #F2EFE8;
+  --surface:    #ffffff;
+  --surface-2:  #f9f7f2;
+  --border:     #E5E0D5;
+  --border-sub: #F1EDE4;
+  --text-1:     #0F172A;
+  --text-2:     #64748B;
+  --text-3:     #94A3B8;
+  --accent:     #0d9158;
+  --accent-lt:  #12b372;
+  --accent-bg:  #edfdf5;
+  --green:      #10b981;
+  --green-lt:   #4ade80;
+  --red:        #ef4444;
+  --red-lt:     #f87171;
+  --amber:      #f59e0b;
+  --cyan:       #06b6d4;
 }
 
-::-webkit-scrollbar-track {
-  background-color: rgb(243 244 246);
-}
+/* ── Scrollbar ── */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: #F2EFE8; }
+::-webkit-scrollbar-thumb { background: rgb(156 163 175); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #0d9158; }
 
-::-webkit-scrollbar-thumb {
-  background-color: rgb(156 163 175);
-  border-radius: 0.25rem;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background-color: rgb(13 145 88);
-}
-
+/* ── Base ── */
 body {
-  font-family: 'DM Sans', ui-sans-serif, system-ui, sans-serif;
+  font-family: 'Outfit', ui-sans-serif, system-ui, sans-serif;
   background-color: #F2EFE8;
+  color: #0F172A;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* Custom component styles */
+/* ── Card ── */
 .card {
   background-color: white;
-  border-radius: 0.75rem;
+  border-radius: 0.875rem;
   border: 1px solid rgb(229 224 213);
   box-shadow: 0 1px 4px rgb(0 0 0 / 0.04);
   padding: 1.25rem;
   transition: box-shadow 0.2s ease;
 }
-
 .card:hover {
   box-shadow: 0 4px 16px rgb(0 0 0 / 0.08);
 }
 
+/* ── Section card ── */
+.section-card {
+  background: white;
+  border: 1px solid rgb(229 224 213);
+  border-radius: 0.875rem;
+  overflow: hidden;
+}
+
+/* ── Buttons ── */
 .btn {
   padding: 0.5rem 1rem;
-  min-height: 44px;
+  min-height: 40px;
   border-radius: 0.5rem;
   font-weight: 500;
-  transition: all 0.3s ease;
+  font-size: 0.875rem;
+  transition: all 0.2s ease;
   outline: none;
   border: none;
   cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.375rem;
 }
-
-.btn:hover {
-  transform: translateY(-0.125rem);
-  box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
-}
-
-.btn:focus {
-  outline: 2px solid transparent;
-  outline-offset: 2px;
-  box-shadow: 0 0 0 2px white, 0 0 0 4px rgb(13 145 88);
-}
+.btn:hover { transform: translateY(-1px); }
+.btn:active { transform: translateY(0); }
+.btn:focus-visible { outline: 2px solid #0d9158; outline-offset: 2px; }
 
 .btn-primary {
-  background-color: rgb(13 145 88);
+  background: rgb(13 145 88);
   color: white;
 }
-
 .btn-primary:hover {
-  background-color: rgb(11 115 71);
-}
-
-.btn-primary:focus {
-  box-shadow: 0 0 0 2px white, 0 0 0 4px rgb(13 145 88);
+  background: rgb(11 115 71);
+  box-shadow: 0 4px 12px rgba(13, 145, 88, 0.3);
 }
 
 .btn-secondary {
-  background-color: rgb(71 85 105);
+  background: rgb(71 85 105);
   color: white;
 }
-
-.btn-secondary:hover {
-  background-color: rgb(51 65 85);
-}
+.btn-secondary:hover { background: rgb(51 65 85); }
 
 .btn-success {
-  background-color: rgb(16 185 129);
+  background: rgb(16 185 129);
   color: white;
 }
-
-.btn-success:hover {
-  background-color: rgb(21 128 61);
-}
+.btn-success:hover { background: rgb(21 128 61); }
 
 .btn-danger {
-  background-color: rgb(239 68 68);
+  background: rgb(239 68 68);
   color: white;
 }
-
-.btn-danger:hover {
-  background-color: rgb(220 38 38);
-}
+.btn-danger:hover { background: rgb(220 38 38); }
 
 .btn-warning {
-  background-color: rgb(245 158 11);
+  background: rgb(245 158 11);
   color: white;
 }
-
-.btn-warning:hover {
-  background-color: rgb(217 119 6);
-}
-
-/* Background color utilities for notifications */
-.bg-success-600 {
-  background-color: rgb(22 163 74);
-}
-
-.bg-danger-600 {
-  background-color: rgb(220 38 38);
-}
-
-.bg-warning-600 {
-  background-color: rgb(217 119 6);
-}
-
-.bg-info-600 {
-  background-color: rgb(14 116 144);
-}
-
-.bg-green-500 {
-  background-color: rgb(34 197 94);
-}
-
-.bg-cyan-500 {
-  background-color: rgb(6 182 212);
-}
-
-.btn-warning {
-  background-color: rgb(245 158 11);
-  color: white;
-}
-
-.btn-warning:hover {
-  background-color: rgb(217 119 6);
-}
+.btn-warning:hover { background: rgb(217 119 6); }
 
 .btn-outline-primary {
-  border: 2px solid rgb(13 145 88);
+  background: transparent;
+  border: 1.5px solid rgb(13 145 88);
   color: rgb(13 145 88);
-  background-color: transparent;
 }
-
 .btn-outline-primary:hover {
-  background-color: rgb(237 253 245);
+  background: rgb(237 253 245);
 }
 
 .btn-outline-secondary {
-  border: 2px solid rgb(71 85 105);
+  background: transparent;
+  border: 1.5px solid rgb(71 85 105);
   color: rgb(71 85 105);
-  background-color: transparent;
 }
-
 .btn-outline-secondary:hover {
-  background-color: rgb(248 250 252);
+  background: rgb(248 250 252);
 }
 
+/* ── Input ── */
 .input-field {
   width: 100%;
+  min-height: 2.5rem;
   padding: 0.5rem 0.75rem;
+  background: white;
   border: 1px solid rgb(209 213 219);
   border-radius: 0.5rem;
+  color: rgb(17 24 39);
+  font-size: 0.875rem;
   outline: none;
-  transition: all 0.2s ease;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
-
+.input-field::placeholder { color: rgb(156 163 175); }
 .input-field:focus {
-  outline: none;
-  box-shadow: 0 0 0 2px rgb(13 145 88);
-  border-color: transparent;
+  border-color: #0d9158;
+  box-shadow: 0 0 0 3px rgba(13, 145, 88, 0.12);
 }
+.input-error { border-color: rgb(239 68 68); }
+.input-error:focus { box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.12); }
 
-.input-error {
-  border-color: rgb(239 68 68);
+/* Select */
+select.input-field {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%2394a3b8' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.625rem center;
+  background-size: 1.125rem;
+  padding-right: 2.25rem;
+  appearance: none;
 }
+input[type="date"].input-field { color: rgb(30 41 59); }
 
-.input-error:focus {
-  box-shadow: 0 0 0 2px rgb(239 68 68);
-}
-
+/* ── Label ── */
 .label {
   display: block;
   font-size: 0.875rem;
   font-weight: 500;
   color: rgb(55 65 81);
-  margin-bottom: 0.25rem;
+  margin-bottom: 0.3125rem;
 }
 
+/* ── Tables ── */
 .table-container {
   overflow-x: auto;
   border-radius: 0.5rem;
-  box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+  box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1);
 }
-
 .table {
   min-width: 100%;
   border-collapse: separate;
   border-spacing: 0;
 }
-
-.table thead {
-  background-color: rgb(249 250 251);
-}
-
+.table thead { background-color: rgb(249 250 251); }
 .table th {
   padding: 0.75rem 1.5rem;
   text-align: left;
@@ -222,7 +194,6 @@ body {
   text-transform: uppercase;
   letter-spacing: 0.05em;
 }
-
 .table td {
   padding: 1rem 1.5rem;
   white-space: nowrap;
@@ -230,15 +201,46 @@ body {
   color: rgb(17 24 39);
   border-top: 1px solid rgb(229 231 235);
 }
+.table tbody tr { transition: background-color 0.15s ease; }
+.table tbody tr:hover { background-color: rgb(249 250 251); }
 
-.table tbody tr {
-  transition: background-color 0.15s ease;
+/* Data-table */
+.data-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+.data-table thead tr { background-color: rgb(249 247 242); }
+.data-table thead th {
+  padding: 0.6875rem 1rem;
+  text-align: left;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: rgb(100 116 139);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  border-bottom: 1px solid rgb(226 232 240);
+  white-space: nowrap;
+}
+.data-table tbody tr {
+  border-bottom: 1px solid rgb(248 250 252);
+  transition: background-color 0.1s ease;
+}
+.data-table tbody tr:last-child { border-bottom: none; }
+.data-table tbody tr:hover { background-color: rgb(249 247 242); }
+.data-table tbody td {
+  padding: 0.8125rem 1rem;
+  font-size: 0.875rem;
+  color: rgb(30 41 59);
+  vertical-align: middle;
 }
 
-.table tbody tr:hover {
-  background-color: rgb(249 250 251);
-}
+.th-right  { text-align: right !important; }
+.th-center { text-align: center !important; }
+.td-right  { text-align: right !important; }
+.td-center { text-align: center !important; }
 
+/* ── Badges ── */
 .badge {
   display: inline-flex;
   align-items: center;
@@ -247,123 +249,29 @@ body {
   font-size: 0.75rem;
   font-weight: 500;
 }
+.badge-primary { background-color: rgb(211 248 229); color: rgb(10 92 58); }
+.badge-success { background-color: rgb(220 252 231); color: rgb(22 101 52); }
+.badge-danger  { background-color: rgb(254 226 226); color: rgb(127 29 29); }
+.badge-warning { background-color: rgb(254 243 199); color: rgb(120 53 15); }
+.badge-info    { background-color: rgb(207 250 254); color: rgb(22 78 99); }
 
-.badge-primary {
-  background-color: rgb(211 248 229);
-  color: rgb(10 92 58);
-}
-
-.badge-success {
-  background-color: rgb(220 252 231);
-  color: rgb(22 101 52);
-}
-
-.badge-danger {
-  background-color: rgb(254 226 226);
-  color: rgb(127 29 29);
-}
-
-.badge-warning {
-  background-color: rgb(254 243 199);
-  color: rgb(120 53 15);
-}
-
-.badge-info {
-  background-color: rgb(207 250 254);
-  color: rgb(22 78 99);
-}
-
-/* Animations */
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.animate-fadeIn {
-  animation: fadeIn 0.3s ease-in-out;
-}
-
-/* ============================================================
-   DESIGN SYSTEM — Page Layout Patterns
-   ============================================================ */
-
-/* Page header: icon box + title/subtitle + action */
-.page-header {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-  margin-bottom: 1.5rem;
-}
-
-@media (min-width: 640px) {
-  .page-header {
-    flex-direction: row;
-    align-items: flex-start;
-    justify-content: space-between;
-  }
-}
-
-.page-header-left {
-  display: flex;
-  align-items: center;
-  gap: 0.875rem;
-}
-
-.page-header-icon {
-  width: 2.75rem;
-  height: 2.75rem;
-  background: rgb(237 253 245);
-  color: rgb(13 145 88);
-  border-radius: 0.75rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-
-.page-header h1 {
-  font-size: 1.25rem;
-  font-weight: 700;
-  color: rgb(15 23 42);
-  line-height: 1.3;
-}
-
-.page-header p {
-  font-size: 0.8125rem;
-  color: rgb(100 116 139);
-  margin-top: 0.125rem;
-}
-
-/* KPI / Stat card with accent stripe */
+/* ── Stat / Metric cards ── */
 .stat-card {
   background: white;
   border: 1px solid rgb(229 224 213);
-  border-radius: 0.75rem;
+  border-radius: 0.875rem;
   padding: 1.125rem 1.125rem 1.125rem 1.375rem;
   position: relative;
   overflow: hidden;
   transition: box-shadow 0.2s ease;
 }
-
-.stat-card:hover {
-  box-shadow: 0 4px 16px rgb(0 0 0 / 0.08);
-}
-
+.stat-card:hover { box-shadow: 0 4px 16px rgb(0 0 0 / 0.08); }
 .stat-card-stripe {
   position: absolute;
-  left: 0;
-  top: 0;
-  bottom: 0;
+  left: 0; top: 0; bottom: 0;
   width: 4px;
-  border-radius: 0.75rem 0 0 0.75rem;
+  border-radius: 0.875rem 0 0 0.875rem;
 }
-
 .stat-card-icon {
   width: 2.5rem;
   height: 2.5rem;
@@ -373,22 +281,40 @@ body {
   justify-content: center;
   flex-shrink: 0;
 }
-
 .stat-card-label {
   font-size: 0.8125rem;
   color: rgb(100 116 139);
   font-weight: 500;
 }
-
 .stat-card-value {
   font-size: 1.5rem;
   font-weight: 700;
   color: rgb(15 23 42);
   margin-top: 0.25rem;
   line-height: 1.2;
+  font-family: 'JetBrains Mono', monospace;
+  letter-spacing: -0.02em;
 }
 
-/* Filter bar */
+/* Accent stripes */
+.accent-indigo  { background: rgb(13 145 88); }
+.accent-emerald { background: rgb(16 185 129); }
+.accent-amber   { background: rgb(245 158 11); }
+.accent-rose    { background: rgb(239 68 68); }
+.accent-sky     { background: rgb(14 165 233); }
+.accent-violet  { background: rgb(139 92 246); }
+
+/* Icon bg helpers */
+.bg-primary-100   { background-color: rgb(211 248 229); }
+.text-primary-600 { color: rgb(13 145 88); }
+.bg-success-100   { background-color: rgb(220 252 231); }
+.text-success-600 { color: rgb(22 163 74); }
+.bg-warning-100   { background-color: rgb(254 243 199); }
+.text-warning-600 { color: rgb(217 119 6); }
+.bg-danger-100    { background-color: rgb(254 226 226); }
+.text-danger-600  { color: rgb(220 38 38); }
+
+/* ── Filter bar ── */
 .filter-bar {
   display: flex;
   flex-wrap: wrap;
@@ -397,11 +323,10 @@ body {
   padding: 0.875rem 1rem;
   background: white;
   border: 1px solid rgb(229 224 213);
-  border-radius: 0.75rem;
+  border-radius: 0.875rem;
   margin-bottom: 1rem;
 }
 
-/* Filter chip (pill toggle button) */
 .filter-chip {
   display: inline-flex;
   align-items: center;
@@ -418,20 +343,18 @@ body {
   white-space: nowrap;
   min-height: 2.125rem;
 }
-
 .filter-chip:hover {
   border-color: rgb(13 145 88);
   color: rgb(13 145 88);
   background: rgb(237 253 245);
 }
-
 .filter-chip.active {
-  border-color: rgb(13 145 88);
   background: rgb(13 145 88);
+  border-color: rgb(13 145 88);
   color: white;
 }
 
-/* Tab navigation */
+/* ── Tab nav ── */
 .tab-nav {
   display: inline-flex;
   align-items: center;
@@ -441,7 +364,6 @@ body {
   border: 1px solid rgb(226 232 240);
   border-radius: 0.75rem;
 }
-
 .tab-btn {
   display: inline-flex;
   align-items: center;
@@ -457,19 +379,14 @@ body {
   background: transparent;
   white-space: nowrap;
 }
-
-.tab-btn:hover {
-  color: rgb(30 41 59);
-  background: white;
-}
-
+.tab-btn:hover { color: rgb(30 41 59); background: white; }
 .tab-btn.active {
   background: white;
   color: rgb(11 115 71);
   box-shadow: 0 1px 4px rgb(0 0 0 / 0.1);
 }
 
-/* Pagination */
+/* ── Pagination ── */
 .pag-btn {
   display: inline-flex;
   align-items: center;
@@ -487,31 +404,19 @@ body {
   transition: all 0.15s ease;
   user-select: none;
 }
-
 .pag-btn:hover:not(:disabled) {
   border-color: rgb(13 145 88);
   color: rgb(13 145 88);
   background: rgb(237 253 245);
 }
-
 .pag-btn.active {
   background: rgb(13 145 88);
   border-color: rgb(13 145 88);
   color: white;
 }
+.pag-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.pag-btn.dots { border-color: transparent; background: transparent; cursor: default; }
 
-.pag-btn:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
-}
-
-.pag-btn.dots {
-  border-color: transparent;
-  background: transparent;
-  cursor: default;
-}
-
-/* Pagination wrapper */
 .pagination-bar {
   display: flex;
   flex-wrap: wrap;
@@ -523,50 +428,45 @@ body {
   border-top: 1px solid rgb(241 245 249);
 }
 
-/* Data table — consistent styling */
-.data-table {
-  width: 100%;
-  border-collapse: separate;
-  border-spacing: 0;
+/* ── Page header ── */
+.page-header {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
 }
-
-.data-table thead tr {
-  background-color: rgb(249 247 242);
+@media (min-width: 640px) {
+  .page-header {
+    flex-direction: row;
+    align-items: flex-start;
+    justify-content: space-between;
+  }
 }
-
-.data-table thead th {
-  padding: 0.6875rem 1rem;
-  text-align: left;
-  font-size: 0.6875rem;
-  font-weight: 600;
+.page-header-left { display: flex; align-items: center; gap: 0.875rem; }
+.page-header-icon {
+  width: 2.75rem;
+  height: 2.75rem;
+  background: rgb(237 253 245);
+  color: rgb(13 145 88);
+  border-radius: 0.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.page-header h1 {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: rgb(15 23 42);
+  line-height: 1.3;
+}
+.page-header p {
+  font-size: 0.8125rem;
   color: rgb(100 116 139);
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  border-bottom: 1px solid rgb(226 232 240);
-  white-space: nowrap;
+  margin-top: 0.125rem;
 }
 
-.data-table tbody tr {
-  border-bottom: 1px solid rgb(248 250 252);
-  transition: background-color 0.1s ease;
-}
-
-.data-table tbody tr:last-child {
-  border-bottom: none;
-}
-
-.data-table tbody tr:hover {
-  background-color: rgb(249 247 242);
-}
-
-.data-table tbody td {
-  padding: 0.8125rem 1rem;
-  font-size: 0.875rem;
-  color: rgb(30 41 59);
-  vertical-align: middle;
-}
-
-/* Empty state */
+/* ── Empty state ── */
 .empty-state {
   display: flex;
   flex-direction: column;
@@ -575,7 +475,6 @@ body {
   padding: 4rem 2rem;
   text-align: center;
 }
-
 .empty-state-icon {
   width: 3.5rem;
   height: 3.5rem;
@@ -588,7 +487,7 @@ body {
   color: rgb(148 163 184);
 }
 
-/* Loading spinner */
+/* ── Spinner ── */
 .spinner {
   width: 2.25rem;
   height: 2.25rem;
@@ -599,12 +498,6 @@ body {
   border-radius: 9999px;
   animation: spin 0.7s linear infinite;
 }
-
-@keyframes spin {
-  to { transform: rotate(360deg); }
-}
-
-/* Loading center wrapper */
 .loading-center {
   display: flex;
   flex-direction: column;
@@ -614,11 +507,8 @@ body {
   gap: 0.75rem;
 }
 
-/* Search input helper */
-.search-wrap {
-  position: relative;
-}
-
+/* ── Search ── */
+.search-wrap { position: relative; }
 .search-wrap .search-icon {
   position: absolute;
   left: 0.75rem;
@@ -629,31 +519,12 @@ body {
   width: 1rem;
   height: 1rem;
 }
+.search-wrap .input-field { padding-left: 2.375rem; }
 
-.search-wrap .input-field {
-  padding-left: 2.375rem;
-}
+/* ── Table scroll ── */
+.table-scroll { overflow-x: auto; overflow-y: auto; }
 
-/* Input field height consistency */
-.input-field {
-  min-height: 2.5rem;
-}
-
-/* Section card (slightly different from main card, less padding) */
-.section-card {
-  background: white;
-  border: 1px solid rgb(229 224 213);
-  border-radius: 0.75rem;
-  overflow: hidden;
-}
-
-/* Table wrapper inside cards — removes extra padding */
-.table-scroll {
-  overflow-x: auto;
-  overflow-y: auto;
-}
-
-/* Action icon button */
+/* ── Action icon buttons ── */
 .action-btn {
   display: inline-flex;
   align-items: center;
@@ -664,68 +535,33 @@ body {
   transition: background-color 0.15s ease;
   cursor: pointer;
 }
+.action-btn-primary { color: rgb(13 145 88); }
+.action-btn-primary:hover { background: rgb(237 253 245); }
+.action-btn-danger { color: rgb(220 38 38); }
+.action-btn-danger:hover { background: rgb(254 226 226); }
+.action-btn-success { color: rgb(16 185 129); }
+.action-btn-success:hover { background: rgb(220 252 231); }
 
-.action-btn-primary {
-  color: rgb(13 145 88);
+/* ── Notification bg helpers ── */
+.bg-success-600 { background-color: rgb(22 163 74); }
+.bg-danger-600  { background-color: rgb(220 38 38); }
+.bg-warning-600 { background-color: rgb(217 119 6); }
+.bg-info-600    { background-color: rgb(14 116 144); }
+.bg-green-500   { background-color: rgb(34 197 94); }
+.bg-cyan-500    { background-color: rgb(6 182 212); }
+
+/* ── Animations ── */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes slideIn {
+  from { opacity: 0; transform: translateX(-10px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+@keyframes spin {
+  to { transform: rotate(360deg); }
 }
 
-.action-btn-primary:hover {
-  background-color: rgb(237 253 245);
-}
-
-.action-btn-danger {
-  color: rgb(220 38 38);
-}
-
-.action-btn-danger:hover {
-  background-color: rgb(254 226 226);
-}
-
-.action-btn-success {
-  color: rgb(16 185 129);
-}
-
-.action-btn-success:hover {
-  background-color: rgb(220 252 231);
-}
-
-/* Metric card accent variants */
-.accent-indigo { background-color: rgb(13 145 88); } /* repurposed as forest-green accent */
-.accent-emerald { background-color: rgb(16 185 129); }
-.accent-amber { background-color: rgb(245 158 11); }
-.accent-rose { background-color: rgb(239 68 68); }
-.accent-sky { background-color: rgb(14 165 233); }
-.accent-violet { background-color: rgb(139 92 246); }
-
-/* Date input styling (for filter bars) */
-input[type="date"].input-field {
-  color: rgb(30 41 59);
-}
-
-/* Select improvements */
-select.input-field {
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%2394a3b8' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: right 0.625rem center;
-  background-size: 1.125rem;
-  padding-right: 2.25rem;
-  appearance: none;
-}
-
-/* Table header right-aligned helper */
-.th-right {
-  text-align: right !important;
-}
-
-.th-center {
-  text-align: center !important;
-}
-
-.td-right {
-  text-align: right !important;
-}
-
-.td-center {
-  text-align: center !important;
-}
-
+.animate-fadeIn  { animation: fadeIn 0.25s ease-out; }
+.animate-slideIn { animation: slideIn 0.2s ease-out; }
