@@ -141,7 +141,7 @@ const Login: React.FC = () => {
             {/* Username */}
             <div>
               <label htmlFor="username" className="label">Username</label>
-              <div className="relative">
+              <div className="relative search-wrap">
                 <User className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
                 <input
                   type="text"
@@ -160,8 +160,8 @@ const Login: React.FC = () => {
             {/* Password */}
             <div>
               <label htmlFor="password" className="label">Password</label>
-              <div className="relative">
-                <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+              <div className="relative search-wrap">
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
                 <input
                   type={showPassword ? 'text' : 'password'}
                   id="password"

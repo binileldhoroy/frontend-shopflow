@@ -2,10 +2,11 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { productService, categoryService } from '@api/services/product.service';
 import { Product, Category, ProductFormData } from '../../types/product.types';
 import ProductFormModal from '@components/features/products/ProductFormModal';
+import ProductCSVImportModal from '@components/features/products/ProductCSVImportModal';
 import DeleteConfirmModal from '@components/common/DeleteConfirmModal/DeleteConfirmModal';
 import { useAppDispatch } from '@hooks/useRedux';
 import { addNotification } from '@store/slices/uiSlice';
-import { Package, Plus, Search, Edit2, Trash2, Inbox, AlertTriangle } from 'lucide-react';
+import { Package, Plus, Search, Edit2, Trash2, Inbox, AlertTriangle, Upload } from 'lucide-react';
 
 const Products: React.FC = () => {
   const dispatch = useAppDispatch();
@@ -26,6 +27,7 @@ const Products: React.FC = () => {
   // Modal states
   const [showFormModal, setShowFormModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showImportModal, setShowImportModal] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [formLoading, setFormLoading] = useState(false);
 
@@ -226,10 +228,16 @@ const Products: React.FC = () => {
             <p>Manage your product inventory</p>
           </div>
         </div>
-        <button className="btn btn-primary self-start" onClick={handleAddProduct}>
-          <Plus className="w-4 h-4 inline mr-1.5" />
-          Add Product
-        </button>
+        <div className="flex items-center gap-2 self-start">
+          <button className="btn btn-secondary" onClick={() => setShowImportModal(true)}>
+            <Upload className="w-4 h-4 inline mr-1.5" />
+            Import CSV
+          </button>
+          <button className="btn btn-primary" onClick={handleAddProduct}>
+            <Plus className="w-4 h-4 inline mr-1.5" />
+            Add Product
+          </button>
+        </div>
       </div>
 
       {/* Filters */}
@@ -415,6 +423,15 @@ const Products: React.FC = () => {
         title="Delete Product"
         message={`Are you sure you want to delete "${selectedProduct?.name}"? This action cannot be undone.`}
         loading={formLoading}
+      />
+
+      <ProductCSVImportModal
+        show={showImportModal}
+        onHide={() => setShowImportModal(false)}
+        onImported={() => {
+          dispatch(addNotification({ message: 'Products imported successfully', type: 'success' }));
+          loadData();
+        }}
       />
     </div>
   );

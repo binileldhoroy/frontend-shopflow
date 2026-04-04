@@ -33,6 +33,7 @@ export const API_ENDPOINTS = {
     PRICE_TIER_DETAIL: (id: number) => `/api/products/price-tiers/${id}/`,
     TIER_PRICES: '/api/products/tier-prices/',
     TIER_PRICE_DETAIL: (id: number) => `/api/products/tier-prices/${id}/`,
+    IMPORT_CSV: '/api/products/import-csv/',
   },
 
   // Categories (alias for convenience)

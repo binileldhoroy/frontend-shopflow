@@ -45,6 +45,43 @@ export const productService = {
   delete: async (id: number): Promise<void> => {
     await axiosInstance.delete(API_ENDPOINTS.PRODUCTS.DETAIL(id));
   },
+
+  previewCSV: async (file: File): Promise<any> => {
+    const formData = new FormData();
+    formData.append('file', file);
+    const response = await axiosInstance.post(
+      `${API_ENDPOINTS.PRODUCTS.IMPORT_CSV}?preview=true`,
+      formData,
+      { headers: { 'Content-Type': 'multipart/form-data' } }
+    );
+    return response.data;
+  },
+
+  importCSV: async (file: File, updateExisting: boolean): Promise<any> => {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('update_existing', updateExisting ? 'true' : 'false');
+    const response = await axiosInstance.post(
+      `${API_ENDPOINTS.PRODUCTS.IMPORT_CSV}?preview=false`,
+      formData,
+      { headers: { 'Content-Type': 'multipart/form-data' } }
+    );
+    return response.data;
+  },
+
+  downloadCSVTemplate: async (): Promise<void> => {
+    const response = await axiosInstance.get(API_ENDPOINTS.PRODUCTS.IMPORT_CSV, {
+      responseType: 'blob',
+    });
+    const url = window.URL.createObjectURL(new Blob([response.data]));
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', 'products_template.csv');
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.URL.revokeObjectURL(url);
+  },
 };
 
 export const categoryService = {
