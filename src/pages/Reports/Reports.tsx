@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FileText, BarChart2, PieChart, Shield, Download, Calendar } from 'lucide-react';
+import { FileText, BarChart2, PieChart, Shield, Download } from 'lucide-react';
 import { documentService } from '../../api/services/document.service';
 
 import { customerService } from '../../api/services/customer.service';
@@ -12,6 +12,7 @@ const Reports: React.FC = () => {
     end_date: new Date().toISOString().split('T')[0]
   });
   const [reportData, setReportData] = useState<any>(null);
+  const [accountStatementData, setAccountStatementData] = useState<any>(null);
   const [loading, setLoading] = useState(false);
 
   // Account Statement State
@@ -80,7 +81,7 @@ const Reports: React.FC = () => {
               type: accountParams.type,
               id: accountParams.id
           });
-          setReportData(data);
+          setAccountStatementData(data);
       } catch (error) {
           console.error(error);
       } finally {
@@ -112,7 +113,7 @@ const Reports: React.FC = () => {
   ];
 
   return (
-    <div className="space-y-4">
+    <div className="flex flex-col h-full gap-4">
       {/* Header */}
       <div className="page-header">
         <div className="page-header-left">
@@ -124,33 +125,39 @@ const Reports: React.FC = () => {
             <p>Financial reports, GST data, and account statements</p>
           </div>
         </div>
-        <div className="filter-bar !mb-0 !py-2">
-          <Calendar className="w-4 h-4 text-gray-400 flex-shrink-0" />
-          <input
-            type="date"
-            value={dateRange.start_date}
-            onChange={(e) => setDateRange(prev => ({ ...prev, start_date: e.target.value }))}
-            className="input-field text-sm w-36"
-          />
-          <span className="text-gray-400 text-sm">to</span>
-          <input
-            type="date"
-            value={dateRange.end_date}
-            onChange={(e) => setDateRange(prev => ({ ...prev, end_date: e.target.value }))}
-            className="input-field text-sm w-36"
-          />
+        <div className="filter-bar !py-3 !px-4 !mb-0 flex flex-wrap items-end gap-3">
+          <div className="flex flex-col gap-0.5">
+            <label className="text-xs text-gray-400 px-0.5">From</label>
+            <input
+              type="date"
+              value={dateRange.start_date}
+              onChange={(e) => setDateRange(prev => ({ ...prev, start_date: e.target.value }))}
+              className="px-3 py-2 text-sm border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-gray-400 focus:border-transparent transition-all bg-white text-gray-700"
+            />
+          </div>
+          <span className="text-gray-400 text-sm pb-2">—</span>
+          <div className="flex flex-col gap-0.5">
+            <label className="text-xs text-gray-400 px-0.5">To</label>
+            <input
+              type="date"
+              value={dateRange.end_date}
+              min={dateRange.start_date || undefined}
+              onChange={(e) => setDateRange(prev => ({ ...prev, end_date: e.target.value }))}
+              className="px-3 py-2 text-sm border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-gray-400 focus:border-transparent transition-all bg-white text-gray-700"
+            />
+          </div>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-12 gap-4" style={{ height: 'calc(100vh - 200px)', minHeight: '500px' }}>
+      <div className="grid grid-cols-1 md:grid-cols-12 gap-4 flex-1 min-h-0 overflow-hidden">
         {/* Sidebar Navigation */}
-        <div className="md:col-span-3 section-card p-3 h-full overflow-y-auto">
+        <div className="md:col-span-3 section-card p-3 !overflow-y-auto min-h-0">
           <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider px-2 mb-2">Report Type</p>
           <div className="space-y-0.5">
             {tabs.map(tab => (
               <button
                 key={tab.id}
-                onClick={() => { setActiveTab(tab.id); setReportData(null); }}
+                onClick={() => { setActiveTab(tab.id); if (tab.id !== 'account-statement') setReportData(null); }}
                 className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all
                   ${activeTab === tab.id
                     ? 'bg-primary-600 text-white'
@@ -165,7 +172,7 @@ const Reports: React.FC = () => {
         </div>
 
         {/* Main Content Area */}
-        <div className="md:col-span-9 section-card p-5 h-full overflow-y-auto">
+        <div className="md:col-span-9 section-card p-5 !overflow-y-auto min-h-0">
           {activeTab === 'account-statement' && (
               <div className="mb-6 flex gap-4 p-4 bg-gray-50 rounded-lg border">
                   <select
@@ -227,8 +234,8 @@ const Reports: React.FC = () => {
               {activeTab === 'gstr' && reportData && (
                 <GSTRDisplay data={reportData} />
               )}
-              {activeTab === 'account-statement' && reportData && (
-                 <AccountStatementDisplay data={reportData} />
+              {activeTab === 'account-statement' && accountStatementData && (
+                 <AccountStatementDisplay data={accountStatementData} />
               )}
             </>
           )}

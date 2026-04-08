@@ -484,25 +484,22 @@ const Invoices: React.FC = () => {
   return (
     <div className="h-full flex flex-col gap-4">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-bold text-gray-900 flex items-center gap-2">
-            <FileText className="w-5 h-5 text-gray-500" />
-            Tax Invoices
-          </h1>
-          <p className="text-sm text-gray-500 mt-0.5">Generate and manage GST invoices</p>
+      <div className="page-header">
+        <div className="page-header-left">
+          <div className="page-header-icon"><FileText className="w-5 h-5" /></div>
+          <div>
+            <h1>Tax Invoices</h1>
+            <p>Generate and manage GST invoices</p>
+          </div>
         </div>
-        <button
-          onClick={openCreateModal}
-          className="flex items-center gap-2 px-4 py-2 bg-gray-900 hover:bg-gray-700 text-white text-sm font-medium rounded-lg transition-colors shadow-sm"
-        >
+        <button onClick={openCreateModal} className="btn btn-primary flex items-center gap-2">
           <Plus className="w-4 h-4" />
           Generate Invoice
         </button>
       </div>
 
       {/* Filters */}
-      <div className="flex flex-wrap items-end gap-3">
+      <div className="filter-bar !py-3 !px-4 flex flex-wrap items-end gap-3">
         {/* Search */}
         <div className="flex flex-col gap-0.5 flex-1 min-w-[220px] max-w-sm">
           <label className="text-xs text-gray-400 px-0.5">Search</label>
@@ -513,7 +510,7 @@ const Invoices: React.FC = () => {
               placeholder="Invoice no, customer, sale order…"
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
-              className="w-full pl-9 pr-8 py-2 text-sm border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-gray-400 focus:border-transparent transition-all bg-white"
+              className="w-full pl-9 pr-8 py-2 text-sm border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-gray-400 focus:border-transparent transition-all bg-white text-gray-700"
             />
             {searchInput && (
               <button onClick={() => setSearchInput('')} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
@@ -522,7 +519,6 @@ const Invoices: React.FC = () => {
             )}
           </div>
         </div>
-
         {/* Date range */}
         <div className="flex flex-col gap-0.5">
           <label className="text-xs text-gray-400 px-0.5">From</label>
@@ -544,9 +540,9 @@ const Invoices: React.FC = () => {
             className="px-3 py-2 text-sm border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-gray-400 focus:border-transparent transition-all bg-white text-gray-700"
           />
         </div>
-        {(dateFrom || dateTo) && (
-          <button onClick={() => { setDateFrom(''); setDateTo(''); }} className="text-xs text-gray-400 hover:text-gray-700 underline underline-offset-2 transition-colors pb-2">
-            Clear
+        {(searchInput || dateFrom || dateTo) && (
+          <button onClick={() => { setSearchInput(''); setDateFrom(''); setDateTo(''); }} className="text-xs text-gray-400 hover:text-gray-700 underline underline-offset-2 transition-colors pb-2 ml-auto">
+            Reset
           </button>
         )}
       </div>
@@ -569,7 +565,7 @@ const Invoices: React.FC = () => {
             {!searchInput && !dateFrom && !dateTo && (
               <button
                 onClick={openCreateModal}
-                className="mt-4 px-4 py-2 text-sm bg-gray-900 text-white rounded-lg hover:bg-gray-700 transition-colors"
+                className="btn btn-primary mt-4"
               >
                 Generate First Invoice
               </button>
@@ -623,36 +619,25 @@ const Invoices: React.FC = () => {
 
             {/* Pagination */}
             {totalCount > 0 && (
-              <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 border-t border-gray-100 bg-gray-50/40 shrink-0">
-                <div className="flex items-center gap-2 text-sm text-gray-500">
-                  <span>Show</span>
-                  <select
-                    value={pageSize}
-                    onChange={(e) => setPageSize(Number(e.target.value))}
-                    className="border border-gray-200 rounded px-1.5 py-1 text-sm outline-none focus:ring-1 focus:ring-gray-400 bg-white"
-                  >
+              <div className="pagination-bar">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-gray-500">Show</span>
+                  <select value={pageSize} onChange={(e) => setPageSize(Number(e.target.value))} className="input-field py-1 px-2 text-sm w-20">
                     {[10, 25, 50, 100].map(n => <option key={n} value={n}>{n}</option>)}
                   </select>
-                  <span>— {(currentPage - 1) * pageSize + 1}–{Math.min(currentPage * pageSize, totalCount)} of {totalCount}</span>
+                  <span className="text-sm text-gray-500 whitespace-nowrap">
+                    entries ({(currentPage - 1) * pageSize + 1}–{Math.min(currentPage * pageSize, totalCount)} of {totalCount})
+                  </span>
                 </div>
                 <div className="flex items-center gap-1">
-                  <button onClick={() => handlePageChange(currentPage - 1)} disabled={currentPage === 1}
-                    className="px-2.5 py-1.5 text-sm border border-gray-200 rounded hover:bg-white disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
-                    <ChevronLeft className="w-4 h-4" />
-                  </button>
+                  <button onClick={() => handlePageChange(currentPage - 1)} disabled={currentPage === 1} className="pag-btn">‹</button>
                   {getPageNumbers().map((page, i) => (
                     <button key={i} onClick={() => typeof page === 'number' && handlePageChange(page)} disabled={page === '...'}
-                      className={`px-3 py-1.5 text-sm border rounded transition-colors ${
-                        page === currentPage ? 'bg-gray-900 text-white border-gray-900' :
-                        page === '...' ? 'border-transparent cursor-default text-gray-400' :
-                        'border-gray-200 hover:bg-white'}`}>
+                      className={`pag-btn ${page === currentPage ? 'active' : ''} ${page === '...' ? 'dots' : ''}`}>
                       {page}
                     </button>
                   ))}
-                  <button onClick={() => handlePageChange(currentPage + 1)} disabled={currentPage === totalPages}
-                    className="px-2.5 py-1.5 text-sm border border-gray-200 rounded hover:bg-white disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
-                    <ChevronRight className="w-4 h-4" />
-                  </button>
+                  <button onClick={() => handlePageChange(currentPage + 1)} disabled={currentPage === totalPages} className="pag-btn">›</button>
                 </div>
               </div>
             )}
