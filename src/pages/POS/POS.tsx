@@ -7,7 +7,7 @@ import { priceTierService, PriceTier, ProductTierPrice } from '@api/services/pri
 import { categoryService, Category } from '@api/services/category.service';
 import { addNotification } from '@store/slices/uiSlice';
 import { fetchCurrentSession } from '@store/slices/sessionSlice';
-import { Search, Plus, Minus, Trash2, ShoppingCart, Package, Tag, Lock, Flag, Wallet, LayoutGrid } from 'lucide-react';
+import { Search, Plus, Minus, Trash2, ShoppingCart, Package, Tag, Lock, Flag, Wallet, LayoutGrid, ChevronLeft, ChevronRight } from 'lucide-react';
 import PaymentModal from '../../components/pos/PaymentModal';
 import InvoicePreview from '../../components/pos/InvoicePreview';
 import OpeningBalanceModal from '../../components/pos/OpeningBalanceModal';
@@ -59,6 +59,7 @@ const POS: React.FC = () => {
   const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isFirstSearch = useRef(true);
 
+  const [isCartExpanded, setIsCartExpanded] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [showInvoice, setShowInvoice] = useState(false);
   const [showCloseModal, setShowCloseModal] = useState(false);
@@ -334,7 +335,6 @@ const POS: React.FC = () => {
         items: [...prev.items, newItem],
       }));
     }
-    setProductSearch('');
   };
 
   const handleQuantityChange = (itemId: number, newQuantity: number) => {
@@ -789,7 +789,7 @@ const POS: React.FC = () => {
           <OpeningBalanceModal />
         </div>
       ) : (
-      <div className="w-[280px] lg:w-[340px] shrink-0 flex flex-col h-full overflow-hidden space-y-3 py-2 pr-2">
+      <div className={`${isCartExpanded ? 'w-[480px] lg:w-[560px]' : 'w-[280px] lg:w-[340px]'} shrink-0 flex flex-col h-full overflow-hidden space-y-3 py-2 pr-2 transition-all duration-300`}>
         <div className="card shrink-0 shadow-sm p-3">
           <div className="flex justify-between items-center mb-2">
             <h3 className="text-sm font-semibold text-gray-700 flex items-center gap-1.5 border-l-2 border-blue-500 pl-2 -ml-3">
@@ -865,11 +865,20 @@ const POS: React.FC = () => {
               <ShoppingCart className="w-4 h-4" />
               Current Sale
             </h3>
-            {cart.items.length > 0 && (
-              <span className="text-[10px] font-bold bg-white/20 text-white px-2 py-0.5 rounded-full border border-white/30">
-                {cart.items.reduce((acc, item) => acc + item.quantity, 0)} items
-              </span>
-            )}
+            <div className="flex items-center gap-2">
+              {cart.items.length > 0 && (
+                <span className="text-[10px] font-bold bg-white/20 text-white px-2 py-0.5 rounded-full border border-white/30">
+                  {cart.items.reduce((acc, item) => acc + item.quantity, 0)} items
+                </span>
+              )}
+              <button
+                onClick={() => setIsCartExpanded(prev => !prev)}
+                className="text-white/80 hover:text-white hover:bg-white/20 p-1 rounded transition-colors"
+                title={isCartExpanded ? 'Collapse cart' : 'Expand cart'}
+              >
+                {isCartExpanded ? <ChevronRight className="w-3.5 h-3.5" /> : <ChevronLeft className="w-3.5 h-3.5" />}
+              </button>
+            </div>
           </div>
 
           {/* Cart Items List */}
@@ -890,7 +899,7 @@ const POS: React.FC = () => {
 
                     {/* Name + price */}
                     <div className="flex-1 min-w-0">
-                      <div className="font-semibold text-xs text-gray-800 leading-tight truncate">{item.name}</div>
+                      <div className={`font-semibold text-xs text-gray-800 leading-tight ${isCartExpanded ? 'whitespace-normal' : 'truncate'}`}>{item.name}</div>
                       <div className="text-[10px] text-gray-400">₹{item.unit_price.toFixed(2)} × {item.quantity}</div>
                     </div>
 
