@@ -21,6 +21,7 @@ const PaymentFormModal: React.FC<PaymentFormModalProps> = ({
     payment_type: 'sale', // Default to Sale (Income)
     reference_number: '',
     notes: '',
+    sale_order_number_input: '',
   });
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
@@ -30,7 +31,11 @@ const PaymentFormModal: React.FC<PaymentFormModalProps> = ({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onSubmit(formData);
+    const payload = { ...formData };
+    if (!payload.sale_order_number_input?.trim()) {
+      delete payload.sale_order_number_input;
+    }
+    onSubmit(payload);
   };
 
   return (
@@ -113,6 +118,20 @@ const PaymentFormModal: React.FC<PaymentFormModalProps> = ({
              <option value="other">Other</option>
            </select>
         </div>
+
+        {formData.payment_type === 'sale' && (
+          <div>
+            <label className="label">Sale Order # <span className="text-gray-400 font-normal">(optional)</span></label>
+            <input
+              type="text"
+              name="sale_order_number_input"
+              className="input-field"
+              placeholder="e.g. SO-202604-0006"
+              value={formData.sale_order_number_input || ''}
+              onChange={handleChange}
+            />
+          </div>
+        )}
 
         <div>
            <label className="label">Reference Number</label>

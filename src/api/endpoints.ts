@@ -69,6 +69,13 @@ export const API_ENDPOINTS = {
     ADVANCE_INVOICES: '/api/sales/advance-invoices/',
     ADVANCE_INVOICE_DETAIL: (id: number) => `/api/sales/advance-invoices/${id}/`,
     ADVANCE_INVOICE_STATUS: (id: number) => `/api/sales/advance-invoices/${id}/update_status/`,
+    // POS Error-Handling
+    EDIT_DRAFT: (id: number) => `/api/sales/${id}/edit-draft/`,
+    VOID: (id: number) => `/api/sales/${id}/void/`,
+    CORRECT: (id: number) => `/api/sales/${id}/correct/`,
+    COMPLETE: (id: number) => `/api/sales/${id}/complete/`,
+    BILL_AUDIT_LOGS: (id: number) => `/api/sales/${id}/audit-logs/`,
+    AUDIT_LOGS: '/api/sales/audit-logs/',
   },
 
   // Sessions

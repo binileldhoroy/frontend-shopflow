@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Receipt, Wallet } from 'lucide-react';
+import { ArrowLeft, Receipt, Wallet, Ban, GitBranch } from 'lucide-react';
 import { customerService } from '@api/services/customer.service';
 import { useAppDispatch } from '@hooks/useRedux';
 import { addNotification } from '@store/slices/uiSlice';
+import type { CustomerLedgerEntry } from '../../types/customer.types';
 
 const CustomerLedger: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -11,7 +12,7 @@ const CustomerLedger: React.FC = () => {
   const dispatch = useAppDispatch();
 
   const [customer, setCustomer] = useState<any>(null);
-  const [ledgerEntries, setLedgerEntries] = useState<any[]>([]);
+  const [ledgerEntries, setLedgerEntries] = useState<CustomerLedgerEntry[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Settle Credit State
@@ -125,20 +126,35 @@ const CustomerLedger: React.FC = () => {
   const creditLimit = customer.credit_limit ? parseFloat(customer.credit_limit) : 0;
   const hasLimit = creditLimit > 0;
 
-  const getTransactionBadge = (type: string) => {
+  const getTransactionBadge = (type: CustomerLedgerEntry['transaction_type']) => {
+    const base = 'inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-semibold border';
     switch (type) {
       case 'credit_sale':
-        return <span className="inline-flex items-center gap-1 text-danger-700 bg-danger-50 border border-danger-100 px-2.5 py-1 rounded-md text-xs font-semibold">Credit Sale</span>;
+        return <span className={`${base} text-danger-700 bg-danger-50 border-danger-100`}>Credit Sale</span>;
       case 'payment_received':
-        return <span className="inline-flex items-center gap-1 text-success-700 bg-success-50 border border-success-100 px-2.5 py-1 rounded-md text-xs font-semibold">Payment Recd</span>;
+        return <span className={`${base} text-success-700 bg-success-50 border-success-100`}>Payment Recd</span>;
       case 'wallet_top_up':
-        return <span className="inline-flex items-center gap-1 text-purple-700 bg-purple-50 border border-purple-100 px-2.5 py-1 rounded-md text-xs font-semibold">Wallet Top-Up</span>;
+        return <span className={`${base} text-purple-700 bg-purple-50 border-purple-100`}>Wallet Top-Up</span>;
       case 'wallet_used':
-        return <span className="inline-flex items-center gap-1 text-teal-700 bg-teal-50 border border-teal-100 px-2.5 py-1 rounded-md text-xs font-semibold">Wallet Used</span>;
+        return <span className={`${base} text-teal-700 bg-teal-50 border-teal-100`}>Wallet Used</span>;
       case 'refund':
-        return <span className="inline-flex items-center gap-1 text-yellow-700 bg-yellow-50 border border-yellow-100 px-2.5 py-1 rounded-md text-xs font-semibold">Refund</span>;
+        return <span className={`${base} text-yellow-700 bg-yellow-50 border-yellow-100`}>Refund</span>;
+      case 'void_reversal':
+        return (
+          <span className={`${base} text-red-700 bg-red-50 border-red-100`}>
+            <Ban className="w-3 h-3" />
+            Void Reversal
+          </span>
+        );
+      case 'correction_debit':
+        return (
+          <span className={`${base} text-amber-700 bg-amber-50 border-amber-100`}>
+            <GitBranch className="w-3 h-3" />
+            Correction
+          </span>
+        );
       default:
-        return <span className="inline-flex items-center gap-1 text-gray-700 bg-gray-50 border border-gray-100 px-2.5 py-1 rounded-md text-xs font-semibold">{type}</span>;
+        return <span className={`${base} text-gray-700 bg-gray-50 border-gray-100`}>{type}</span>;
     }
   };
 
@@ -309,25 +325,40 @@ const CustomerLedger: React.FC = () => {
                   <tr>
                     <th className="py-3 px-4 text-left font-medium text-gray-700">Date</th>
                     <th className="py-3 px-4 text-left font-medium text-gray-700">Type</th>
-                    <th className="py-3 px-4 text-left font-medium text-gray-700 w-1/2">Notes</th>
+                    <th className="py-3 px-4 text-left font-medium text-gray-700">Notes</th>
                     <th className="py-3 px-4 text-right font-medium text-gray-700">Amount</th>
+                    <th className="py-3 px-4 text-right font-medium text-gray-700">Balance After</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
                   {ledgerEntries.map((entry) => (
-                    <tr key={entry.id} className="hover:bg-gray-50 transition-colors">
-                      <td className="py-4 px-4 text-gray-600 whitespace-nowrap">
+                    <tr
+                      key={entry.id}
+                      className={`hover:bg-gray-50 transition-colors ${
+                        entry.transaction_type === 'void_reversal' ? 'bg-red-50/40' :
+                        entry.transaction_type === 'correction_debit' ? 'bg-amber-50/40' : ''
+                      }`}
+                    >
+                      <td className="py-4 px-4 text-gray-600 whitespace-nowrap text-xs">
                         {new Date(entry.created_at).toLocaleString()}
                       </td>
                       <td className="py-4 px-4">
                         {getTransactionBadge(entry.transaction_type)}
                       </td>
-                      <td className="py-4 px-4 text-gray-600">
+                      <td className="py-4 px-4 text-gray-600 text-sm">
                         {entry.notes || '-'}
                       </td>
                       <td className="py-4 px-4 text-right">
                         <span className={`font-bold ${entry.amount > 0 ? 'text-danger-600' : 'text-success-600'}`}>
-                          {entry.amount > 0 ? '+' : ''}₹{Math.abs(entry.amount).toFixed(2)}
+                          {entry.amount > 0 ? '+' : ''}₹{Math.abs(Number(entry.amount)).toFixed(2)}
+                        </span>
+                      </td>
+                      <td className="py-4 px-4 text-right">
+                        <span className={`text-sm font-semibold ${Number(entry.balance_after) > 0 ? 'text-danger-600' : 'text-gray-500'}`}>
+                          ₹{Math.abs(Number(entry.balance_after)).toFixed(2)}
+                          {Number(entry.balance_after) > 0 && (
+                            <span className="text-xs text-danger-400 ml-1">owed</span>
+                          )}
                         </span>
                       </td>
                     </tr>

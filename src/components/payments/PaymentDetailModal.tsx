@@ -1,6 +1,7 @@
 import React from 'react';
 import Modal from '../common/Modal/Modal';
 import { Payment } from '../../types/payment.types';
+import { ArrowDownLeft, ArrowUpRight, RotateCcw } from 'lucide-react';
 
 interface PaymentDetailModalProps {
   show: boolean;
@@ -15,6 +16,8 @@ const PaymentDetailModal: React.FC<PaymentDetailModalProps> = ({
 }) => {
   if (!payment) return null;
 
+  const isCredit = (payment.direction ?? 'credit') === 'credit';
+
   return (
     <Modal
       show={show}
@@ -28,16 +31,42 @@ const PaymentDetailModal: React.FC<PaymentDetailModalProps> = ({
       }
     >
       <div className="space-y-4">
+
+        {/* Reversal notice */}
+        {payment.is_reversal && (
+          <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 flex items-start gap-2">
+            <RotateCcw className="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" />
+            <div className="text-sm text-amber-700">
+              <span className="font-semibold">This is a reversal payment.</span>
+              {payment.reversal_of_number && (
+                <span className="ml-1">
+                  Original: <span className="font-mono font-bold">{payment.reversal_of_number}</span>
+                </span>
+              )}
+              {payment.reversal_reason && (
+                <p className="mt-1 italic">"{payment.reversal_reason}"</p>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Amount + direction */}
         <div className="flex justify-between items-center p-4 bg-gray-50 rounded-lg">
-          <div className="text-gray-600">Amount</div>
-          <div className={`text-2xl font-bold ${payment.payment_type === 'sale' ? 'text-success-600' : 'text-danger-600'}`}>
-             ₹{parseFloat(String(payment.amount)).toFixed(2)}
+          <div className="flex items-center gap-2">
+            <span className={`flex items-center gap-1 text-sm font-medium ${isCredit ? 'text-success-600' : 'text-danger-600'}`}>
+              {isCredit
+                ? <><ArrowDownLeft className="w-4 h-4" /> Received</>
+                : <><ArrowUpRight className="w-4 h-4" /> Refund</>}
+            </span>
+          </div>
+          <div className={`text-2xl font-bold ${isCredit ? 'text-success-600' : 'text-danger-600'}`}>
+            {isCredit ? '+' : '−'}₹{parseFloat(String(payment.amount)).toFixed(2)}
           </div>
         </div>
 
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className="text-xs text-gray-500 uppercase">Values Date</label>
+            <label className="text-xs text-gray-500 uppercase">Date</label>
             <div className="font-medium">{new Date(payment.payment_date).toLocaleString()}</div>
           </div>
           <div>
@@ -71,14 +100,14 @@ const PaymentDetailModal: React.FC<PaymentDetailModalProps> = ({
             )}
             {payment.reference_number && (
               <div className="flex justify-between">
-                 <span className="text-gray-600">Reference ID:</span>
-                 <span>{payment.reference_number}</span>
+                <span className="text-gray-600">Reference ID:</span>
+                <span>{payment.reference_number}</span>
               </div>
             )}
-             {payment.notes && (
+            {payment.notes && (
               <div className="mt-2">
-                 <span className="text-gray-600 block mb-1">Notes:</span>
-                 <p className="p-2 bg-gray-50 rounded italic text-gray-700">{payment.notes}</p>
+                <span className="text-gray-600 block mb-1">Notes:</span>
+                <p className="p-2 bg-gray-50 rounded italic text-gray-700">{payment.notes}</p>
               </div>
             )}
           </div>

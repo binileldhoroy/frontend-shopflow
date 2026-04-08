@@ -3,7 +3,7 @@ import { paymentService } from '../../api/services/payment.service';
 import { Payment, PaymentFormData } from '../../types/payment.types';
 import { useAppDispatch } from '../../hooks/useRedux';
 import { addNotification } from '../../store/slices/uiSlice';
-import { Banknote, Plus, Search, Eye, ArrowUpRight, ArrowDownLeft, Inbox } from 'lucide-react';
+import { Banknote, Plus, Search, Eye, ArrowUpRight, ArrowDownLeft, Inbox, RotateCcw } from 'lucide-react';
 
 import PaymentDetailModal from '../../components/payments/PaymentDetailModal';
 import PaymentFormModal from '../../components/payments/PaymentFormModal';
@@ -128,12 +128,20 @@ const Payments: React.FC = () => {
   };
 
   const getBadge = (payment: Payment) => {
-    const isIncome = payment.payment_type === 'sale';
+    const isCredit = (payment.direction ?? 'credit') === 'credit';
     return (
-      <span className={`badge ${isIncome ? 'badge-success' : 'badge-warning'} flex items-center gap-1 w-fit`}>
-        {isIncome ? <ArrowDownLeft className="w-3 h-3" /> : <ArrowUpRight className="w-3 h-3" />}
-        {isIncome ? 'Received' : 'Paid'}
-      </span>
+      <div className="flex flex-col gap-1">
+        <span className={`badge ${isCredit ? 'badge-success' : 'badge-danger'} flex items-center gap-1 w-fit`}>
+          {isCredit ? <ArrowDownLeft className="w-3 h-3" /> : <ArrowUpRight className="w-3 h-3" />}
+          {isCredit ? 'Received' : 'Refund'}
+        </span>
+        {payment.is_reversal && (
+          <span className="badge badge-secondary flex items-center gap-1 w-fit text-xs">
+            <RotateCcw className="w-3 h-3" />
+            Reversal
+          </span>
+        )}
+      </div>
     );
   };
 
@@ -221,15 +229,22 @@ const Payments: React.FC = () => {
                       </td>
                       <td>{getBadge(payment)}</td>
                       <td className="hidden md:table-cell text-gray-500 text-sm">
-                        {payment.sale_order_number ? <span className="font-mono text-xs">{payment.sale_order_number}</span>
-                          : payment.purchase_order_number ? <span className="font-mono text-xs">{payment.purchase_order_number}</span>
+                        {payment.sale_order_number
+                          ? <span className="font-mono text-xs">{payment.sale_order_number}</span>
+                          : payment.purchase_order_number
+                          ? <span className="font-mono text-xs">{payment.purchase_order_number}</span>
                           : <span className="text-gray-300">—</span>}
+                        {payment.reversal_of_number && (
+                          <div className="text-xs text-gray-400 mt-0.5">
+                            Reversal of <span className="font-mono">{payment.reversal_of_number}</span>
+                          </div>
+                        )}
                       </td>
                       <td className="hidden sm:table-cell">
                         <span className="badge badge-primary">{formatMode(payment.payment_mode)}</span>
                       </td>
-                      <td className={`td-right font-bold ${payment.payment_type === 'sale' ? 'text-success-600' : 'text-danger-600'}`}>
-                        {payment.payment_type === 'sale' ? '+' : '−'}₹{parseFloat(String(payment.amount)).toFixed(2)}
+                      <td className={`td-right font-bold ${(payment.direction ?? 'credit') === 'credit' ? 'text-success-600' : 'text-danger-600'}`}>
+                        {(payment.direction ?? 'credit') === 'credit' ? '+' : '−'}₹{parseFloat(String(payment.amount)).toFixed(2)}
                       </td>
                       <td className="td-right">
                         <button className="action-btn action-btn-primary" onClick={() => handleView(payment)} title="View">

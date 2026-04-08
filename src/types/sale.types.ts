@@ -1,4 +1,37 @@
 // Sale Types
+
+export type SaleOrderStatus =
+  | 'draft'
+  | 'completed'
+  | 'cancelled'
+  | 'refunded'
+  | 'voided'
+  | 'corrected';
+
+export interface POSAuditLog {
+  id: number;
+  user: number | null;
+  user_name: string;
+  action:
+    | 'bill_created'
+    | 'bill_completed'
+    | 'bill_voided'
+    | 'bill_corrected'
+    | 'bill_cloned'
+    | 'payment_added'
+    | 'payment_reversed'
+    | 'ledger_adjusted';
+  action_display: string;
+  sale_order: number | null;
+  order_number: string;
+  payment: number | null;
+  payment_number: string;
+  reason: string;
+  metadata: Record<string, unknown>;
+  ip_address: string | null;
+  timestamp: string;
+}
+
 export interface SaleItem {
   id: number;
   product: number;
@@ -18,7 +51,7 @@ export interface SaleOrder {
   customer: number | null;
   customer_name: string;
   sale_date: string;
-  status: string;
+  status: SaleOrderStatus;
   is_advance_invoice: boolean;
   advance_status: 'draft' | 'sent' | 'payment_pending' | 'payment_received' | 'product_released' | null;
   payment_method: string;
@@ -34,7 +67,22 @@ export interface SaleOrder {
   round_off: number;
   billing_state: string;
   place_of_supply: string;
+  notes: string | null;
   items: SaleItem[];
+  cashier: number | null;
+  cashier_name: string;
+
+  // Void fields
+  voided_reason: string | null;
+  voided_by: number | null;
+  voided_at: string | null;
+
+  // Correction link
+  corrects_order: number | null;
+
+  // Guard flag
+  is_final: boolean;
+
   created_at: string;
   updated_at: string;
 }
