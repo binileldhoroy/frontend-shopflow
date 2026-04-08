@@ -1,12 +1,13 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { productService, categoryService } from '@api/services/product.service';
+import { categoryService as catSearchService } from '@api/services/category.service';
 import { Product, Category, ProductFormData } from '../../types/product.types';
 import ProductFormModal from '@components/features/products/ProductFormModal';
 import ProductCSVImportModal from '@components/features/products/ProductCSVImportModal';
 import DeleteConfirmModal from '@components/common/DeleteConfirmModal/DeleteConfirmModal';
 import { useAppDispatch } from '@hooks/useRedux';
 import { addNotification } from '@store/slices/uiSlice';
-import { Package, Plus, Search, Edit2, Trash2, Inbox, AlertTriangle, Upload } from 'lucide-react';
+import { Package, Plus, Search, Edit2, Trash2, Inbox, AlertTriangle, Upload, X } from 'lucide-react';
 
 const Products: React.FC = () => {
   const dispatch = useAppDispatch();
@@ -17,6 +18,12 @@ const Products: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
   const [stockFilter, setStockFilter] = useState('');
+
+  // Category filter search
+  const [catFilterInput, setCatFilterInput] = useState('');
+  const [catFilterOptions, setCatFilterOptions] = useState<Category[]>([]);
+  const [showCatFilterDrop, setShowCatFilterDrop] = useState(false);
+  const catFilterRef = useRef<HTMLDivElement>(null);
 
   // Pagination states
   const [currentPage, setCurrentPage] = useState(1);
@@ -93,6 +100,28 @@ const Products: React.FC = () => {
       setCurrentPage(1);
     }
   }, [searchTerm, categoryFilter, stockFilter, pageSize]);
+
+  // Category filter: search via API with debounce
+  useEffect(() => {
+    const timer = setTimeout(async () => {
+      try {
+        const results = await catSearchService.getAll({ search: catFilterInput });
+        setCatFilterOptions(results as any);
+      } catch {}
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [catFilterInput]);
+
+  // Click outside to close category filter dropdown
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (catFilterRef.current && !catFilterRef.current.contains(e.target as Node)) {
+        setShowCatFilterDrop(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
 
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
@@ -241,40 +270,81 @@ const Products: React.FC = () => {
       </div>
 
       {/* Filters */}
-      <div className="filter-bar">
-        <div className="search-wrap flex-1 min-w-[180px]">
-          <Search className="search-icon" />
-          <input
-            type="text"
-            className="input-field"
-            placeholder="Search products…"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
+      <div className="filter-bar !py-3 !px-4 flex flex-wrap items-end gap-3">
+        <div className="flex flex-col gap-0.5 flex-1 min-w-[200px] max-w-sm">
+          <label className="text-xs text-gray-400 px-0.5">Search</label>
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+            <input
+              type="text"
+              placeholder="Search products…"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full pl-9 px-3 py-2 text-sm border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-gray-400 focus:border-transparent transition-all bg-white text-gray-700"
+            />
+          </div>
         </div>
-        <select
-          className="input-field w-auto min-w-[150px]"
-          value={categoryFilter}
-          onChange={(e) => setCategoryFilter(e.target.value)}
-        >
-          <option value="">All Categories</option>
-          {categories.map(cat => (
-            <option key={cat.id} value={cat.id}>{cat.name}</option>
-          ))}
-        </select>
-        <select
-          className="input-field w-auto min-w-[130px]"
-          value={stockFilter}
-          onChange={(e) => setStockFilter(e.target.value)}
-        >
-          <option value="">All Stock</option>
-          <option value="in">In Stock</option>
-          <option value="low">Low Stock</option>
-          <option value="out">Out of Stock</option>
-        </select>
-        <span className="text-sm text-gray-500 ml-auto whitespace-nowrap hidden sm:inline">
-          {totalCount} product{totalCount !== 1 ? 's' : ''}
-        </span>
+        <div className="flex flex-col gap-0.5 relative" ref={catFilterRef}>
+          <label className="text-xs text-gray-400 px-0.5">Category</label>
+          <div className="relative">
+            <input
+              type="text"
+              placeholder="Search category…"
+              value={catFilterInput}
+              onChange={e => { setCatFilterInput(e.target.value); setShowCatFilterDrop(true); }}
+              onFocus={() => setShowCatFilterDrop(true)}
+              className="px-3 py-2 text-sm border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-gray-400 focus:border-transparent transition-all bg-white text-gray-700 w-44 pr-7"
+            />
+            {catFilterInput && (
+              <button onClick={() => { setCatFilterInput(''); setCategoryFilter(''); }} className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
+          {showCatFilterDrop && catFilterOptions.length > 0 && (
+            <div className="absolute top-full left-0 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg z-50 max-h-48 overflow-y-auto">
+              <div
+                className="px-3 py-2 text-sm text-gray-500 hover:bg-gray-50 cursor-pointer"
+                onMouseDown={() => { setCategoryFilter(''); setCatFilterInput(''); setShowCatFilterDrop(false); }}
+              >
+                All Categories
+              </div>
+              {catFilterOptions.map(cat => (
+                <div
+                  key={cat.id}
+                  className={`px-3 py-2 text-sm cursor-pointer hover:bg-gray-50 ${categoryFilter === String(cat.id) ? 'bg-green-50 text-green-700 font-medium' : 'text-gray-700'}`}
+                  onMouseDown={() => { setCategoryFilter(String(cat.id)); setCatFilterInput(cat.name); setShowCatFilterDrop(false); }}
+                >
+                  {cat.name}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+        <div className="flex flex-col gap-0.5">
+          <label className="text-xs text-gray-400 px-0.5">Stock</label>
+          <select value={stockFilter} onChange={(e) => setStockFilter(e.target.value)}
+            className="px-3 py-2 text-sm border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-gray-400 focus:border-transparent transition-all bg-white text-gray-700 appearance-none pr-8"
+            style={{backgroundImage:`url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%2394a3b8' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3E%3C/svg%3E")`,backgroundRepeat:'no-repeat',backgroundPosition:'right 0.5rem center',backgroundSize:'1rem'}}>
+            <option value="">All Stock</option>
+            <option value="in">In Stock</option>
+            <option value="low">Low Stock</option>
+            <option value="out">Out of Stock</option>
+          </select>
+        </div>
+        <div className="ml-auto flex items-end gap-3 pb-2">
+          {(searchTerm || categoryFilter || stockFilter) && (
+            <button
+              onClick={() => { setSearchTerm(''); setCategoryFilter(''); setCatFilterInput(''); setStockFilter(''); }}
+              className="text-xs text-gray-400 hover:text-gray-700 underline underline-offset-2 transition-colors"
+            >
+              Reset
+            </button>
+          )}
+          <span className="text-sm text-gray-500 whitespace-nowrap hidden sm:inline">
+            {totalCount} product{totalCount !== 1 ? 's' : ''}
+          </span>
+        </div>
       </div>
 
       {/* Products Table */}

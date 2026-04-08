@@ -459,30 +459,51 @@ const Sales: React.FC = () => {
       </div>
 
       {/* Filters */}
-      <div className="filter-bar">
-        <Calendar className="w-4 h-4 text-gray-400 flex-shrink-0" />
-        <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="input-field w-36" />
-        <span className="text-gray-400 text-sm">to</span>
-        <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="input-field w-36" />
-        <select value={paymentMethod} onChange={e => setPaymentMethod(e.target.value)} className="input-field w-auto min-w-[140px]">
-          <option value="">All Methods</option>
-          <option value="cash">Cash</option>
-          <option value="card">Card</option>
-          <option value="upi">UPI</option>
-          <option value="net_banking">Net Banking</option>
-          <option value="credit">Credit</option>
-        </select>
-        <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} className="input-field w-auto min-w-[130px]">
-          <option value="">All Statuses</option>
-          <option value="draft">Draft</option>
-          <option value="completed">Completed</option>
-          <option value="voided">Voided</option>
-          <option value="corrected">Corrected</option>
-          <option value="cancelled">Cancelled</option>
-        </select>
+      <div className="filter-bar !py-3 !px-4 flex flex-wrap items-end gap-3">
+        {/* From date */}
+        <div className="flex flex-col gap-0.5">
+          <label className="text-xs text-gray-400 px-0.5">From</label>
+          <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)}
+            className="px-3 py-2 text-sm border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-gray-400 focus:border-transparent transition-all bg-white text-gray-700" />
+        </div>
+        <span className="text-gray-400 text-sm pb-2">—</span>
+        {/* To date */}
+        <div className="flex flex-col gap-0.5">
+          <label className="text-xs text-gray-400 px-0.5">To</label>
+          <input type="date" value={endDate} min={startDate || undefined} onChange={e => setEndDate(e.target.value)}
+            className="px-3 py-2 text-sm border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-gray-400 focus:border-transparent transition-all bg-white text-gray-700" />
+        </div>
+        {/* Payment method */}
+        <div className="flex flex-col gap-0.5">
+          <label className="text-xs text-gray-400 px-0.5">Payment</label>
+          <select value={paymentMethod} onChange={e => setPaymentMethod(e.target.value)}
+            className="px-3 py-2 text-sm border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-gray-400 focus:border-transparent transition-all bg-white text-gray-700 pr-8 appearance-none"
+            style={{backgroundImage:`url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%2394a3b8' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3E%3C/svg%3E")`,backgroundRepeat:'no-repeat',backgroundPosition:'right 0.5rem center',backgroundSize:'1rem'}}>
+            <option value="">All Methods</option>
+            <option value="cash">Cash</option>
+            <option value="card">Card</option>
+            <option value="upi">UPI</option>
+            <option value="net_banking">Net Banking</option>
+            <option value="credit">Credit</option>
+          </select>
+        </div>
+        {/* Status */}
+        <div className="flex flex-col gap-0.5">
+          <label className="text-xs text-gray-400 px-0.5">Status</label>
+          <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}
+            className="px-3 py-2 text-sm border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-gray-400 focus:border-transparent transition-all bg-white text-gray-700 pr-8 appearance-none"
+            style={{backgroundImage:`url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%2394a3b8' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3E%3C/svg%3E")`,backgroundRepeat:'no-repeat',backgroundPosition:'right 0.5rem center',backgroundSize:'1rem'}}>
+            <option value="">All Statuses</option>
+            <option value="draft">Draft</option>
+            <option value="completed">Completed</option>
+            <option value="voided">Voided</option>
+            <option value="corrected">Corrected</option>
+            <option value="cancelled">Cancelled</option>
+          </select>
+        </div>
         <button
           onClick={() => { setStartDate(format(subMonths(new Date(), 1), 'yyyy-MM-dd')); setEndDate(format(new Date(), 'yyyy-MM-dd')); setPaymentMethod(''); setStatusFilter(''); }}
-          className="btn btn-outline-secondary text-sm px-3 ml-auto"
+          className="text-xs text-gray-400 hover:text-gray-700 underline underline-offset-2 transition-colors pb-2 ml-auto"
         >
           Reset
         </button>

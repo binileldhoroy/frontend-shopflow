@@ -11,13 +11,14 @@ import {
   ShoppingCart,
   Package,
   AlertTriangle,
+  Receipt,
+  CreditCard,
+  Banknote,
+  Smartphone,
 } from 'lucide-react';
 import {
   LineChart,
   Line,
-  PieChart,
-  Pie,
-  Cell,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -29,10 +30,9 @@ import { format, subDays } from 'date-fns';
 import axiosInstance from '@api/axios';
 import { API_ENDPOINTS } from '@api/endpoints';
 
-const COLORS = ['#0d9158', '#10b981', '#f59e0b', '#ef4444', '#16a34a', '#06b6d4'];
 
 interface DailySalesData {
-  total_revenue: string;
+  total_sales: number;
   total_orders: number;
 }
 
@@ -45,6 +45,23 @@ interface Product {
   reorder_level?: number;
 }
 
+interface StockItem {
+  product: number;
+  product_name: string;
+  quantity: number;
+  reorder_level: number;
+}
+
+interface RecentSale {
+  id: number;
+  order_number: string;
+  customer_name: string | null;
+  total_amount: string;
+  payment_method: string;
+  sale_date: string;
+  status: string;
+}
+
 const CompanyDashboard: React.FC = () => {
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
@@ -52,24 +69,30 @@ const CompanyDashboard: React.FC = () => {
 
   const [dailySales, setDailySales] = useState<DailySalesData | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
-  const [lowStockItems, setLowStockItems] = useState<Product[]>([]);
+  const [totalProductCount, setTotalProductCount] = useState<number>(0);
+  const [lowStockItems, setLowStockItems] = useState<StockItem[]>([]);
   const [trendData, setTrendData] = useState<any[]>([]);
+  const [recentSales, setRecentSales] = useState<RecentSale[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // Fetch profile once on mount if not already loaded
   useEffect(() => {
-    // Fetch user profile if not loaded
     if (!user) {
       dispatch(fetchProfile());
     }
+  }, []);
 
-    // Fetch company for non-super users
+  // Fetch company once when user becomes available
+  useEffect(() => {
     if (user) {
       dispatch(fetchCurrentCompany());
     }
+  }, [user?.id]);
 
-    // Fetch dashboard data
+  // Fetch dashboard data once on mount
+  useEffect(() => {
     fetchDashboardData();
-  }, [dispatch, user]);
+  }, []);
 
   const fetchDashboardData = async () => {
     try {
@@ -90,13 +113,23 @@ const CompanyDashboard: React.FC = () => {
       }));
       setTrendData(trendData);
 
-      // Fetch products
-      const productsResponse = await axiosInstance.get(API_ENDPOINTS.PRODUCTS.LIST);
-      setProducts(productsResponse.data.results || productsResponse.data || []);
+      // Fetch products (large page_size to load all for category/active breakdown)
+      const productsResponse = await axiosInstance.get(API_ENDPOINTS.PRODUCTS.LIST, {
+        params: { page_size: 9999 },
+      });
+      const productList = productsResponse.data.results || productsResponse.data || [];
+      setProducts(productList);
+      setTotalProductCount(productsResponse.data.count ?? productList.length);
 
       // Fetch low stock items
       const lowStockResponse = await axiosInstance.get(API_ENDPOINTS.INVENTORY.LOW_STOCK);
       setLowStockItems(lowStockResponse.data.results || lowStockResponse.data || []);
+
+      // Fetch recent sales (last 5 completed)
+      const recentSalesResponse = await axiosInstance.get(API_ENDPOINTS.SALES.LIST, {
+        params: { page_size: 5, status: 'completed', ordering: '-sale_date' },
+      });
+      setRecentSales(recentSalesResponse.data.results || recentSalesResponse.data || []);
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
     } finally {
@@ -115,22 +148,6 @@ const CompanyDashboard: React.FC = () => {
     };
   });
 
-  // Category breakdown from real products
-  const categoryMap = products.reduce((acc: any, product: Product) => {
-    const categoryName = product.category_name || 'Uncategorized';
-    if (!acc[categoryName]) {
-      acc[categoryName] = 0;
-    }
-    acc[categoryName] += 1;
-    return acc;
-  }, {});
-
-  const categoryData = Object.entries(categoryMap).map(([name, value]) => ({
-    name,
-    value: value as number,
-  }));
-
-  const hasCategoryData = categoryData.length > 0;
   const activeProducts = products.filter((p) => p.is_active).length;
 
   if (loading) {
@@ -171,7 +188,7 @@ const CompanyDashboard: React.FC = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <MetricCard
           title="Today's Revenue"
-          value={`₹${dailySales?.total_revenue || '0.00'}`}
+          value={`₹${dailySales?.total_sales?.toFixed(2) || '0.00'}`}
           change="+12.5%"
           trend="up"
           icon={DollarSign}
@@ -187,7 +204,7 @@ const CompanyDashboard: React.FC = () => {
         />
         <MetricCard
           title="Total Products"
-          value={products.length.toString()}
+          value={totalProductCount.toString()}
           change={`${activeProducts} active`}
           trend="up"
           icon={Package}
@@ -226,42 +243,43 @@ const CompanyDashboard: React.FC = () => {
           </p>
         </div>
 
-        {/* Category Breakdown */}
-        <div className="card">
-          <h3 className="text-base font-semibold text-gray-800 mb-4">Category Distribution</h3>
-          {hasCategoryData ? (
-            <>
-              <ResponsiveContainer width="100%" height={280}>
-                <PieChart>
-                  <Pie
-                    data={categoryData}
-                    cx="50%"
-                    cy="50%"
-                    labelLine={false}
-                    label={({ name, percent }: any) => `${name} ${(percent * 100).toFixed(0)}%`}
-                    outerRadius={90}
-                    dataKey="value"
-                    stroke="none"
-                  >
-                    {categoryData.map((_, index) => (
-                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                    ))}
-                  </Pie>
-                  <Tooltip
-                    contentStyle={{ background: '#fff', border: '1px solid #E5E7EB', borderRadius: 8, color: '#111827', fontSize: 12 }}
-                  />
-                </PieChart>
-              </ResponsiveContainer>
-              <p className="text-xs text-gray-400 mt-2 text-center">
-                {products.length} products across {categoryData.length} categories
-              </p>
-            </>
+        {/* Recent Sales */}
+        <div className="card flex flex-col">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-base font-semibold text-gray-800">Recent Sales</h3>
+            <button
+              onClick={() => navigate('/sales')}
+              className="text-xs text-primary-600 hover:text-primary-700 font-medium"
+            >
+              View all
+            </button>
+          </div>
+          {recentSales.length > 0 ? (
+            <div className="space-y-3">
+              {recentSales.map((sale) => (
+                <div key={sale.id} className="flex items-center gap-3 p-3 rounded-lg bg-gray-50 hover:bg-gray-100 transition-colors">
+                  <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary-100 flex items-center justify-center">
+                    <PaymentIcon method={sale.payment_method} />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-gray-900 truncate">
+                      {sale.customer_name || 'Walk-in Customer'}
+                    </p>
+                    <p className="text-xs text-gray-500">{sale.order_number}</p>
+                  </div>
+                  <div className="text-right flex-shrink-0">
+                    <p className="text-sm font-semibold text-gray-900">₹{parseFloat(sale.total_amount).toFixed(2)}</p>
+                    <p className="text-xs text-gray-400">{format(new Date(sale.sale_date), 'h:mm a')}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
           ) : (
-            <div className="h-[280px] flex items-center justify-center">
+            <div className="flex-1 flex items-center justify-center h-[240px]">
               <div className="text-center">
-                <Package className="w-10 h-10 mx-auto mb-3 text-gray-300" />
-                <p className="text-gray-500 text-sm">No products yet</p>
-                <p className="text-gray-400 text-xs mt-1">Add products to see category distribution</p>
+                <Receipt className="w-10 h-10 mx-auto mb-3 text-gray-300" />
+                <p className="text-gray-500 text-sm">No sales today</p>
+                <p className="text-gray-400 text-xs mt-1">Completed sales will appear here</p>
               </div>
             </div>
           )}
@@ -280,8 +298,8 @@ const CompanyDashboard: React.FC = () => {
               </p>
               <div className="mt-3 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
                 {lowStockItems.map((item) => (
-                  <div key={item.id} className="bg-white p-3 rounded-lg border border-warning-200">
-                    <div className="font-medium text-gray-900 text-sm">{item.name}</div>
+                  <div key={item.product} className="bg-white p-3 rounded-lg border border-warning-200">
+                    <div className="font-medium text-gray-900 text-sm">{item.product_name}</div>
                     <div className="text-xs text-warning-700 mt-1">
                       Only {item.quantity || 0} left (Min: {item.reorder_level || 0})
                     </div>
@@ -304,13 +322,13 @@ const CompanyDashboard: React.FC = () => {
             </div>
             <div className="flex justify-between">
               <span className="text-sm text-gray-600">Revenue:</span>
-              <span className="font-medium">₹{dailySales?.total_revenue || '0.00'}</span>
+              <span className="font-medium">₹{dailySales?.total_sales?.toFixed(2) || '0.00'}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-sm text-gray-600">Avg Order:</span>
               <span className="font-medium">
                 ₹{dailySales?.total_orders && dailySales.total_orders > 0
-                  ? (parseFloat(dailySales.total_revenue) / dailySales.total_orders).toFixed(2)
+                  ? ((dailySales.total_sales || 0) / dailySales.total_orders).toFixed(2)
                   : '0.00'}
               </span>
             </div>
@@ -322,7 +340,7 @@ const CompanyDashboard: React.FC = () => {
           <div className="space-y-2">
             <div className="flex justify-between">
               <span className="text-sm text-gray-600">Total Products:</span>
-              <span className="font-medium">{products.length}</span>
+              <span className="font-medium">{totalProductCount}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-sm text-gray-600">Active:</span>
@@ -404,6 +422,14 @@ function MetricCard({ title, value, change, trend, icon: Icon, color }: MetricCa
       </div>
     </div>
   );
+}
+
+function PaymentIcon({ method }: { method: string }) {
+  const m = (method || '').toLowerCase();
+  if (m === 'cash') return <Banknote className="w-4 h-4 text-primary-600" />;
+  if (m === 'upi') return <Smartphone className="w-4 h-4 text-primary-600" />;
+  if (m === 'card') return <CreditCard className="w-4 h-4 text-primary-600" />;
+  return <Receipt className="w-4 h-4 text-primary-600" />;
 }
 
 export default CompanyDashboard;

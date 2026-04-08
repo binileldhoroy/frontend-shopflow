@@ -127,54 +127,37 @@ const AdvanceInvoices: React.FC = () => {
       </div>
 
       {/* Filters */}
-      <div className="card">
-        <div className="flex flex-col md:flex-row gap-4">
-          {/* <div className="flex-1">
-            <label className="label">Start Date</label>
-            <input
-              type="date"
-              value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
-              className="input-field"
-            />
-          </div>
-          <div className="flex-1">
-            <label className="label">End Date</label>
-            <input
-              type="date"
-              value={endDate}
-              onChange={(e) => setEndDate(e.target.value)}
-              className="input-field"
-            />
-          </div> */}
-          <div className="flex-1">
-             <label className="label">Status</label>
-             <select
-               value={advanceStatus}
-               onChange={(e) => setAdvanceStatus(e.target.value)}
-               className="input-field"
-             >
-               <option value="">All Statuses</option>
-               <option value="draft">Draft</option>
-               <option value="sent">Sent</option>
-               <option value="payment_pending">Payment Pending</option>
-               <option value="payment_received">Payment Received</option>
-               <option value="product_released">Product Released</option>
-             </select>
-          </div>
-          <div className="flex items-end">
-            <button
-              onClick={() => {
-                setStartDate(format(subMonths(new Date(), 1), 'yyyy-MM-dd'));
-                setEndDate(format(new Date(), 'yyyy-MM-dd'));
-                setAdvanceStatus('');
-              }}
-              className="btn btn-secondary"
-            >
-              Reset Filters
-            </button>
-          </div>
+      <div className="filter-bar !py-3 !px-4 flex flex-wrap items-end gap-3">
+        <div className="flex flex-col gap-0.5">
+          <label className="text-xs text-gray-400 px-0.5">From</label>
+          <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)}
+            className="px-3 py-2 text-sm border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-gray-400 focus:border-transparent transition-all bg-white text-gray-700" />
         </div>
+        <span className="text-gray-400 text-sm pb-2">—</span>
+        <div className="flex flex-col gap-0.5">
+          <label className="text-xs text-gray-400 px-0.5">To</label>
+          <input type="date" value={endDate} min={startDate || undefined} onChange={e => setEndDate(e.target.value)}
+            className="px-3 py-2 text-sm border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-gray-400 focus:border-transparent transition-all bg-white text-gray-700" />
+        </div>
+        <div className="flex flex-col gap-0.5">
+          <label className="text-xs text-gray-400 px-0.5">Status</label>
+          <select value={advanceStatus} onChange={e => setAdvanceStatus(e.target.value)}
+            className="px-3 py-2 text-sm border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-gray-400 focus:border-transparent transition-all bg-white text-gray-700 appearance-none pr-8"
+            style={{backgroundImage:`url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%2394a3b8' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3E%3C/svg%3E")`,backgroundRepeat:'no-repeat',backgroundPosition:'right 0.5rem center',backgroundSize:'1rem'}}>
+            <option value="">All Statuses</option>
+            <option value="draft">Draft</option>
+            <option value="sent">Sent</option>
+            <option value="payment_pending">Payment Pending</option>
+            <option value="payment_received">Payment Received</option>
+            <option value="product_released">Product Released</option>
+          </select>
+        </div>
+        <button
+          onClick={() => { setStartDate(format(subMonths(new Date(), 1), 'yyyy-MM-dd')); setEndDate(format(new Date(), 'yyyy-MM-dd')); setAdvanceStatus(''); }}
+          className="text-xs text-gray-400 hover:text-gray-700 underline underline-offset-2 transition-colors pb-2 ml-auto"
+        >
+          Reset
+        </button>
       </div>
 
       {/* Sales Table */}

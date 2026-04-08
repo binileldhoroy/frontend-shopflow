@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Modal from '../../common/Modal/Modal';
 import { Product, Category, ProductFormData } from '../../../types/product.types';
 import ProductPriceTiers from './ProductPriceTiers';
-import { Tag } from 'lucide-react';
+import { Tag, X } from 'lucide-react';
+import { categoryService } from '../../../api/services/category.service';
 
 interface ProductFormModalProps {
   show: boolean;
@@ -21,6 +22,11 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({
   categories,
   loading = false,
 }) => {
+  const [catInput, setCatInput] = useState('');
+  const [catOptions, setCatOptions] = useState<Category[]>([]);
+  const [showCatDrop, setShowCatDrop] = useState(false);
+  const catRef = useRef<HTMLDivElement>(null);
+
   const [formData, setFormData] = useState<ProductFormData>({
     name: '',
     sku: '',
@@ -78,6 +84,37 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({
       });
     }
   }, [product, show]);
+
+  // When editing, pre-fill category name
+  useEffect(() => {
+    if (product?.category) {
+      categoryService.getById(Number(product.category)).then(cat => setCatInput(cat.name)).catch(() => {});
+    } else {
+      setCatInput('');
+    }
+  }, [product, show]);
+
+  // Search categories via API with debounce
+  useEffect(() => {
+    const timer = setTimeout(async () => {
+      try {
+        const results = await categoryService.getAll({ search: catInput });
+        setCatOptions(results);
+      } catch {}
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [catInput]);
+
+  // Click outside to close dropdown
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (catRef.current && !catRef.current.contains(e.target as Node)) {
+        setShowCatDrop(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -144,20 +181,35 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({
           </div>
           <div>
             <label className="label">Category *</label>
-            <select
-              name="category"
-              className="input-field"
-              value={formData.category}
-              onChange={handleChange}
-              required
-            >
-              <option value="">Select Category</option>
-              {categories.map(cat => (
-                <option key={cat.id} value={cat.id}>
-                  {cat.name}
-                </option>
-              ))}
-            </select>
+            <div className="relative" ref={catRef}>
+              <input
+                type="text"
+                placeholder="Search category…"
+                value={catInput}
+                onChange={e => { setCatInput(e.target.value); setShowCatDrop(true); setFormData(prev => ({ ...prev, category: 0 })); }}
+                onFocus={() => setShowCatDrop(true)}
+                className="input-field pr-7"
+                required={!formData.category}
+              />
+              {catInput && (
+                <button type="button" onClick={() => { setCatInput(''); setFormData(prev => ({ ...prev, category: 0 })); }} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
+              {showCatDrop && catOptions.length > 0 && (
+                <div className="absolute top-full left-0 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg z-50 max-h-48 overflow-y-auto">
+                  {catOptions.map(cat => (
+                    <div
+                      key={cat.id}
+                      className={`px-3 py-2 text-sm cursor-pointer hover:bg-gray-50 ${formData.category === cat.id ? 'bg-green-50 text-green-700 font-medium' : 'text-gray-700'}`}
+                      onMouseDown={() => { setFormData(prev => ({ ...prev, category: cat.id })); setCatInput(cat.name); setShowCatDrop(false); }}
+                    >
+                      {cat.name}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Row 2: SKU | Barcode */}
