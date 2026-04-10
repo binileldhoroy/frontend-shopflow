@@ -39,12 +39,14 @@ import Settings from './pages/Settings/Settings';
 // Routes
 import ProtectedRoute from './routes/ProtectedRoute';
 import RoleBasedRoute from './routes/RoleBasedRoute';
+import AppInitializer from './components/AppInitializer';
 import { UserRole } from './types/auth.types';
 
 function App() {
   return (
     <Provider store={store}>
       <BrowserRouter>
+        <AppInitializer>
         <Routes>
           {/* Public routes */}
           <Route path="/login" element={<Login />} />
@@ -315,6 +317,7 @@ function App() {
           {/* 404 */}
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Routes>
+        </AppInitializer>
       </BrowserRouter>
     </Provider>
   );

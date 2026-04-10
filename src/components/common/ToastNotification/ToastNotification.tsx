@@ -8,15 +8,16 @@ const ToastNotification: React.FC = () => {
   const notifications = useAppSelector(state => state.ui.notifications);
 
   useEffect(() => {
+    const timers: ReturnType<typeof setTimeout>[] = [];
     notifications.forEach(notification => {
       if (notification.duration) {
         const timer = setTimeout(() => {
           dispatch(removeNotification(notification.id));
         }, notification.duration);
-
-        return () => clearTimeout(timer);
+        timers.push(timer);
       }
     });
+    return () => timers.forEach(clearTimeout);
   }, [notifications, dispatch]);
 
   if (notifications.length === 0) return null;

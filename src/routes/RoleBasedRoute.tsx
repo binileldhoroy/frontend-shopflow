@@ -1,8 +1,6 @@
 import React from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '@hooks/useAuth';
-import { useAppDispatch } from '@hooks/useRedux';
-import { fetchProfile } from '@store/slices/authSlice';
 import { UserRole } from '../types/auth.types';
 
 interface RoleBasedRouteProps {
@@ -11,31 +9,12 @@ interface RoleBasedRouteProps {
 }
 
 const RoleBasedRoute: React.FC<RoleBasedRouteProps> = ({ children, allowedRoles }) => {
-  const dispatch = useAppDispatch();
   const { isAuthenticated, user, loading } = useAuth();
-  const [isHydrating, setIsHydrating] = React.useState(false);
 
-  React.useEffect(() => {
-    if (isAuthenticated && !user && !loading && !isHydrating) {
-      console.log('RoleBasedRoute: Token exists but user missing. Fetching profile...');
-      setIsHydrating(true);
-      dispatch(fetchProfile())
-        .unwrap()
-        .catch((err) => {
-           console.error('RoleBasedRoute: Profile fetch failed', err);
-        })
-        .finally(() => {
-           setIsHydrating(false);
-        });
-    }
-  }, [isAuthenticated, user, loading, dispatch, isHydrating]);
-
-  if (loading || (isAuthenticated && !user)) {
+  if (loading) {
     return (
-      <div className="d-flex justify-content-center align-items-center min-vh-100">
-        <div className="spinner-border text-primary" role="status">
-          <span className="visually-hidden">Loading...</span>
-        </div>
+      <div className="flex items-center justify-center min-h-screen bg-[#F2EFE8]">
+        <div className="w-10 h-10 border-4 border-[#0d9158] border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
@@ -45,7 +24,6 @@ const RoleBasedRoute: React.FC<RoleBasedRouteProps> = ({ children, allowedRoles 
   }
 
   if (!user || !allowedRoles.includes(user.role)) {
-    console.log('RoleBasedRoute redirecting to dashboard:', { user, role: user?.role, allowedRoles });
     return <Navigate to="/dashboard" replace />;
   }
 

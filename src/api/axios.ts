@@ -25,6 +25,30 @@ axiosInstance.interceptors.request.use(
   }
 );
 
+// Queue to hold requests waiting for token refresh
+let isRefreshing = false;
+let failedQueue: Array<{ resolve: (token: string) => void; reject: (error: any) => void }> = [];
+
+const processQueue = (error: any, token: string | null = null) => {
+  failedQueue.forEach(({ resolve, reject }) => {
+    if (error) {
+      reject(error);
+    } else {
+      resolve(token!);
+    }
+  });
+  failedQueue = [];
+};
+
+const clearAuthAndRedirect = () => {
+  localStorage.removeItem('accessToken');
+  localStorage.removeItem('refreshToken');
+  localStorage.removeItem('user');
+  if (window.location.pathname !== '/login') {
+    window.location.href = '/login';
+  }
+};
+
 // Response interceptor - Handle errors and token refresh
 axiosInstance.interceptors.response.use(
   (response: AxiosResponse) => {
@@ -35,47 +59,58 @@ axiosInstance.interceptors.response.use(
 
     // If error is 401 and we haven't retried yet
     if (error.response?.status === 401 && !originalRequest._retry) {
-      originalRequest._retry = true;
 
-      try {
-        const refreshToken = localStorage.getItem('refreshToken');
-        if (refreshToken) {
-          // Try to refresh the token
-          const response = await axios.post(`${(import.meta as any).env.VITE_API_URL}/api/auth/token/refresh/`, {
-            refresh: refreshToken,
-          });
-
-          const { access } = response.data;
-          localStorage.setItem('accessToken', access);
-
-          // Retry the original request with new token
+      // If already refreshing, queue this request
+      if (isRefreshing) {
+        return new Promise((resolve, reject) => {
+          failedQueue.push({ resolve, reject });
+        }).then((token) => {
           if (originalRequest.headers) {
-            originalRequest.headers.Authorization = `Bearer ${access}`;
+            originalRequest.headers.Authorization = `Bearer ${token}`;
           }
           return axiosInstance(originalRequest);
-        }
-      } catch (refreshError) {
-        // Refresh failed - logout user
-        console.log('Token refresh failed, logging out...');
-        localStorage.removeItem('accessToken');
-        localStorage.removeItem('refreshToken');
-        localStorage.removeItem('user');
-
-        // Only redirect if not already on login page
-        if (window.location.pathname !== '/login') {
-          window.location.href = '/login';
-        }
-        return Promise.reject(refreshError);
+        }).catch((err) => {
+          return Promise.reject(err);
+        });
       }
 
-      // No refresh token available - logout user
-      console.log('No refresh token available, logging out...');
-      localStorage.removeItem('accessToken');
-      localStorage.removeItem('refreshToken');
-      localStorage.removeItem('user');
+      originalRequest._retry = true;
+      isRefreshing = true;
 
-      if (window.location.pathname !== '/login') {
-        window.location.href = '/login';
+      const refreshToken = localStorage.getItem('refreshToken');
+
+      if (!refreshToken) {
+        isRefreshing = false;
+        processQueue(new Error('No refresh token'), null);
+        clearAuthAndRedirect();
+        return Promise.reject(error);
+      }
+
+      try {
+        // Try to refresh the token
+        const response = await axios.post(
+          `${(import.meta as any).env.VITE_API_URL || 'http://localhost:4000'}/api/auth/token/refresh/`,
+          { refresh: refreshToken }
+        );
+
+        const { access } = response.data;
+        localStorage.setItem('accessToken', access);
+
+        // Notify all queued requests
+        processQueue(null, access);
+
+        // Retry the original request with new token
+        if (originalRequest.headers) {
+          originalRequest.headers.Authorization = `Bearer ${access}`;
+        }
+        return axiosInstance(originalRequest);
+      } catch (refreshError) {
+        // Refresh failed - notify queued requests and logout
+        processQueue(refreshError, null);
+        clearAuthAndRedirect();
+        return Promise.reject(refreshError);
+      } finally {
+        isRefreshing = false;
       }
     }
 
