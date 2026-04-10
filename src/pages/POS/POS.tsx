@@ -56,6 +56,7 @@ const POS: React.FC = () => {
   const [hasMore, setHasMore] = useState(false); // false until first fetch resolves
   const [posLoading, setPosLoading] = useState(false);
   const posLoadingRef = useRef(false); // ref-based guard to avoid stale closure
+  const hasInitiallyFetched = useRef(false); // prevents StrictMode double-mount from firing twice
   const sentinelRef = useRef<HTMLDivElement | null>(null);
   const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isFirstSearch = useRef(true);
@@ -139,7 +140,12 @@ const POS: React.FC = () => {
   }, []);
 
   // Fetch initial data (tiers + rules + categories once, products paginated)
+  // hasInitiallyFetched guards against React StrictMode's double-mount in development,
+  // which would otherwise fire this effect twice and show the loading indicator twice.
   useEffect(() => {
+    if (hasInitiallyFetched.current) return;
+    hasInitiallyFetched.current = true;
+
     const fetchInitialData = async () => {
       try {
         const [tiersData, rulesData, categoriesData] = await Promise.all([
@@ -167,11 +173,14 @@ const POS: React.FC = () => {
   // IntersectionObserver: load next page when sentinel is visible
   // needsSessionSetup is included so the observer re-attaches after the register is opened
   // (the sentinel div only renders when the product grid is visible)
+  // posLoading is intentionally NOT in deps — using posLoadingRef.current in the callback
+  // instead, to prevent the observer from being recreated on every loading toggle, which
+  // would cause it to fire immediately and trigger a spurious double-fetch.
   useEffect(() => {
     if (!sentinelRef.current) return;
     const observer = new IntersectionObserver(
       (entries) => {
-        if (entries[0].isIntersecting && hasMore && !posLoading) {
+        if (entries[0].isIntersecting && hasMore && !posLoadingRef.current) {
           fetchProducts(posPage + 1, productSearch, false, selectedCategory?.id);
         }
       },
@@ -179,7 +188,7 @@ const POS: React.FC = () => {
     );
     observer.observe(sentinelRef.current);
     return () => observer.disconnect();
-  }, [hasMore, posLoading, posPage, productSearch, selectedCategory, fetchProducts, needsSessionSetup]);
+  }, [hasMore, posPage, productSearch, selectedCategory, fetchProducts, needsSessionSetup]);
 
   // Debounce search + category filter → reset to page 1
   // Skip on initial mount — the initial product load is handled by fetchInitialData

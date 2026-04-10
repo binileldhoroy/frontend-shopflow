@@ -120,8 +120,8 @@ const CompanySettings: React.FC = () => {
   }
 
   return (
-    <div className="space-y-6 max-w-4xl animate-in fade-in duration-500">
-      <form onSubmit={handleSubmit} className="space-y-6">
+    <div className="space-y-6 max-w-4xl mx-auto animate-in fade-in duration-500">
+      <form onSubmit={handleSubmit} autoComplete="off" className="space-y-6">
         {/* Company Information */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
           <div className="p-6 border-b border-gray-100">

@@ -169,7 +169,7 @@ const Payments: React.FC = () => {
 
       {/* Filters */}
       <div className="filter-bar">
-        <div className="search-wrap flex-1 min-w-[180px]">
+        <div className="search-wrap flex-1 max-w-sm">
           <Search className="search-icon" />
           <input
             type="text"
@@ -179,20 +179,28 @@ const Payments: React.FC = () => {
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
-        <select className="input-field w-auto min-w-[150px]" value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)}>
-          <option value="">All Types</option>
-          <option value="sale">Income</option>
-          <option value="purchase">Expense</option>
-        </select>
-        <select className="input-field w-auto min-w-[130px]" value={modeFilter} onChange={(e) => setModeFilter(e.target.value)}>
-          <option value="">All Modes</option>
-          <option value="cash">Cash</option>
-          <option value="card">Card</option>
-          <option value="upi">UPI</option>
-          <option value="bank_transfer">Bank Transfer</option>
-          <option value="cheque">Cheque</option>
-          <option value="other">Other</option>
-        </select>
+        <div className="flex gap-2 flex-wrap">
+          {([
+            { value: '', label: 'All Types' },
+            { value: 'sale', label: 'Income' },
+            { value: 'purchase', label: 'Expense' },
+          ]).map(({ value, label }) => (
+            <button key={value || 'all-types'} onClick={() => setTypeFilter(value)} className={`filter-chip ${typeFilter === value ? 'active' : ''}`}>{label}</button>
+          ))}
+        </div>
+        <div className="flex gap-2 flex-wrap">
+          {([
+            { value: '', label: 'All Modes' },
+            { value: 'cash', label: 'Cash' },
+            { value: 'card', label: 'Card' },
+            { value: 'upi', label: 'UPI' },
+            { value: 'bank_transfer', label: 'Bank Transfer' },
+            { value: 'cheque', label: 'Cheque' },
+            { value: 'other', label: 'Other' },
+          ]).map(({ value, label }) => (
+            <button key={value || 'all-modes'} onClick={() => setModeFilter(value)} className={`filter-chip ${modeFilter === value ? 'active' : ''}`}>{label}</button>
+          ))}
+        </div>
       </div>
 
       {/* Payments Table */}
