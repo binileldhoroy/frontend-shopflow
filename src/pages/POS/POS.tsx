@@ -10,6 +10,7 @@ import { fetchCurrentSession } from '@store/slices/sessionSlice';
 import { Search, Plus, Minus, Trash2, ShoppingCart, Package, Tag, Lock, Flag, Wallet, LayoutGrid, ChevronLeft, ChevronRight } from 'lucide-react';
 import PaymentModal from '../../components/pos/PaymentModal';
 import InvoicePreview from '../../components/pos/InvoicePreview';
+import GenerateInvoiceModal from '../../components/invoices/GenerateInvoiceModal';
 import OpeningBalanceModal from '../../components/pos/OpeningBalanceModal';
 import CloseRegisterModal from '../../components/pos/CloseRegisterModal';
 
@@ -62,6 +63,7 @@ const POS: React.FC = () => {
   const [isCartExpanded, setIsCartExpanded] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [showInvoice, setShowInvoice] = useState(false);
+  const [showGenerateInvoiceModal, setShowGenerateInvoiceModal] = useState(false);
   const [showCloseModal, setShowCloseModal] = useState(false);
   const [, setIsLoading] = useState(false);
 
@@ -1058,6 +1060,16 @@ const POS: React.FC = () => {
         <InvoicePreview
           sale={completedSale}
           onClose={handleCloseInvoice}
+          onGenerateInvoice={() => setShowGenerateInvoiceModal(true)}
+        />
+      )}
+
+      {/* Generate Invoice Modal */}
+      {showGenerateInvoiceModal && completedSale && (
+        <GenerateInvoiceModal
+          initialSale={completedSale}
+          onClose={() => setShowGenerateInvoiceModal(false)}
+          onSuccess={handleCloseInvoice}
         />
       )}
 

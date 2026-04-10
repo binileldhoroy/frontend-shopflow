@@ -9,6 +9,7 @@ import { addNotification } from '@store/slices/uiSlice';
 import { fetchCurrentSession } from '@store/slices/sessionSlice';
 import { Search, ShoppingCart, Trash2, CreditCard, Banknote, Plus, Minus, Smartphone, Building2, Tag, BookOpenCheck, Lock, Flag, Wallet } from 'lucide-react';
 import InvoicePreview from '../../components/pos/InvoicePreview';
+import GenerateInvoiceModal from '../../components/invoices/GenerateInvoiceModal';
 import OpeningBalanceModal from '../../components/pos/OpeningBalanceModal';
 import CloseRegisterModal from '../../components/pos/CloseRegisterModal';
 
@@ -60,6 +61,7 @@ const QuickSale: React.FC = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [completedSale, setCompletedSale] = useState<any>(null);
   const [showInvoice, setShowInvoice] = useState(false);
+  const [showGenerateInvoiceModal, setShowGenerateInvoiceModal] = useState(false);
   const [showCloseModal, setShowCloseModal] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -988,9 +990,22 @@ const QuickSale: React.FC = () => {
       </div>
       )}
 
-      {/* Invisible Invoice for Printing (or Modal if preferred) */}
+      {/* Invoice Preview */}
       {showInvoice && completedSale && (
-        <InvoicePreview sale={completedSale} onClose={handleCloseInvoice} />
+        <InvoicePreview
+          sale={completedSale}
+          onClose={handleCloseInvoice}
+          onGenerateInvoice={() => setShowGenerateInvoiceModal(true)}
+        />
+      )}
+
+      {/* Generate Invoice Modal */}
+      {showGenerateInvoiceModal && completedSale && (
+        <GenerateInvoiceModal
+          initialSale={completedSale}
+          onClose={() => setShowGenerateInvoiceModal(false)}
+          onSuccess={handleCloseInvoice}
+        />
       )}
 
       {/* Session Management Modals */}
