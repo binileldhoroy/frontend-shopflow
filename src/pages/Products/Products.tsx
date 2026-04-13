@@ -482,7 +482,6 @@ const Products: React.FC = () => {
         onHide={() => setShowFormModal(false)}
         onSubmit={handleFormSubmit}
         product={selectedProduct}
-        categories={categories}
         loading={formLoading}
       />
 

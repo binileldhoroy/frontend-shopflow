@@ -1,16 +1,15 @@
 import React, { useState, useEffect, useRef } from 'react';
 import Modal from '../../common/Modal/Modal';
-import { Product, Category, ProductFormData } from '../../../types/product.types';
+import { Product, ProductFormData } from '../../../types/product.types';
 import ProductPriceTiers from './ProductPriceTiers';
 import { Tag, X } from 'lucide-react';
-import { categoryService } from '../../../api/services/category.service';
+import { categoryService, Category as ServiceCategory } from '../../../api/services/category.service';
 
 interface ProductFormModalProps {
   show: boolean;
   onHide: () => void;
   onSubmit: (data: ProductFormData) => void;
   product: Product | null;
-  categories: Category[];
   loading?: boolean;
 }
 
@@ -19,11 +18,10 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({
   onHide,
   onSubmit,
   product,
-  categories,
   loading = false,
 }) => {
   const [catInput, setCatInput] = useState('');
-  const [catOptions, setCatOptions] = useState<Category[]>([]);
+  const [catOptions, setCatOptions] = useState<ServiceCategory[]>([]);
   const [showCatDrop, setShowCatDrop] = useState(false);
   const catRef = useRef<HTMLDivElement>(null);
 
