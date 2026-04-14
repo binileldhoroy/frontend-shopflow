@@ -90,11 +90,30 @@ const Companies: React.FC = () => {
     } catch (error: any) {
       console.error('Company operation error:', error);
       console.error('Error response:', error.response);
-      const errorMessage = error.response?.data?.message
-        || error.response?.data?.error
-        || error.response?.data?.detail
-        || error.message
-        || 'Operation failed';
+
+      const data = error.response?.data;
+      let errorMessage = 'Operation failed';
+      if (data) {
+        if (typeof data === 'string') {
+          errorMessage = data;
+        } else if (data.message) {
+          errorMessage = data.message;
+        } else if (data.error) {
+          errorMessage = data.error;
+        } else if (data.detail) {
+          errorMessage = data.detail;
+        } else if (typeof data === 'object') {
+          // Django field-level validation errors: { field: ["msg", ...], ... }
+          const messages = Object.entries(data)
+            .map(([field, msgs]) => {
+              const label = field.replace(/_/g, ' ');
+              const text = Array.isArray(msgs) ? msgs.join(', ') : String(msgs);
+              return `${label.charAt(0).toUpperCase() + label.slice(1)}: ${text}`;
+            })
+            .join(' | ');
+          errorMessage = messages || 'Operation failed';
+        }
+      }
 
       dispatch(addNotification({
         message: errorMessage,

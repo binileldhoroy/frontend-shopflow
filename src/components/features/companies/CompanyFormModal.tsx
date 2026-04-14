@@ -291,48 +291,44 @@ const CompanyFormModal: React.FC<CompanyFormModalProps> = ({
           <h4 className="font-semibold text-gray-900 mb-3">Bank Details</h4>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="label">Bank Name *</label>
+              <label className="label">Bank Name</label>
               <input
                 type="text"
                 name="bank_name"
                 className="input-field"
                 value={formData.bank_name}
                 onChange={handleChange}
-                required
               />
             </div>
             <div>
-              <label className="label">Branch *</label>
+              <label className="label">Branch</label>
               <input
                 type="text"
                 name="branch"
                 className="input-field"
                 value={formData.branch}
                 onChange={handleChange}
-                required
               />
             </div>
             <div>
-              <label className="label">IFSC Code *</label>
+              <label className="label">IFSC Code</label>
               <input
                 type="text"
                 name="ifsc_code"
                 className="input-field"
                 value={formData.ifsc_code}
                 onChange={handleChange}
-                required
                 placeholder="e.g., SBIN0001234"
               />
             </div>
             <div>
-              <label className="label">Account Number *</label>
+              <label className="label">Account Number</label>
               <input
                 type="text"
                 name="account_number"
                 className="input-field"
                 value={formData.account_number}
                 onChange={handleChange}
-                required
               />
             </div>
           </div>
