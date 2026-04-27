@@ -24,6 +24,7 @@ import {
   Wallet,
   FileClock,
   Store,
+  MessageSquare,
 } from 'lucide-react';
 
 interface NavItem {
@@ -146,6 +147,17 @@ const navGroups: NavGroup[] = [
         icon: CreditCard,
         label: 'Payments',
         roles: [UserRole.SUPER_USER, UserRole.ADMIN, UserRole.MANAGER],
+      },
+    ],
+  },
+  {
+    label: 'AI',
+    items: [
+      {
+        path: '/chat',
+        icon: MessageSquare,
+        label: 'ShopBot',
+        roles: [UserRole.ADMIN, UserRole.MANAGER],
       },
     ],
   },

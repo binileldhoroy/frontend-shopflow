@@ -35,6 +35,7 @@ import InvoiceDetail from './pages/Invoices/InvoiceDetail';
 import Reports from './pages/Reports/Reports';
 import Users from './pages/Users/Users';
 import Settings from './pages/Settings/Settings';
+import Chat from './pages/Chat/Chat';
 
 // Routes
 import ProtectedRoute from './routes/ProtectedRoute';
@@ -306,6 +307,17 @@ function App() {
               <RoleBasedRoute allowedRoles={[UserRole.ADMIN]}>
                 <Layout>
                   <Settings />
+                </Layout>
+              </RoleBasedRoute>
+            }
+          />
+
+          <Route
+            path="/chat"
+            element={
+              <RoleBasedRoute allowedRoles={[UserRole.ADMIN, UserRole.MANAGER]}>
+                <Layout>
+                  <Chat />
                 </Layout>
               </RoleBasedRoute>
             }

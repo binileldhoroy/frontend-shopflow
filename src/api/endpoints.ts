@@ -116,4 +116,10 @@ export const API_ENDPOINTS = {
     RECEIPTS: '/api/documents/receipts/',
     RECEIPT_DETAIL: (id: number) => `/api/documents/receipts/${id}/`,
   },
+
+  // Chat (ShopBot)
+  CHAT: {
+    HISTORY: '/api/chat/history/',
+    HISTORY_DETAIL: (uuid: string) => `/api/chat/history/${uuid}/`,
+  },
 } as const;
