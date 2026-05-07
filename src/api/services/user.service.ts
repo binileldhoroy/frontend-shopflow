@@ -12,6 +12,7 @@ export interface UserCreateData {
   role: string;
   company?: number | null;
   phone?: string;
+  branch?: number | null;
 }
 
 export interface UserUpdateData {
@@ -22,6 +23,7 @@ export interface UserUpdateData {
   company?: number | null;
   phone?: string;
   is_active?: boolean;
+  branch?: number | null;
 }
 
 export const userService = {

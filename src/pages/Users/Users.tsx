@@ -1,16 +1,20 @@
 import React, { useState, useEffect } from 'react';
 import { useAppDispatch, useAppSelector } from '@hooks/useRedux';
 import { useAuth } from '@hooks/useAuth';
+import { useBranch } from '@hooks/useBranch';
 import { userService, UserCreateData } from '@api/services/user.service';
 import { User, UserRole } from '../../types/auth.types';
 import { addNotification } from '@store/slices/uiSlice';
-import { Users as UsersIcon, Plus, Trash2, Search, Mail, Phone, Shield } from 'lucide-react';
+import { Users as UsersIcon, Plus, Trash2, Search, Mail, Phone, Shield, GitBranch } from 'lucide-react';
 import Modal from '../../components/common/Modal/Modal';
 import DeleteConfirmModal from '../../components/common/DeleteConfirmModal/DeleteConfirmModal';
+
+const BRANCH_REQUIRED_ROLES = [UserRole.MANAGER, UserRole.CASHIER, UserRole.INVENTORY_STAFF];
 
 const Users: React.FC = () => {
   const dispatch = useAppDispatch();
   const { isSuperUser } = useAuth();
+  const { branches, branchesEnabled } = useBranch();
   const companyFeatures = useAppSelector((state) => state.company.currentCompany?.features);
   const maxUsers = companyFeatures?.max_users ?? null;
   const [users, setUsers] = useState<User[]>([]);
@@ -33,6 +37,7 @@ const Users: React.FC = () => {
     role: UserRole.CASHIER,
     phone: '',
     password_confirm: '',
+    branch: null,
   });
   const [formLoading, setFormLoading] = useState(false);
 
@@ -74,18 +79,23 @@ const Users: React.FC = () => {
       role: UserRole.CASHIER,
       phone: '',
       password_confirm: '',
+      branch: null,
     });
     setFormLoading(false);
   };
+
+  const needsBranch = branchesEnabled && BRANCH_REQUIRED_ROLES.includes(formData.role as UserRole);
 
   const handleCreateUser = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (formData.password !== formData.password_confirm) {
-      dispatch(addNotification({
-        message: 'Passwords do not match',
-        type: 'error',
-      }));
+      dispatch(addNotification({ message: 'Passwords do not match', type: 'error' }));
+      return;
+    }
+
+    if (needsBranch && !formData.branch) {
+      dispatch(addNotification({ message: 'Please assign a branch for this role', type: 'error' }));
       return;
     }
 
@@ -264,6 +274,12 @@ const Users: React.FC = () => {
                   <Shield className="w-4 h-4" />
                   <span>{user.is_active ? 'Active' : 'Inactive'}</span>
                 </div>
+                {user.branch_name && (
+                  <div className="flex items-center gap-2 text-sm text-gray-600">
+                    <GitBranch className="w-4 h-4" />
+                    <span>{user.branch_name}</span>
+                  </div>
+                )}
               </div>
 
               <div className="flex justify-end pt-3 border-t border-gray-100">
@@ -366,6 +382,27 @@ const Users: React.FC = () => {
             </select>
             <p className="text-xs text-gray-500 mt-1">Super User role cannot be assigned.</p>
           </div>
+
+          {needsBranch && (
+            <div>
+              <label className="label">
+                <GitBranch className="w-3.5 h-3.5 inline mr-1" />
+                Branch <span className="text-danger-600">*</span>
+              </label>
+              <select
+                name="branch"
+                value={formData.branch ?? ''}
+                onChange={(e) => setFormData(prev => ({ ...prev, branch: e.target.value ? Number(e.target.value) : null }))}
+                className="input-field"
+                required
+              >
+                <option value="">Select a branch…</option>
+                {branches.filter(b => b.is_active).map(b => (
+                  <option key={b.id} value={b.id}>{b.name}</option>
+                ))}
+              </select>
+            </div>
+          )}
 
           <div className="grid grid-cols-2 gap-4">
             <div>

@@ -26,4 +26,9 @@ export const branchService = {
   deactivate: async (id: number): Promise<void> => {
     await axiosInstance.delete(API_ENDPOINTS.BRANCHES.DETAIL(id));
   },
+
+  activate: async (id: number): Promise<Branch> => {
+    const response = await axiosInstance.patch(API_ENDPOINTS.BRANCHES.DETAIL(id), { is_active: true });
+    return response.data;
+  },
 };

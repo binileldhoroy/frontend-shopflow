@@ -83,6 +83,19 @@ const Branches: React.FC = () => {
     }
   };
 
+  const handleActivate = async (branch: Branch) => {
+    if (!canCreate && !branch.is_active) {
+      alert(`Branch limit (${maxBranches}) reached. Deactivate another branch first.`);
+      return;
+    }
+    try {
+      const updated = await branchService.activate(branch.id);
+      dispatch(updateBranchInList(updated));
+    } catch {
+      alert('Failed to activate branch.');
+    }
+  };
+
   const activeBranches = branches.filter((b) => b.is_active);
   const canCreate = activeBranches.length < maxBranches;
 
@@ -256,22 +269,34 @@ const Branches: React.FC = () => {
                     </span>
                   </div>
                 </div>
-                {branch.is_active && (
-                  <div className="flex gap-1">
+                <div className="flex gap-1">
+                  {branch.is_active ? (
+                    <>
+                      <button
+                        onClick={() => openEdit(branch)}
+                        className="w-7 h-7 flex items-center justify-center rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors"
+                        title="Edit branch"
+                      >
+                        <Pencil className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        onClick={() => handleDeactivate(branch)}
+                        className="w-7 h-7 flex items-center justify-center rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors"
+                        title="Deactivate branch"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </>
+                  ) : (
                     <button
-                      onClick={() => openEdit(branch)}
-                      className="w-7 h-7 flex items-center justify-center rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors"
+                      onClick={() => handleActivate(branch)}
+                      className="w-7 h-7 flex items-center justify-center rounded-lg text-gray-400 hover:text-green-600 hover:bg-green-50 transition-colors"
+                      title="Activate branch"
                     >
-                      <Pencil className="w-3.5 h-3.5" />
+                      <Check className="w-3.5 h-3.5" />
                     </button>
-                    <button
-                      onClick={() => handleDeactivate(branch)}
-                      className="w-7 h-7 flex items-center justify-center rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors"
-                    >
-                      <X className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                )}
+                  )}
+                </div>
               </div>
 
               <div className="space-y-1.5 text-sm text-gray-500">
