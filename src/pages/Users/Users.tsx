@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { useAppDispatch } from '@hooks/useRedux';
+import { useAppDispatch, useAppSelector } from '@hooks/useRedux';
+import { useAuth } from '@hooks/useAuth';
 import { userService, UserCreateData } from '@api/services/user.service';
 import { User, UserRole } from '../../types/auth.types';
 import { addNotification } from '@store/slices/uiSlice';
@@ -9,6 +10,9 @@ import DeleteConfirmModal from '../../components/common/DeleteConfirmModal/Delet
 
 const Users: React.FC = () => {
   const dispatch = useAppDispatch();
+  const { isSuperUser } = useAuth();
+  const companyFeatures = useAppSelector((state) => state.company.currentCompany?.features);
+  const maxUsers = companyFeatures?.max_users ?? null;
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -168,10 +172,28 @@ const Users: React.FC = () => {
             <p>Manage system users and access roles</p>
           </div>
         </div>
-        <button onClick={() => setShowAddModal(true)} className="btn btn-primary self-start">
-          <Plus className="w-4 h-4 inline mr-1.5" />
-          Add User
-        </button>
+        <div className="flex items-center gap-3 self-start">
+          {!isSuperUser && maxUsers !== null && (
+            <span className={`text-sm font-medium px-3 py-1.5 rounded-full border ${
+              users.filter(u => u.is_active).length >= maxUsers
+                ? 'bg-red-50 border-red-200 text-red-600'
+                : 'bg-green-50 border-green-200 text-green-600'
+            }`}>
+              {users.filter(u => u.is_active).length} / {maxUsers} users
+            </span>
+          )}
+          <button
+            onClick={() => setShowAddModal(true)}
+            className="btn btn-primary"
+            disabled={!isSuperUser && maxUsers !== null && users.filter(u => u.is_active).length >= maxUsers}
+            title={!isSuperUser && maxUsers !== null && users.filter(u => u.is_active).length >= maxUsers
+              ? `User limit reached (${maxUsers})`
+              : undefined}
+          >
+            <Plus className="w-4 h-4 inline mr-1.5" />
+            Add User
+          </button>
+        </div>
       </div>
 
       {/* Search */}

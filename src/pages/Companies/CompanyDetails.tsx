@@ -3,7 +3,7 @@ import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { companyService } from '../../api/services/company.service';
 import { Company } from '../../types/company.types';
-import { Edit, ArrowLeft, Building2, User, Phone, Mail, Globe, MapPin, Landmark, FileText, Activity } from 'lucide-react';
+import { Edit, ArrowLeft, Building2, User, Phone, Mail, Globe, MapPin, Landmark, FileText, Activity, ToggleLeft, ToggleRight } from 'lucide-react';
 import CompanyFormModal from '../../components/features/companies/CompanyFormModal';
 import { useDispatch } from 'react-redux';
 import { addNotification } from '../../store/slices/uiSlice';
@@ -259,6 +259,49 @@ const CompanyDetails: React.FC = () => {
            </div>
         </div>
       </div>
+
+      {/* Features Card */}
+      {company.features && (
+        <div className="bg-white rounded-xl border shadow-sm p-6">
+          <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+            <ToggleRight className="w-5 h-5 text-gray-500" />
+            Enabled Features
+          </h2>
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+            {[
+              { key: 'sales_enabled', label: 'Sales Suite' },
+              { key: 'inventory_enabled', label: 'Inventory Suite' },
+              { key: 'purchases_enabled', label: 'Purchases Suite' },
+              { key: 'finance_enabled', label: 'Finance Suite' },
+              { key: 'advance_invoice_enabled', label: 'Advance Invoices' },
+              { key: 'shopbot_enabled', label: 'ShopBot' },
+              { key: 'reports_enabled', label: 'Reports' },
+            ].map(({ key, label }) => {
+              const enabled = company.features![key as keyof typeof company.features] as boolean;
+              return (
+                <div
+                  key={key}
+                  className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-sm font-medium ${
+                    enabled
+                      ? 'bg-green-50 border-green-200 text-green-700'
+                      : 'bg-gray-50 border-gray-200 text-gray-400'
+                  }`}
+                >
+                  {enabled
+                    ? <ToggleRight className="w-4 h-4 flex-shrink-0" />
+                    : <ToggleLeft className="w-4 h-4 flex-shrink-0" />
+                  }
+                  {label}
+                </div>
+              );
+            })}
+            <div className="flex items-center gap-2 px-3 py-2 rounded-lg border bg-blue-50 border-blue-200 text-blue-700 text-sm font-medium">
+              <User className="w-4 h-4 flex-shrink-0" />
+              Max {company.features.max_users} user{company.features.max_users !== 1 ? 's' : ''}
+            </div>
+          </div>
+        </div>
+      )}
 
       <CompanyFormModal
         show={showEditModal}

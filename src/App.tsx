@@ -91,7 +91,7 @@ function App() {
           <Route
             path="/pos"
             element={
-              <RoleBasedRoute allowedRoles={[UserRole.ADMIN, UserRole.MANAGER, UserRole.CASHIER]}>
+              <RoleBasedRoute allowedRoles={[UserRole.ADMIN, UserRole.MANAGER, UserRole.CASHIER]} requiredFeature="sales_enabled">
                 <Layout>
                   <POS />
                 </Layout>
@@ -102,7 +102,7 @@ function App() {
           <Route
             path="/quick-sale"
             element={
-              <RoleBasedRoute allowedRoles={[UserRole.ADMIN, UserRole.MANAGER, UserRole.CASHIER]}>
+              <RoleBasedRoute allowedRoles={[UserRole.ADMIN, UserRole.MANAGER, UserRole.CASHIER]} requiredFeature="sales_enabled">
                 <Layout>
                   <QuickSale />
                 </Layout>
@@ -114,7 +114,7 @@ function App() {
           <Route
             path="/products"
             element={
-              <RoleBasedRoute allowedRoles={[UserRole.ADMIN, UserRole.MANAGER, UserRole.INVENTORY_STAFF]}>
+              <RoleBasedRoute allowedRoles={[UserRole.ADMIN, UserRole.MANAGER, UserRole.INVENTORY_STAFF]} requiredFeature="inventory_enabled">
                 <Layout>
                   <Products />
                 </Layout>
@@ -125,7 +125,7 @@ function App() {
           <Route
             path="/categories"
             element={
-              <RoleBasedRoute allowedRoles={[UserRole.ADMIN, UserRole.MANAGER, UserRole.INVENTORY_STAFF]}>
+              <RoleBasedRoute allowedRoles={[UserRole.ADMIN, UserRole.MANAGER, UserRole.INVENTORY_STAFF]} requiredFeature="inventory_enabled">
                 <Layout>
                   <Categories />
                 </Layout>
@@ -136,7 +136,7 @@ function App() {
           <Route
             path="/inventory"
             element={
-              <RoleBasedRoute allowedRoles={[UserRole.ADMIN, UserRole.MANAGER, UserRole.INVENTORY_STAFF]}>
+              <RoleBasedRoute allowedRoles={[UserRole.ADMIN, UserRole.MANAGER, UserRole.INVENTORY_STAFF]} requiredFeature="inventory_enabled">
                 <Layout>
                   <Inventory />
                 </Layout>
@@ -148,7 +148,7 @@ function App() {
           <Route
             path="/sales"
             element={
-              <RoleBasedRoute allowedRoles={[UserRole.ADMIN, UserRole.MANAGER, UserRole.CASHIER]}>
+              <RoleBasedRoute allowedRoles={[UserRole.ADMIN, UserRole.MANAGER, UserRole.CASHIER]} requiredFeature="sales_enabled">
                 <Layout>
                   <Sales />
                 </Layout>
@@ -159,7 +159,7 @@ function App() {
           <Route
             path="/advance-invoices"
             element={
-              <RoleBasedRoute allowedRoles={[UserRole.ADMIN, UserRole.MANAGER, UserRole.CASHIER]}>
+              <RoleBasedRoute allowedRoles={[UserRole.ADMIN, UserRole.MANAGER, UserRole.CASHIER]} requiredFeature="advance_invoice_enabled">
                 <Layout>
                   <AdvanceInvoices />
                 </Layout>
@@ -170,7 +170,7 @@ function App() {
           <Route
             path="/advance-invoices/create"
             element={
-              <RoleBasedRoute allowedRoles={[UserRole.ADMIN, UserRole.MANAGER, UserRole.CASHIER]}>
+              <RoleBasedRoute allowedRoles={[UserRole.ADMIN, UserRole.MANAGER, UserRole.CASHIER]} requiredFeature="advance_invoice_enabled">
                 <Layout>
                   <AdvanceInvoiceCreate />
                 </Layout>
@@ -181,7 +181,7 @@ function App() {
           <Route
             path="/advance-invoices/:id"
             element={
-              <RoleBasedRoute allowedRoles={[UserRole.ADMIN, UserRole.MANAGER, UserRole.CASHIER]}>
+              <RoleBasedRoute allowedRoles={[UserRole.ADMIN, UserRole.MANAGER, UserRole.CASHIER]} requiredFeature="advance_invoice_enabled">
                 <Layout>
                   <AdvanceInvoiceDetail />
                 </Layout>
@@ -192,7 +192,7 @@ function App() {
           <Route
             path="/register-sessions"
             element={
-              <RoleBasedRoute allowedRoles={[UserRole.ADMIN, UserRole.MANAGER]}>
+              <RoleBasedRoute allowedRoles={[UserRole.ADMIN, UserRole.MANAGER]} requiredFeature="sales_enabled">
                 <Layout>
                   <RegisterSessions />
                 </Layout>
@@ -225,7 +225,7 @@ function App() {
           <Route
             path="/invoices"
             element={
-              <RoleBasedRoute allowedRoles={[UserRole.ADMIN, UserRole.MANAGER]}>
+              <RoleBasedRoute allowedRoles={[UserRole.ADMIN, UserRole.MANAGER]} requiredFeature="finance_enabled">
                 <Layout>
                   <Invoices />
                 </Layout>
@@ -236,7 +236,7 @@ function App() {
           <Route
             path="/invoices/:id"
             element={
-              <RoleBasedRoute allowedRoles={[UserRole.ADMIN, UserRole.MANAGER]}>
+              <RoleBasedRoute allowedRoles={[UserRole.ADMIN, UserRole.MANAGER]} requiredFeature="finance_enabled">
                 <Layout>
                   <InvoiceDetail />
                 </Layout>
@@ -248,7 +248,7 @@ function App() {
           <Route
             path="/purchases"
             element={
-              <RoleBasedRoute allowedRoles={[UserRole.ADMIN, UserRole.MANAGER, UserRole.INVENTORY_STAFF]}>
+              <RoleBasedRoute allowedRoles={[UserRole.ADMIN, UserRole.MANAGER, UserRole.INVENTORY_STAFF]} requiredFeature="purchases_enabled">
                 <Layout>
                   <Purchases />
                 </Layout>
@@ -259,7 +259,7 @@ function App() {
           <Route
             path="/suppliers"
             element={
-              <RoleBasedRoute allowedRoles={[UserRole.ADMIN, UserRole.MANAGER, UserRole.INVENTORY_STAFF]}>
+              <RoleBasedRoute allowedRoles={[UserRole.ADMIN, UserRole.MANAGER, UserRole.INVENTORY_STAFF]} requiredFeature="purchases_enabled">
                 <Layout>
                   <Suppliers />
                 </Layout>
@@ -271,7 +271,7 @@ function App() {
           <Route
             path="/payments"
             element={
-              <RoleBasedRoute allowedRoles={[UserRole.ADMIN, UserRole.MANAGER]}>
+              <RoleBasedRoute allowedRoles={[UserRole.ADMIN, UserRole.MANAGER]} requiredFeature="finance_enabled">
                 <Layout>
                   <Payments />
                 </Layout>
@@ -282,7 +282,7 @@ function App() {
           <Route
             path="/reports"
             element={
-              <RoleBasedRoute allowedRoles={[UserRole.ADMIN, UserRole.MANAGER]}>
+              <RoleBasedRoute allowedRoles={[UserRole.ADMIN, UserRole.MANAGER]} requiredFeature="reports_enabled">
                 <Layout>
                   <Reports />
                 </Layout>
@@ -315,7 +315,7 @@ function App() {
           <Route
             path="/chat"
             element={
-              <RoleBasedRoute allowedRoles={[UserRole.ADMIN, UserRole.MANAGER]}>
+              <RoleBasedRoute allowedRoles={[UserRole.ADMIN, UserRole.MANAGER]} requiredFeature="shopbot_enabled">
                 <Layout>
                   <Chat />
                 </Layout>

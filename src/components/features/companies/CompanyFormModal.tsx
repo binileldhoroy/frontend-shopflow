@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import Modal from '../../common/Modal/Modal';
-import { Company } from '../../../types/company.types';
+import { Company, CompanyFeatures } from '../../../types/company.types';
 import { StateMaster } from '../../../types/state.types';
 import { stateService } from '../../../api/services/state.service';
+import { useAuth } from '../../../hooks/useAuth';
 
 interface CompanyFormModalProps {
   show: boolean;
@@ -12,6 +13,27 @@ interface CompanyFormModalProps {
   loading?: boolean;
 }
 
+const DEFAULT_FEATURES: CompanyFeatures = {
+  sales_enabled: true,
+  inventory_enabled: true,
+  purchases_enabled: true,
+  finance_enabled: true,
+  advance_invoice_enabled: true,
+  shopbot_enabled: true,
+  reports_enabled: true,
+  max_users: 1,
+};
+
+const FEATURE_LABELS: { key: keyof Omit<CompanyFeatures, 'max_users'>; label: string; description: string }[] = [
+  { key: 'sales_enabled', label: 'Sales Suite', description: 'POS, Quick Sale, Sales, Daily Balances' },
+  { key: 'inventory_enabled', label: 'Inventory Suite', description: 'Products, Categories, Inventory' },
+  { key: 'purchases_enabled', label: 'Purchases Suite', description: 'Purchases, Suppliers' },
+  { key: 'finance_enabled', label: 'Finance Suite', description: 'Invoices, Payments' },
+  { key: 'advance_invoice_enabled', label: 'Advance Invoices', description: 'Advance invoice management' },
+  { key: 'shopbot_enabled', label: 'ShopBot', description: 'AI chat assistant' },
+  { key: 'reports_enabled', label: 'Reports', description: 'Sales and inventory reports' },
+];
+
 const CompanyFormModal: React.FC<CompanyFormModalProps> = ({
   show,
   onHide,
@@ -19,6 +41,9 @@ const CompanyFormModal: React.FC<CompanyFormModalProps> = ({
   company,
   loading = false,
 }) => {
+  const { isSuperUser } = useAuth();
+  const [features, setFeatures] = useState<CompanyFeatures>(DEFAULT_FEATURES);
+  const [maxUsersInput, setMaxUsersInput] = useState(String(DEFAULT_FEATURES.max_users));
   const [formData, setFormData] = useState({
     company_name: '',
     email: '',
@@ -77,6 +102,9 @@ const CompanyFormModal: React.FC<CompanyFormModalProps> = ({
         password: '', // Empty password for edit mode (only if changing)
         is_active: company.is_active ?? true,
       });
+      const f = company.features ? { ...DEFAULT_FEATURES, ...company.features } : DEFAULT_FEATURES;
+      setFeatures(f);
+      setMaxUsersInput(String(f.max_users));
     } else {
       setFormData({
         company_name: '',
@@ -98,6 +126,8 @@ const CompanyFormModal: React.FC<CompanyFormModalProps> = ({
         password: '',
         is_active: true,
       });
+      setFeatures(DEFAULT_FEATURES);
+      setMaxUsersInput(String(DEFAULT_FEATURES.max_users));
     }
     setLogoFile(null);
   }, [company, show]);
@@ -135,10 +165,9 @@ const CompanyFormModal: React.FC<CompanyFormModalProps> = ({
       data.append('logo', logoFile, logoFile.name);
     }
 
-    // Debug: Log what we're sending
-    console.log('Form data being sent:');
-    for (let [key, value] of data.entries()) {
-      console.log(`${key}:`, value);
+    // Append features as nested JSON (super admin only)
+    if (isSuperUser) {
+      data.append('features', JSON.stringify(features));
     }
 
     onSubmit(data);
@@ -427,6 +456,56 @@ const CompanyFormModal: React.FC<CompanyFormModalProps> = ({
             Active
           </label>
         </div>
+
+        {/* Features Section — super admin only */}
+        {isSuperUser && (
+          <div className="border-t pt-4 mt-4">
+            <h4 className="font-semibold text-gray-900 mb-1">Features</h4>
+            <p className="text-xs text-gray-500 mb-3">Enable or disable feature groups for this company.</p>
+            <div className="space-y-2">
+              {FEATURE_LABELS.map(({ key, label, description }) => (
+                <label key={key} className="flex items-center justify-between p-3 rounded-lg border border-gray-200 hover:bg-gray-50 cursor-pointer">
+                  <div>
+                    <span className="text-sm font-medium text-gray-800">{label}</span>
+                    <span className="block text-xs text-gray-400">{description}</span>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={features[key] as boolean}
+                    onChange={(e) => setFeatures(prev => ({ ...prev, [key]: e.target.checked }))}
+                    className="w-4 h-4 text-primary-600 rounded"
+                  />
+                </label>
+              ))}
+              <div className="flex items-center justify-between p-3 rounded-lg border border-gray-200">
+                <div>
+                  <span className="text-sm font-medium text-gray-800">Max Users</span>
+                  <span className="block text-xs text-gray-400">Total users allowed (including admin)</span>
+                </div>
+                <input
+                  type="number"
+                  min={1}
+                  value={maxUsersInput}
+                  onChange={(e) => {
+                    setMaxUsersInput(e.target.value);
+                    const val = parseInt(e.target.value, 10);
+                    if (!isNaN(val) && val >= 1) {
+                      setFeatures(prev => ({ ...prev, max_users: val }));
+                    }
+                  }}
+                  onBlur={() => {
+                    const val = parseInt(maxUsersInput, 10);
+                    const clamped = isNaN(val) || val < 1 ? 1 : val;
+                    setMaxUsersInput(String(clamped));
+                    setFeatures(prev => ({ ...prev, max_users: clamped }));
+                  }}
+                  onWheel={(e) => (e.target as HTMLInputElement).blur()}
+                  className="input-field w-20 text-center"
+                />
+              </div>
+            </div>
+          </div>
+        )}
       </form>
     </Modal>
   );

@@ -1,15 +1,19 @@
 import React from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '@hooks/useAuth';
+import { useCompanyFeatures } from '@hooks/useCompanyFeatures';
 import { UserRole } from '../types/auth.types';
+import { CompanyFeatures } from '../types/company.types';
 
 interface RoleBasedRouteProps {
   children: React.ReactNode;
   allowedRoles: UserRole[];
+  requiredFeature?: keyof Omit<CompanyFeatures, 'max_users'>;
 }
 
-const RoleBasedRoute: React.FC<RoleBasedRouteProps> = ({ children, allowedRoles }) => {
+const RoleBasedRoute: React.FC<RoleBasedRouteProps> = ({ children, allowedRoles, requiredFeature }) => {
   const { isAuthenticated, user, loading } = useAuth();
+  const { isFeatureEnabled } = useCompanyFeatures();
 
   if (loading) {
     return (
@@ -24,6 +28,10 @@ const RoleBasedRoute: React.FC<RoleBasedRouteProps> = ({ children, allowedRoles 
   }
 
   if (!user || !allowedRoles.includes(user.role)) {
+    return <Navigate to="/dashboard" replace />;
+  }
+
+  if (requiredFeature && !isFeatureEnabled(requiredFeature)) {
     return <Navigate to="/dashboard" replace />;
   }
 

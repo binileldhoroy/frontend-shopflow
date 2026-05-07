@@ -2,8 +2,10 @@ import React from 'react';
 import { NavLink } from 'react-router-dom';
 import { useAppSelector, useAppDispatch } from '@hooks/useRedux';
 import { useAuth } from '@hooks/useAuth';
+import { useCompanyFeatures } from '@hooks/useCompanyFeatures';
 import { setSidebarOpen } from '@store/slices/uiSlice';
 import { UserRole } from '../../../types/auth.types';
+import { CompanyFeatures } from '../../../types/company.types';
 import {
   LayoutDashboard,
   Building2,
@@ -32,6 +34,7 @@ interface NavItem {
   icon: React.ElementType;
   label: string;
   roles: UserRole[];
+  feature?: keyof Omit<CompanyFeatures, 'max_users'>;
 }
 
 interface NavGroup {
@@ -65,30 +68,28 @@ const navGroups: NavGroup[] = [
         icon: Calculator,
         label: 'POS',
         roles: [UserRole.SUPER_USER, UserRole.ADMIN, UserRole.MANAGER, UserRole.CASHIER],
+        feature: 'sales_enabled',
       },
       {
         path: '/quick-sale',
         icon: Zap,
         label: 'Quick Sale',
         roles: [UserRole.SUPER_USER, UserRole.ADMIN, UserRole.MANAGER, UserRole.CASHIER],
+        feature: 'sales_enabled',
       },
       {
         path: '/sales',
         icon: ShoppingCart,
         label: 'Sales',
         roles: [UserRole.SUPER_USER, UserRole.ADMIN, UserRole.MANAGER, UserRole.CASHIER],
-      },
-      {
-        path: '/advance-invoices',
-        icon: FileClock,
-        label: 'Advance Invoices',
-        roles: [UserRole.SUPER_USER, UserRole.ADMIN, UserRole.MANAGER, UserRole.CASHIER],
+        feature: 'sales_enabled',
       },
       {
         path: '/register-sessions',
         icon: Wallet,
         label: 'Daily Balances',
         roles: [UserRole.SUPER_USER, UserRole.ADMIN, UserRole.MANAGER],
+        feature: 'sales_enabled',
       },
       {
         path: '/customers',
@@ -106,30 +107,40 @@ const navGroups: NavGroup[] = [
         icon: Package,
         label: 'Products',
         roles: [UserRole.SUPER_USER, UserRole.ADMIN, UserRole.MANAGER, UserRole.INVENTORY_STAFF],
+        feature: 'inventory_enabled',
       },
       {
         path: '/categories',
         icon: Tags,
         label: 'Categories',
         roles: [UserRole.SUPER_USER, UserRole.ADMIN, UserRole.MANAGER, UserRole.INVENTORY_STAFF],
+        feature: 'inventory_enabled',
       },
       {
         path: '/inventory',
         icon: Boxes,
         label: 'Inventory',
         roles: [UserRole.SUPER_USER, UserRole.ADMIN, UserRole.MANAGER, UserRole.INVENTORY_STAFF],
+        feature: 'inventory_enabled',
       },
+    ],
+  },
+  {
+    label: 'Purchases',
+    items: [
       {
         path: '/purchases',
         icon: ShoppingBag,
         label: 'Purchases',
         roles: [UserRole.SUPER_USER, UserRole.ADMIN, UserRole.MANAGER, UserRole.INVENTORY_STAFF],
+        feature: 'purchases_enabled',
       },
       {
         path: '/suppliers',
         icon: Truck,
         label: 'Suppliers',
         roles: [UserRole.SUPER_USER, UserRole.ADMIN, UserRole.MANAGER, UserRole.INVENTORY_STAFF],
+        feature: 'purchases_enabled',
       },
     ],
   },
@@ -141,12 +152,21 @@ const navGroups: NavGroup[] = [
         icon: FileText,
         label: 'Invoices',
         roles: [UserRole.SUPER_USER, UserRole.ADMIN, UserRole.MANAGER],
+        feature: 'finance_enabled',
       },
       {
         path: '/payments',
         icon: CreditCard,
         label: 'Payments',
         roles: [UserRole.SUPER_USER, UserRole.ADMIN, UserRole.MANAGER],
+        feature: 'finance_enabled',
+      },
+      {
+        path: '/advance-invoices',
+        icon: FileClock,
+        label: 'Advance Invoices',
+        roles: [UserRole.SUPER_USER, UserRole.ADMIN, UserRole.MANAGER, UserRole.CASHIER],
+        feature: 'advance_invoice_enabled',
       },
     ],
   },
@@ -158,6 +178,7 @@ const navGroups: NavGroup[] = [
         icon: MessageSquare,
         label: 'ShopBot',
         roles: [UserRole.ADMIN, UserRole.MANAGER],
+        feature: 'shopbot_enabled',
       },
     ],
   },
@@ -169,6 +190,7 @@ const navGroups: NavGroup[] = [
         icon: TrendingUp,
         label: 'Reports',
         roles: [UserRole.SUPER_USER, UserRole.ADMIN, UserRole.MANAGER],
+        feature: 'reports_enabled',
       },
       {
         path: '/users',
@@ -190,6 +212,7 @@ const Sidebar: React.FC = () => {
   const dispatch = useAppDispatch();
   const { sidebarOpen } = useAppSelector((state) => state.ui);
   const { hasRole } = useAuth();
+  const { isFeatureEnabled } = useCompanyFeatures();
 
   return (
     <>
@@ -230,9 +253,11 @@ const Sidebar: React.FC = () => {
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 py-3 px-2 space-y-0.5">
+        <nav className="flex-1 overflow-y-auto py-3 px-2 space-y-0.5">
           {navGroups.map((group) => {
-            const visibleItems = group.items.filter((item) => hasRole(item.roles));
+            const visibleItems = group.items.filter(
+              (item) => hasRole(item.roles) && (!item.feature || isFeatureEnabled(item.feature))
+            );
             if (!visibleItems.length) return null;
 
             return (

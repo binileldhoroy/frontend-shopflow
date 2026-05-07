@@ -1,3 +1,14 @@
+export interface CompanyFeatures {
+  sales_enabled: boolean;
+  inventory_enabled: boolean;
+  purchases_enabled: boolean;
+  finance_enabled: boolean;
+  advance_invoice_enabled: boolean;
+  shopbot_enabled: boolean;
+  reports_enabled: boolean;
+  max_users: number;
+}
+
 // Company interface
 export interface Company {
   id: number;
@@ -26,6 +37,7 @@ export interface Company {
   created_by: number;
   created_by_username?: string;
   admin_username?: string;
+  features?: CompanyFeatures;
 
   created_at: string;
   updated_at: string;
