@@ -7,12 +7,13 @@ import { priceTierService, PriceTier, ProductTierPrice } from '@api/services/pri
 import { categoryService, Category } from '@api/services/category.service';
 import { addNotification } from '@store/slices/uiSlice';
 import { fetchCurrentSession } from '@store/slices/sessionSlice';
-import { Search, Plus, Minus, Trash2, ShoppingCart, Package, Tag, Lock, Flag, Wallet, LayoutGrid, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Search, Plus, Minus, Trash2, ShoppingCart, Package, Tag, Lock, Flag, Wallet, LayoutGrid, ChevronLeft, ChevronRight, X } from 'lucide-react';
 import PaymentModal from '../../components/pos/PaymentModal';
 import InvoicePreview from '../../components/pos/InvoicePreview';
 import GenerateInvoiceModal from '../../components/invoices/GenerateInvoiceModal';
 import OpeningBalanceModal from '../../components/pos/OpeningBalanceModal';
 import CloseRegisterModal from '../../components/pos/CloseRegisterModal';
+import Modal from '../../components/common/Modal/Modal';
 
 interface CartItem {
   id: number;
@@ -36,6 +37,33 @@ interface CartState {
   discount_amount: number;
   discount_type: 'percentage' | 'amount';
 }
+
+interface CustomerSession {
+  id: string;
+  label: string;
+  cart: CartState;
+  currentCustomerObj: any | null;
+  guestName: string;
+  guestPhone: string;
+}
+
+const MAX_SESSIONS = 5;
+
+const createEmptySession = (index: number): CustomerSession => ({
+  id: Date.now().toString() + Math.random().toString(36).slice(2),
+  label: `Customer ${index}`,
+  cart: {
+    items: [],
+    customer_id: null,
+    billing_state: null,
+    discount_percentage: 0,
+    discount_amount: 0,
+    discount_type: 'amount',
+  },
+  currentCustomerObj: null,
+  guestName: '',
+  guestPhone: '',
+});
 
 const POS: React.FC = () => {
   const dispatch = useAppDispatch();
@@ -63,6 +91,7 @@ const POS: React.FC = () => {
 
   const [isCartExpanded, setIsCartExpanded] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [paymentSessionId, setPaymentSessionId] = useState<string | null>(null);
   const [showInvoice, setShowInvoice] = useState(false);
   const [showGenerateInvoiceModal, setShowGenerateInvoiceModal] = useState(false);
   const [showCloseModal, setShowCloseModal] = useState(false);
@@ -70,24 +99,70 @@ const POS: React.FC = () => {
 
   const { needsSessionSetup, currentSession, loading: sessionLoading } = useAppSelector((state) => state.session);
 
-  const [guestName, setGuestName] = useState('');
-  const [guestPhone, setGuestPhone] = useState('');
-  const [currentCustomerObj, setCurrentCustomerObj] = useState<any>(null);
+  // Multi-session state
+  const initialSession = createEmptySession(1);
+  const [sessions, setSessions] = useState<CustomerSession[]>([initialSession]);
+  const [activeSessionId, setActiveSessionId] = useState<string>(initialSession.id);
+
+  const [confirmClose, setConfirmClose] = useState<{ sessionId: string; label: string; itemCount: number } | null>(null);
+
+  const activeSession = sessions.find(s => s.id === activeSessionId) ?? sessions[0];
+  const cart = activeSession.cart;
+  const currentCustomerObj = activeSession.currentCustomerObj;
+  const guestName = activeSession.guestName;
+  const guestPhone = activeSession.guestPhone;
 
   const [completedSale, setCompletedSale] = useState<any>(null);
   const [isProcessing, setIsProcessing] = useState(false);
 
-  const [cart, setCart] = useState<CartState>({
-    items: [],
-    customer_id: null,
-    billing_state: null,
-    discount_percentage: 0,
-    discount_amount: 0,
-    discount_type: 'amount',
-  });
+  const updateActiveSession = useCallback(
+    (updater: (s: CustomerSession) => CustomerSession) => {
+      setSessions(prev => prev.map(s => s.id === activeSessionId ? updater(s) : s));
+    },
+    [activeSessionId]
+  );
+
+  const addSession = () => {
+    if (sessions.length >= MAX_SESSIONS) {
+      dispatch(addNotification({ message: `Maximum ${MAX_SESSIONS} sessions allowed`, type: 'error' }));
+      return;
+    }
+    const newSession = createEmptySession(sessions.length + 1);
+    setSessions(prev => [...prev, newSession]);
+    setActiveSessionId(newSession.id);
+  };
+
+  const doCloseSession = (sessionId: string) => {
+    setSessions(prev => {
+      const remaining = prev.filter(s => s.id !== sessionId);
+      if (remaining.length === 0) {
+        const fresh = createEmptySession(1);
+        setActiveSessionId(fresh.id);
+        return [fresh];
+      }
+      if (activeSessionId === sessionId) {
+        const idx = prev.findIndex(s => s.id === sessionId);
+        setActiveSessionId(remaining[Math.max(0, idx - 1)].id);
+      }
+      return remaining;
+    });
+    setConfirmClose(null);
+  };
+
+  const closeSession = (sessionId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const session = sessions.find(s => s.id === sessionId);
+    if (!session) return;
+    if (session.cart.items.length > 0) {
+      setConfirmClose({ sessionId, label: session.label, itemCount: session.cart.items.length });
+      return;
+    }
+    doCloseSession(sessionId);
+  };
 
   // Auto-select if phone matches exactly
   useEffect(() => {
+    const sessionId = activeSessionId;
     const searchCustomer = async () => {
       if (guestPhone && guestPhone.length === 10) {
         setIsLoading(true);
@@ -97,10 +172,14 @@ const POS: React.FC = () => {
           const exactMatch = results.find((c: any) => c.phone === guestPhone);
 
           if (exactMatch) {
-            setCart(prev => ({ ...prev, customer_id: exactMatch.id }));
-            setCurrentCustomerObj(exactMatch);
-            setGuestPhone('');
-            setGuestName('');
+            setSessions(prev => prev.map(s => s.id === sessionId ? {
+              ...s,
+              label: exactMatch.name,
+              cart: { ...s.cart, customer_id: exactMatch.id },
+              currentCustomerObj: exactMatch,
+              guestPhone: '',
+              guestName: '',
+            } : s));
           }
         } catch (error) {
           console.error('Error searching customer by phone:', error);
@@ -111,7 +190,7 @@ const POS: React.FC = () => {
     };
 
     searchCustomer();
-  }, [guestPhone]);
+  }, [guestPhone]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Fetch products (paginated, appending)
   const fetchProducts = useCallback(async (page: number, search: string, reset: boolean, category?: number | null) => {
@@ -252,39 +331,41 @@ const POS: React.FC = () => {
     return baseSellingPrice;
   };
 
-  // Recalculate cart when tier changes
+  // Recalculate all sessions' carts when tier changes (tier is register-level)
   useEffect(() => {
-    if (cart.items.length === 0) return;
+    setSessions(prev => prev.map(s => {
+      if (s.cart.items.length === 0) return s;
+      return {
+        ...s,
+        cart: {
+          ...s.cart,
+          items: s.cart.items.map(item => {
+            const product = products.find(p => p.id === item.product_id);
+            if (!product) return item;
 
-    setCart(prev => ({
-      ...prev,
-      items: prev.items.map(item => {
-        const product = products.find(p => p.id === item.product_id);
-        if (!product) return item;
+            const newSellingPrice = calculateEffectivePrice(product);
 
-        const newSellingPrice = calculateEffectivePrice(product);
+            let newBasePrice = newSellingPrice;
+            if (product.tax_included) {
+              const gstRate = parseFloat(product.gst_rate) || 0;
+              if (gstRate > 0 && gstRate < 100) {
+                newBasePrice = newSellingPrice / (1 + gstRate / 100);
+              }
+            }
 
-        // Calculate base price with proper GST handling
-        let newBasePrice = newSellingPrice;
-        if (product.tax_included) {
-          const gstRate = parseFloat(product.gst_rate) || 0;
-          if (gstRate > 0 && gstRate < 100) {
-            newBasePrice = newSellingPrice / (1 + gstRate / 100);
-          }
+            const roundedBasePrice = parseFloat(newBasePrice.toFixed(2));
+            const roundedSellingPrice = parseFloat(newSellingPrice.toFixed(2));
+
+            return {
+              ...item,
+              selling_price: roundedSellingPrice,
+              unit_price: roundedBasePrice
+            };
+          })
         }
-
-        // Round to 2 decimal places to prevent excessive precision
-        const roundedBasePrice = parseFloat(newBasePrice.toFixed(2));
-        const roundedSellingPrice = parseFloat(newSellingPrice.toFixed(2));
-
-        return {
-          ...item,
-          selling_price: roundedSellingPrice,
-          unit_price: roundedBasePrice
-        };
-      })
+      };
     }));
-  }, [selectedTierId, products, productRules]); // Dependent on these changes
+  }, [selectedTierId, products, productRules]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Credit Eligibility Check
   const currentCustomer = currentCustomerObj;
@@ -305,13 +386,16 @@ const POS: React.FC = () => {
         dispatch(addNotification({ message: `Only ${product.stock_quantity} units available`, type: 'error' }));
         return;
       }
-      setCart(prev => ({
-        ...prev,
-        items: prev.items.map(item =>
-          item.product_id === product.id
-            ? { ...item, quantity: item.quantity + 1 }
-            : item
-        ),
+      updateActiveSession(s => ({
+        ...s,
+        cart: {
+          ...s.cart,
+          items: s.cart.items.map(item =>
+            item.product_id === product.id
+              ? { ...item, quantity: item.quantity + 1 }
+              : item
+          ),
+        },
       }));
     } else {
       // Calculate base price with proper GST handling
@@ -341,9 +425,9 @@ const POS: React.FC = () => {
         stock_quantity: product.stock_quantity,
       };
 
-      setCart(prev => ({
-        ...prev,
-        items: [...prev.items, newItem],
+      updateActiveSession(s => ({
+        ...s,
+        cart: { ...s.cart, items: [...s.cart.items, newItem] },
       }));
     }
   };
@@ -356,18 +440,21 @@ const POS: React.FC = () => {
     }
     if (newQuantity < 1) return;
 
-    setCart(prev => ({
-      ...prev,
-      items: prev.items.map(item =>
-        item.id === itemId ? { ...item, quantity: newQuantity } : item
-      ),
+    updateActiveSession(s => ({
+      ...s,
+      cart: {
+        ...s.cart,
+        items: s.cart.items.map(item =>
+          item.id === itemId ? { ...item, quantity: newQuantity } : item
+        ),
+      },
     }));
   };
 
   const handleRemoveItem = (itemId: number) => {
-    setCart(prev => ({
-      ...prev,
-      items: prev.items.filter(item => item.id !== itemId),
+    updateActiveSession(s => ({
+      ...s,
+      cart: { ...s.cart, items: s.cart.items.filter(item => item.id !== itemId) },
     }));
   };
 
@@ -448,11 +535,19 @@ const POS: React.FC = () => {
       return;
     }
 
+    setPaymentSessionId(activeSessionId);
     setShowPaymentModal(true);
   };
 
   const handlePaymentSelect = async (paymentMethod: string) => {
-    if (guestPhone && guestPhone.length !== 10) {
+    const snap = sessions.find(s => s.id === paymentSessionId) ?? activeSession;
+    const snapCart = snap.cart;
+    const snapGuestPhone = snap.guestPhone;
+    const snapGuestName = snap.guestName;
+    const snapCustomerObj = snap.currentCustomerObj;
+    const snapSessionId = snap.id;
+
+    if (snapGuestPhone && snapGuestPhone.length !== 10) {
       dispatch(addNotification({ message: 'Phone number must be exactly 10 digits', type: 'error' }));
       return;
     }
@@ -461,20 +556,22 @@ const POS: React.FC = () => {
     setIsProcessing(true);
 
     try {
-      let customerId = cart.customer_id;
+      let customerId = snapCart.customer_id;
 
-      if (!customerId && (guestName || guestPhone)) {
-        if (currentCustomerObj && currentCustomerObj.phone === guestPhone) {
-          customerId = currentCustomerObj.id;
+      if (!customerId && (snapGuestName || snapGuestPhone)) {
+        if (snapCustomerObj && snapCustomerObj.phone === snapGuestPhone) {
+          customerId = snapCustomerObj.id;
         } else {
           const payload: any = {
-            name: guestName || 'Walk-in Customer',
+            name: snapGuestName || 'Walk-in Customer',
           };
-          if (guestPhone) payload.phone = guestPhone;
-          // Create customer in DB
+          if (snapGuestPhone) payload.phone = snapGuestPhone;
           const guest = await customerService.create(payload);
           customerId = guest.id;
-          setCurrentCustomerObj(guest);
+          setSessions(prev => prev.map(s => s.id === snapSessionId
+            ? { ...s, currentCustomerObj: guest }
+            : s
+          ));
         }
       }
 
@@ -483,11 +580,11 @@ const POS: React.FC = () => {
         customer: customerId,
         payment_method: paymentMethod,
         payment_status: 'paid',
-        billing_state: cart.billing_state,
-        place_of_supply: cart.billing_state,
-        discount_percentage: cart.discount_type === 'percentage' ? cart.discount_percentage : 0,
-        discount_amount: cart.discount_type === 'amount' ? cart.discount_amount : 0,
-        items: cart.items.map(item => {
+        billing_state: snapCart.billing_state,
+        place_of_supply: snapCart.billing_state,
+        discount_percentage: snapCart.discount_type === 'percentage' ? snapCart.discount_percentage : 0,
+        discount_amount: snapCart.discount_type === 'amount' ? snapCart.discount_amount : 0,
+        items: snapCart.items.map(item => {
           // Ensure unit_price is rounded to 2 decimal places
           const validUnitPrice = parseFloat(item.unit_price.toFixed(2));
           return {
@@ -503,7 +600,7 @@ const POS: React.FC = () => {
       const sale = await saleService.create(saleData);
 
       // Attach customer data for InvoicePreview
-      const printCustomer = currentCustomerObj || { name: guestName || 'Walk-in Customer', phone: guestPhone };
+      const printCustomer = snapCustomerObj || { name: snapGuestName || 'Walk-in Customer', phone: snapGuestPhone };
       sale.customer = printCustomer;
 
       dispatch(addNotification({ message: 'Sale completed successfully!', type: 'success' }));
@@ -520,17 +617,20 @@ const POS: React.FC = () => {
   const handleCloseInvoice = () => {
     setShowInvoice(false);
     setCompletedSale(null);
-    setCart({
-      items: [],
-      customer_id: null,
-      billing_state: null,
-      discount_percentage: 0,
-      discount_amount: 0,
-      discount_type: 'amount',
+    const closedId = paymentSessionId ?? activeSessionId;
+    setSessions(prev => {
+      const remaining = prev.filter(s => s.id !== closedId);
+      if (remaining.length === 0) {
+        const fresh = createEmptySession(1);
+        setActiveSessionId(fresh.id);
+        return [fresh];
+      }
+      if (activeSessionId === closedId) {
+        setActiveSessionId(remaining[remaining.length - 1].id);
+      }
+      return remaining;
     });
-    setGuestName('');
-    setGuestPhone('');
-    setCurrentCustomerObj(null);
+    setPaymentSessionId(null);
   };
 
   return (
@@ -801,6 +901,50 @@ const POS: React.FC = () => {
         </div>
       ) : (
       <div className={`${isCartExpanded ? 'w-[480px] lg:w-[560px]' : 'w-[280px] lg:w-[340px]'} shrink-0 flex flex-col h-full overflow-hidden space-y-3 py-2 pr-2 transition-all duration-300`}>
+
+        {/* Session Tab Strip */}
+        <div className="shrink-0 flex items-center gap-1 bg-white border border-gray-200 rounded-xl px-2 py-1.5 shadow-sm overflow-x-auto">
+          {sessions.map(session => {
+            const isActive = session.id === activeSessionId;
+            return (
+              <div
+                key={session.id}
+                onClick={() => setActiveSessionId(session.id)}
+                className={`group relative flex items-center gap-1.5 px-2.5 py-1 rounded-lg cursor-pointer
+                  text-xs font-semibold whitespace-nowrap select-none shrink-0 transition-all
+                  ${isActive ? 'bg-blue-600 text-white shadow-sm' : 'bg-gray-100 text-gray-500 hover:bg-gray-200 hover:text-gray-700'}`}
+              >
+                {session.cart.items.length > 0 && (
+                  <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${isActive ? 'bg-white/70' : 'bg-blue-400'}`} />
+                )}
+                <span className="max-w-[72px] truncate">{session.label}</span>
+                {sessions.length > 1 && (
+                  <button
+                    onClick={e => closeSession(session.id, e)}
+                    className={`ml-0.5 rounded p-0.5 transition-colors shrink-0
+                      ${isActive
+                        ? 'hover:bg-white/20 text-white/80 hover:text-white'
+                        : 'opacity-0 group-hover:opacity-100 hover:bg-gray-300 text-gray-400'}`}
+                  >
+                    <X className="w-2.5 h-2.5" />
+                  </button>
+                )}
+              </div>
+            );
+          })}
+          {sessions.length < MAX_SESSIONS && (
+            <button
+              onClick={addSession}
+              title="New customer session"
+              className="shrink-0 w-7 h-7 flex items-center justify-center rounded-lg
+                bg-gray-100 hover:bg-blue-50 hover:text-blue-600 text-gray-400
+                border border-dashed border-gray-300 hover:border-blue-400 transition-all"
+            >
+              <Plus className="w-3.5 h-3.5" />
+            </button>
+          )}
+        </div>
+
         <div className="card shrink-0 shadow-sm p-3">
           <div className="flex justify-between items-center mb-2">
             <h3 className="text-sm font-semibold text-gray-700 flex items-center gap-1.5 border-l-2 border-blue-500 pl-2 -ml-3">
@@ -835,10 +979,11 @@ const POS: React.FC = () => {
                 )}
               </div>
               <button
-                onClick={() => {
-                   setCart(prev => ({ ...prev, customer_id: null }));
-                   setCurrentCustomerObj(null);
-                }}
+                onClick={() => updateActiveSession(s => ({
+                  ...s,
+                  cart: { ...s.cart, customer_id: null },
+                  currentCustomerObj: null,
+                }))}
                 className="text-red-500 hover:bg-red-50 p-1.5 rounded transition-colors"
                 title="Remove Customer"
               >
@@ -853,7 +998,7 @@ const POS: React.FC = () => {
                 value={guestPhone}
                 onChange={(e) => {
                   const val = e.target.value.replace(/\D/g, '').slice(0, 10);
-                  setGuestPhone(val);
+                  updateActiveSession(s => ({ ...s, guestPhone: val }));
                 }}
                 className="input-field py-1.5 px-2.5 text-xs flex-1 border-gray-200"
               />
@@ -861,7 +1006,7 @@ const POS: React.FC = () => {
                 type="text"
                 placeholder="Name (opt)"
                 value={guestName}
-                onChange={(e) => setGuestName(e.target.value)}
+                onChange={(e) => updateActiveSession(s => ({ ...s, guestName: e.target.value }))}
                 className="input-field py-1.5 px-2.5 text-xs flex-1 border-gray-200"
               />
             </div>
@@ -961,11 +1106,11 @@ const POS: React.FC = () => {
                 <div className="flex items-center gap-1">
                   <div className="flex bg-gray-100 rounded p-0.5 border border-gray-200">
                     <button
-                      onClick={() => setCart(prev => ({ ...prev, discount_type: 'percentage' }))}
+                      onClick={() => updateActiveSession(s => ({ ...s, cart: { ...s.cart, discount_type: 'percentage' } }))}
                       className={`px-1.5 py-0.5 text-[10px] font-semibold rounded transition-colors ${cart.discount_type === 'percentage' ? 'bg-white shadow-sm text-blue-700' : 'text-gray-400 hover:text-gray-600'}`}
                     >%</button>
                     <button
-                      onClick={() => setCart(prev => ({ ...prev, discount_type: 'amount' }))}
+                      onClick={() => updateActiveSession(s => ({ ...s, cart: { ...s.cart, discount_type: 'amount' } }))}
                       className={`px-1.5 py-0.5 text-[10px] font-semibold rounded transition-colors ${cart.discount_type === 'amount' ? 'bg-white shadow-sm text-blue-700' : 'text-gray-400 hover:text-gray-600'}`}
                     >₹</button>
                   </div>
@@ -976,9 +1121,9 @@ const POS: React.FC = () => {
                     onChange={(e) => {
                       const val = parseFloat(e.target.value) || 0;
                       if (cart.discount_type === 'percentage') {
-                        setCart(prev => ({ ...prev, discount_percentage: val > 100 ? 100 : val }));
+                        updateActiveSession(s => ({ ...s, cart: { ...s.cart, discount_percentage: val > 100 ? 100 : val } }));
                       } else {
-                        setCart(prev => ({ ...prev, discount_amount: val }));
+                        updateActiveSession(s => ({ ...s, cart: { ...s.cart, discount_amount: val } }));
                       }
                     }}
                     className="w-16 text-right px-1.5 py-1 border border-gray-200 rounded text-xs outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400 font-medium text-gray-700"
@@ -1080,6 +1225,45 @@ const POS: React.FC = () => {
           onClose={() => setShowGenerateInvoiceModal(false)}
           onSuccess={handleCloseInvoice}
         />
+      )}
+
+      {/* Confirm close session modal */}
+      {confirmClose && (
+        <Modal
+          show={true}
+          onHide={() => setConfirmClose(null)}
+          title="Close Session"
+          size="sm"
+          footer={
+            <>
+              <button
+                onClick={() => setConfirmClose(null)}
+                className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+              >
+                Keep Session
+              </button>
+              <button
+                onClick={() => doCloseSession(confirmClose.sessionId)}
+                className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors"
+              >
+                Discard & Close
+              </button>
+            </>
+          }
+        >
+          <div className="flex flex-col items-center text-center gap-3">
+            <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center">
+              <Trash2 className="w-6 h-6 text-red-600" />
+            </div>
+            <div>
+              <p className="text-gray-800 font-semibold">"{confirmClose.label}"</p>
+              <p className="text-gray-500 text-sm mt-1">
+                This session has {confirmClose.itemCount} item{confirmClose.itemCount !== 1 ? 's' : ''} in the cart.
+                Closing it will discard all items.
+              </p>
+            </div>
+          </div>
+        </Modal>
       )}
 
       {/* Session Management Modals */}

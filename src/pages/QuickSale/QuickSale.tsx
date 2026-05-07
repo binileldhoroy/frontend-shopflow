@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useAppDispatch, useAppSelector } from '@hooks/useRedux';
 import { useDebounce } from '@hooks/useDebounce';
 import { productService } from '@api/services/product.service';
@@ -7,11 +7,12 @@ import { customerService } from '@api/services/customer.service';
 import { priceTierService, PriceTier, ProductTierPrice } from '@api/services/priceTier.service';
 import { addNotification } from '@store/slices/uiSlice';
 import { fetchCurrentSession } from '@store/slices/sessionSlice';
-import { Search, ShoppingCart, Trash2, CreditCard, Banknote, Plus, Minus, Smartphone, Building2, Tag, BookOpenCheck, Lock, Flag, Wallet } from 'lucide-react';
+import { Search, ShoppingCart, Trash2, CreditCard, Banknote, Plus, Minus, Smartphone, Building2, Tag, BookOpenCheck, Lock, Flag, Wallet, X } from 'lucide-react';
 import InvoicePreview from '../../components/pos/InvoicePreview';
 import GenerateInvoiceModal from '../../components/invoices/GenerateInvoiceModal';
 import OpeningBalanceModal from '../../components/pos/OpeningBalanceModal';
 import CloseRegisterModal from '../../components/pos/CloseRegisterModal';
+import Modal from '../../components/common/Modal/Modal';
 
 interface CartItem {
   id: number;
@@ -37,6 +38,33 @@ interface CartState {
   discount_type: 'percentage' | 'amount';
 }
 
+interface CustomerSession {
+  id: string;
+  label: string;
+  cart: CartState;
+  currentCustomerObj: any | null;
+  guestName: string;
+  guestPhone: string;
+}
+
+const MAX_SESSIONS = 5;
+
+const createEmptySession = (index: number): CustomerSession => ({
+  id: Date.now().toString() + Math.random().toString(36).slice(2),
+  label: `Customer ${index}`,
+  cart: {
+    items: [],
+    customer_id: null,
+    billing_state: null,
+    discount_percentage: 0,
+    discount_amount: 0,
+    discount_type: 'amount',
+  },
+  currentCustomerObj: null,
+  guestName: '',
+  guestPhone: '',
+});
+
 const QuickSale: React.FC = () => {
   const dispatch = useAppDispatch();
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -49,15 +77,6 @@ const QuickSale: React.FC = () => {
   const [productRules, setProductRules] = useState<ProductTierPrice[]>([]);
   const [selectedTierId, setSelectedTierId] = useState<number | null>(null);
 
-  const [cart, setCart] = useState<CartState>({
-    items: [],
-    customer_id: null,
-    billing_state: null,
-    discount_percentage: 0,
-    discount_amount: 0,
-    discount_type: 'amount',
-  });
-
   const [isProcessing, setIsProcessing] = useState(false);
   const [completedSale, setCompletedSale] = useState<any>(null);
   const [showInvoice, setShowInvoice] = useState(false);
@@ -67,12 +86,67 @@ const QuickSale: React.FC = () => {
 
   const { needsSessionSetup, currentSession, loading: sessionLoading } = useAppSelector((state) => state.session);
 
-  const [guestName, setGuestName] = useState('');
-  const [guestPhone, setGuestPhone] = useState('');
-  const [currentCustomerObj, setCurrentCustomerObj] = useState<any>(null);
+  // Multi-session state
+  const initialSession = createEmptySession(1);
+  const [sessions, setSessions] = useState<CustomerSession[]>([initialSession]);
+  const [activeSessionId, setActiveSessionId] = useState<string>(initialSession.id);
+
+  const [confirmClose, setConfirmClose] = useState<{ sessionId: string; label: string; itemCount: number } | null>(null);
+
+  const activeSession = sessions.find(s => s.id === activeSessionId) ?? sessions[0];
+  const cart = activeSession.cart;
+  const currentCustomerObj = activeSession.currentCustomerObj;
+  const guestName = activeSession.guestName;
+  const guestPhone = activeSession.guestPhone;
+
+  const updateActiveSession = useCallback(
+    (updater: (s: CustomerSession) => CustomerSession) => {
+      setSessions(prev => prev.map(s => s.id === activeSessionId ? updater(s) : s));
+    },
+    [activeSessionId]
+  );
+
+  const addSession = () => {
+    if (sessions.length >= MAX_SESSIONS) {
+      dispatch(addNotification({ message: `Maximum ${MAX_SESSIONS} sessions allowed`, type: 'error' }));
+      return;
+    }
+    const newSession = createEmptySession(sessions.length + 1);
+    setSessions(prev => [...prev, newSession]);
+    setActiveSessionId(newSession.id);
+  };
+
+  const doCloseSession = (sessionId: string) => {
+    setSessions(prev => {
+      const remaining = prev.filter(s => s.id !== sessionId);
+      if (remaining.length === 0) {
+        const fresh = createEmptySession(1);
+        setActiveSessionId(fresh.id);
+        return [fresh];
+      }
+      if (activeSessionId === sessionId) {
+        const idx = prev.findIndex(s => s.id === sessionId);
+        setActiveSessionId(remaining[Math.max(0, idx - 1)].id);
+      }
+      return remaining;
+    });
+    setConfirmClose(null);
+  };
+
+  const closeSession = (sessionId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const session = sessions.find(s => s.id === sessionId);
+    if (!session) return;
+    if (session.cart.items.length > 0) {
+      setConfirmClose({ sessionId, label: session.label, itemCount: session.cart.items.length });
+      return;
+    }
+    doCloseSession(sessionId);
+  };
 
   // Auto-select if phone matches exactly
   useEffect(() => {
+    const sessionId = activeSessionId;
     const searchCustomer = async () => {
       if (guestPhone && guestPhone.length === 10) {
         setIsLoading(true);
@@ -82,13 +156,14 @@ const QuickSale: React.FC = () => {
           const exactMatch = results.find((c: any) => c.phone === guestPhone);
 
           if (exactMatch) {
-            setCart(prev => ({ ...prev, customer_id: exactMatch.id }));
-
-            // Set the active customer to state so we have their details without reloading all customers
-            setCurrentCustomerObj(exactMatch);
-
-            setGuestPhone('');
-            setGuestName('');
+            setSessions(prev => prev.map(s => s.id === sessionId ? {
+              ...s,
+              label: exactMatch.name,
+              cart: { ...s.cart, customer_id: exactMatch.id },
+              currentCustomerObj: exactMatch,
+              guestPhone: '',
+              guestName: '',
+            } : s));
           }
         } catch (error) {
           console.error('Error searching customer by phone:', error);
@@ -99,7 +174,7 @@ const QuickSale: React.FC = () => {
     };
 
     searchCustomer();
-  }, [guestPhone]);
+  }, [guestPhone]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Fetch Tiers & Rules on Mount
   useEffect(() => {
@@ -183,76 +258,58 @@ const QuickSale: React.FC = () => {
     return baseSellingPrice;
   };
 
-  // Recalculate cart when tier changes
+  // Recalculate all sessions' carts when tier changes (tier is register-level)
   useEffect(() => {
-    if (cart.items.length === 0) return;
+    setSessions(prev => prev.map(s => {
+      if (s.cart.items.length === 0) return s;
+      return {
+        ...s,
+        cart: {
+          ...s.cart,
+          items: s.cart.items.map(item => {
+            const baseSellingPrice = item.original_selling_price;
+            let newSellingPrice = baseSellingPrice;
 
-    setCart(prev => ({
-      ...prev,
-      items: prev.items.map(item => {
-        // Use stored original price as base
-        const baseSellingPrice = item.original_selling_price;
-
-        let newSellingPrice = baseSellingPrice;
-
-        if (selectedTierId) {
-            // 1. Check for specific product rule
-            const rule = productRules.find(r => r.product === item.product_id && r.tier === selectedTierId);
-            if (rule) {
-              if (rule.type === 'fixed') {
-                newSellingPrice = parseFloat(rule.value as any);
+            if (selectedTierId) {
+              const rule = productRules.find(r => r.product === item.product_id && r.tier === selectedTierId);
+              if (rule) {
+                if (rule.type === 'fixed') {
+                  newSellingPrice = parseFloat(rule.value as any);
+                } else {
+                  const percentage = parseFloat(rule.value as any);
+                  newSellingPrice = baseSellingPrice + (baseSellingPrice * (percentage / 100));
+                }
               } else {
-                // Percentage adjustments
-                const percentage = parseFloat(rule.value as any);
-                newSellingPrice = baseSellingPrice + (baseSellingPrice * (percentage / 100));
-              }
-            } else {
-                // 2. Check for tier default percentage
                 const tier = priceTiers.find(t => t.id === selectedTierId);
                 if (tier && tier.default_percentage) {
                   const percentage = parseFloat(tier.default_percentage as any);
                   newSellingPrice = baseSellingPrice + (baseSellingPrice * (percentage / 100));
                 }
+              }
             }
+
+            let newUnitPrice = newSellingPrice;
+            if (item.tax_included) {
+              const gstRate = item.gst_rate || 0;
+              if (gstRate > 0 && gstRate < 100) {
+                newUnitPrice = newSellingPrice / (1 + gstRate / 100);
+              } else {
+                console.warn(`Invalid GST rate for ${item.name}: ${gstRate}. Using selling price as unit price.`);
+                newUnitPrice = newSellingPrice;
+              }
+            }
+
+            if (isNaN(newUnitPrice) || !isFinite(newUnitPrice) || newUnitPrice > 9999999999.99 || newUnitPrice < 0) {
+              console.error(`Invalid unit_price calculated for ${item.name}:`, { newUnitPrice, newSellingPrice });
+              newUnitPrice = baseSellingPrice;
+            }
+
+            return { ...item, selling_price: newSellingPrice, unit_price: newUnitPrice };
+          })
         }
-
-        // Recalculate unit price (base price before tax) if tax is included
-        let newUnitPrice = newSellingPrice;
-
-        if (item.tax_included) {
-          // Ensure gst_rate is valid and positive
-          const gstRate = item.gst_rate || 0;
-          if (gstRate > 0 && gstRate < 100) {
-            const divisor = 1 + (gstRate / 100);
-            newUnitPrice = newSellingPrice / divisor;
-          } else {
-            // If GST rate is invalid, use selling price as unit price
-            console.warn(`Invalid GST rate for ${item.name}: ${gstRate}. Using selling price as unit price.`);
-            newUnitPrice = newSellingPrice;
-          }
-        }
-
-        // Validate the calculated unit price
-        if (isNaN(newUnitPrice) || !isFinite(newUnitPrice) || newUnitPrice > 9999999999.99 || newUnitPrice < 0) {
-          console.error(`Invalid unit_price calculated for ${item.name}:`, {
-            newUnitPrice,
-            newSellingPrice,
-            gst_rate: item.gst_rate,
-            tax_included: item.tax_included
-          });
-          // Fallback to original selling price
-          newUnitPrice = baseSellingPrice;
-        }
-
-        return {
-          ...item,
-          selling_price: newSellingPrice,
-          unit_price: newUnitPrice
-        };
-      })
+      };
     }));
   }, [selectedTierId, productRules, priceTiers]);
-
 
   const handleAddToCart = (product: any) => {
     const existingItem = cart.items.find(item => item.product_id === product.id);
@@ -263,14 +320,16 @@ const QuickSale: React.FC = () => {
         dispatch(addNotification({ message: `Only ${product.stock_quantity} available`, type: 'error' }));
         return;
       }
-      // Update price if tier changed (handled by effect usually, but here immediate)
-       setCart(prev => ({
-        ...prev,
-        items: prev.items.map(item =>
-          item.product_id === product.id
-          ? { ...item, quantity: item.quantity + 1, selling_price: effectivePrice }
-          : item
-        )
+      updateActiveSession(s => ({
+        ...s,
+        cart: {
+          ...s.cart,
+          items: s.cart.items.map(item =>
+            item.product_id === product.id
+            ? { ...item, quantity: item.quantity + 1, selling_price: effectivePrice }
+            : item
+          )
+        }
       }));
     } else {
       // Calculate base price (unit_price before tax)
@@ -320,10 +379,8 @@ const QuickSale: React.FC = () => {
         stock_quantity: product.stock_quantity,
         original_selling_price: parseFloat(product.selling_price),
       };
-      setCart(prev => ({ ...prev, items: [...prev.items, newItem] }));
+      updateActiveSession(s => ({ ...s, cart: { ...s.cart, items: [...s.cart.items, newItem] } }));
     }
-    // Optional: Clear search after selection to be ready for next scan?
-    // User might want to search again.
     setSearchTerm('');
     if(searchInputRef.current) searchInputRef.current.focus();
   };
@@ -360,24 +417,24 @@ const QuickSale: React.FC = () => {
   };
 
   const removeItem = (id: number) => {
-    setCart(prev => ({ ...prev, items: prev.items.filter(i => i.id !== id) }));
+    updateActiveSession(s => ({ ...s, cart: { ...s.cart, items: s.cart.items.filter(i => i.id !== id) } }));
   };
 
   const updateQuantity = (id: number, delta: number) => {
-    setCart(prev => ({
-      ...prev,
-      items: prev.items.map(item => {
-        if (item.id === id) {
-          const newQty = item.quantity + delta;
-          if (newQty < 1) return item;
-          if (item.stock_quantity && newQty > item.stock_quantity) {
-             // dispatch(addNotification(...)); // Optional: notify
-             return item;
+    updateActiveSession(s => ({
+      ...s,
+      cart: {
+        ...s.cart,
+        items: s.cart.items.map(item => {
+          if (item.id === id) {
+            const newQty = item.quantity + delta;
+            if (newQty < 1) return item;
+            if (item.stock_quantity && newQty > item.stock_quantity) return item;
+            return { ...item, quantity: newQty };
           }
-          return { ...item, quantity: newQty };
-        }
-        return item;
-      })
+          return item;
+        })
+      }
     }));
   };
 
@@ -454,7 +511,7 @@ const QuickSale: React.FC = () => {
   const canAffordCredit = availableCredit >= totals.grandTotal;
   const hasWalletBalance = walletBalance > 0;
 
-  // Payment
+  // Payment — snapshot active session before first await to avoid stale closure
   const processPayment = async (method: string) => {
     if (cart.items.length === 0) return;
 
@@ -463,43 +520,48 @@ const QuickSale: React.FC = () => {
       return;
     }
 
+    const sessionId = activeSessionId;
+    const snap = sessions.find(s => s.id === sessionId) ?? activeSession;
+    const snapCart = snap.cart;
+    const snapGuestPhone = snap.guestPhone;
+    const snapGuestName = snap.guestName;
+    const snapCustomerObj = snap.currentCustomerObj;
+
     setIsProcessing(true);
 
     try {
       // Setup customer
-      let customerId = cart.customer_id;
+      let customerId = snapCart.customer_id;
 
-      if (!customerId && (guestName || guestPhone)) {
-        // If there's an exact phone match in the current retrieved obj, use that instead of creating
-        if (currentCustomerObj && currentCustomerObj.phone === guestPhone) {
-          customerId = currentCustomerObj.id;
+      if (!customerId && (snapGuestName || snapGuestPhone)) {
+        if (snapCustomerObj && snapCustomerObj.phone === snapGuestPhone) {
+          customerId = snapCustomerObj.id;
         } else {
           const payload: any = {
-            name: guestName || 'Walk-in Customer',
+            name: snapGuestName || 'Walk-in Customer',
           };
-          if (guestPhone) payload.phone = guestPhone;
-          // Create customer in DB
+          if (snapGuestPhone) payload.phone = snapGuestPhone;
           const guest = await customerService.create(payload);
           customerId = guest.id;
-          setCurrentCustomerObj(guest);
+          setSessions(prev => prev.map(s => s.id === sessionId
+            ? { ...s, currentCustomerObj: guest }
+            : s
+          ));
         }
       }
-
 
       const saleData = {
         order_number: `QS-${Date.now()}`,
         customer: customerId,
         payment_method: method,
         payment_status: 'paid',
-        billing_state: cart.billing_state,
-        place_of_supply: cart.billing_state,
-        discount_percentage: cart.discount_type === 'percentage' ? cart.discount_percentage : 0,
-        discount_amount: cart.discount_type === 'amount' ? cart.discount_amount : 0,
-        items: cart.items.map(item => {
-          // Round unit_price to 2 decimal places and ensure it's a valid number
+        billing_state: snapCart.billing_state,
+        place_of_supply: snapCart.billing_state,
+        discount_percentage: snapCart.discount_type === 'percentage' ? snapCart.discount_percentage : 0,
+        discount_amount: snapCart.discount_type === 'amount' ? snapCart.discount_amount : 0,
+        items: snapCart.items.map(item => {
           const validUnitPrice = parseFloat(item.unit_price.toFixed(2));
 
-          // Additional validation
           if (isNaN(validUnitPrice) || validUnitPrice > 9999999999.99) {
             console.error(`Invalid unit_price for ${item.name}: ${item.unit_price}`);
             throw new Error(`Invalid price for ${item.name}. Please check the product pricing.`);
@@ -515,11 +577,10 @@ const QuickSale: React.FC = () => {
         })
       };
 
-
       const sale = await saleService.create(saleData);
 
       // Attach customer data for InvoicePreview
-      const printCustomer = currentCustomerObj || { name: guestName || 'Walk-in Customer', phone: guestPhone };
+      const printCustomer = snapCustomerObj || { name: snapGuestName || 'Walk-in Customer', phone: snapGuestPhone };
       sale.customer = printCustomer;
 
       setCompletedSale(sale);
@@ -536,19 +597,18 @@ const QuickSale: React.FC = () => {
   const handleCloseInvoice = () => {
     setShowInvoice(false);
     setCompletedSale(null);
-    setCart({
-      items: [],
-      customer_id: null,
-      billing_state: null,
-      discount_percentage: 0,
-      discount_amount: 0,
-      discount_type: 'amount'
+    setSessions(prev => {
+      const remaining = prev.filter(s => s.id !== activeSessionId);
+      if (remaining.length === 0) {
+        const fresh = createEmptySession(1);
+        setActiveSessionId(fresh.id);
+        return [fresh];
+      }
+      setActiveSessionId(remaining[remaining.length - 1].id);
+      return remaining;
     });
-    setGuestName('');
-    setGuestPhone('');
-    setCurrentCustomerObj(null);
     setSearchTerm('');
-    if (searchInputRef.current) searchInputRef.current.focus(); // Refocus for next sale
+    if (searchInputRef.current) searchInputRef.current.focus();
   };
 
   // Handle Search Input Click
@@ -737,6 +797,49 @@ const QuickSale: React.FC = () => {
       ) : (
       <div className="w-[300px] lg:w-[380px] shrink-0 flex flex-col gap-3 min-h-0">
 
+        {/* Session Tab Strip */}
+        <div className="shrink-0 flex items-center gap-1 bg-white border border-gray-200 rounded-xl px-2 py-1.5 shadow-sm overflow-x-auto">
+          {sessions.map(session => {
+            const isActive = session.id === activeSessionId;
+            return (
+              <div
+                key={session.id}
+                onClick={() => setActiveSessionId(session.id)}
+                className={`group relative flex items-center gap-1.5 px-2.5 py-1 rounded-lg cursor-pointer
+                  text-xs font-semibold whitespace-nowrap select-none shrink-0 transition-all
+                  ${isActive ? 'bg-blue-600 text-white shadow-sm' : 'bg-gray-100 text-gray-500 hover:bg-gray-200 hover:text-gray-700'}`}
+              >
+                {session.cart.items.length > 0 && (
+                  <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${isActive ? 'bg-white/70' : 'bg-blue-400'}`} />
+                )}
+                <span className="max-w-[72px] truncate">{session.label}</span>
+                {sessions.length > 1 && (
+                  <button
+                    onClick={e => closeSession(session.id, e)}
+                    className={`ml-0.5 rounded p-0.5 transition-colors shrink-0
+                      ${isActive
+                        ? 'hover:bg-white/20 text-white/80 hover:text-white'
+                        : 'opacity-0 group-hover:opacity-100 hover:bg-gray-300 text-gray-400'}`}
+                  >
+                    <X className="w-2.5 h-2.5" />
+                  </button>
+                )}
+              </div>
+            );
+          })}
+          {sessions.length < MAX_SESSIONS && (
+            <button
+              onClick={addSession}
+              title="New customer session"
+              className="shrink-0 w-7 h-7 flex items-center justify-center rounded-lg
+                bg-gray-100 hover:bg-blue-50 hover:text-blue-600 text-gray-400
+                border border-dashed border-gray-300 hover:border-blue-400 transition-all"
+            >
+              <Plus className="w-3.5 h-3.5" />
+            </button>
+          )}
+        </div>
+
         {/* Customer Details & Pricing Tier */}
         <div className="card shrink-0 shadow-sm p-3 border border-gray-100">
           <div className="flex justify-between items-center mb-2">
@@ -787,10 +890,11 @@ const QuickSale: React.FC = () => {
                 )}
               </div>
               <button
-                onClick={() => {
-                   setCart(prev => ({ ...prev, customer_id: null }));
-                   setCurrentCustomerObj(null);
-                }}
+                onClick={() => updateActiveSession(s => ({
+                  ...s,
+                  cart: { ...s.cart, customer_id: null },
+                  currentCustomerObj: null,
+                }))}
                 className="text-red-500 hover:bg-red-50 p-2 rounded transition-colors"
                 title="Remove Customer"
               >
@@ -805,7 +909,7 @@ const QuickSale: React.FC = () => {
                 value={guestPhone}
                 onChange={(e) => {
                   const val = e.target.value.replace(/\D/g, '').slice(0, 10);
-                  setGuestPhone(val);
+                  updateActiveSession(s => ({ ...s, guestPhone: val }));
                 }}
                 className="input-field py-1.5 px-2.5 text-xs flex-1 border-gray-200"
               />
@@ -813,7 +917,7 @@ const QuickSale: React.FC = () => {
                 type="text"
                 placeholder="Name (opt)"
                 value={guestName}
-                onChange={(e) => setGuestName(e.target.value)}
+                onChange={(e) => updateActiveSession(s => ({ ...s, guestName: e.target.value }))}
                 className="input-field py-1.5 px-2.5 text-xs flex-1 border-gray-200"
               />
             </div>
@@ -840,11 +944,11 @@ const QuickSale: React.FC = () => {
               <div className="flex items-center gap-1">
                 <div className="flex bg-gray-100 rounded p-0.5 border border-gray-200">
                   <button
-                    onClick={() => setCart(prev => ({ ...prev, discount_type: 'percentage' }))}
+                    onClick={() => updateActiveSession(s => ({ ...s, cart: { ...s.cart, discount_type: 'percentage' } }))}
                     className={`px-1.5 py-0.5 text-[10px] font-semibold rounded transition-colors ${cart.discount_type === 'percentage' ? 'bg-white shadow-sm text-blue-700' : 'text-gray-400'}`}
                   >%</button>
                   <button
-                    onClick={() => setCart(prev => ({ ...prev, discount_type: 'amount' }))}
+                    onClick={() => updateActiveSession(s => ({ ...s, cart: { ...s.cart, discount_type: 'amount' } }))}
                     className={`px-1.5 py-0.5 text-[10px] font-semibold rounded transition-colors ${cart.discount_type === 'amount' ? 'bg-white shadow-sm text-blue-700' : 'text-gray-400'}`}
                   >₹</button>
                 </div>
@@ -855,9 +959,9 @@ const QuickSale: React.FC = () => {
                   onChange={(e) => {
                     const val = parseFloat(e.target.value) || 0;
                     if (cart.discount_type === 'percentage') {
-                      setCart(prev => ({ ...prev, discount_percentage: val > 100 ? 100 : val }));
+                      updateActiveSession(s => ({ ...s, cart: { ...s.cart, discount_percentage: val > 100 ? 100 : val } }));
                     } else {
-                      setCart(prev => ({ ...prev, discount_amount: val }));
+                      updateActiveSession(s => ({ ...s, cart: { ...s.cart, discount_amount: val } }));
                     }
                   }}
                   className="w-16 text-right px-1.5 py-1 border border-gray-200 rounded text-xs outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400 font-medium text-gray-700"
@@ -1006,6 +1110,45 @@ const QuickSale: React.FC = () => {
           onClose={() => setShowGenerateInvoiceModal(false)}
           onSuccess={handleCloseInvoice}
         />
+      )}
+
+      {/* Confirm close session modal */}
+      {confirmClose && (
+        <Modal
+          show={true}
+          onHide={() => setConfirmClose(null)}
+          title="Close Session"
+          size="sm"
+          footer={
+            <>
+              <button
+                onClick={() => setConfirmClose(null)}
+                className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+              >
+                Keep Session
+              </button>
+              <button
+                onClick={() => doCloseSession(confirmClose.sessionId)}
+                className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors"
+              >
+                Discard & Close
+              </button>
+            </>
+          }
+        >
+          <div className="flex flex-col items-center text-center gap-3">
+            <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center">
+              <Trash2 className="w-6 h-6 text-red-600" />
+            </div>
+            <div>
+              <p className="text-gray-800 font-semibold">"{confirmClose.label}"</p>
+              <p className="text-gray-500 text-sm mt-1">
+                This session has {confirmClose.itemCount} item{confirmClose.itemCount !== 1 ? 's' : ''} in the cart.
+                Closing it will discard all items.
+              </p>
+            </div>
+          </div>
+        </Modal>
       )}
 
       {/* Session Management Modals */}
