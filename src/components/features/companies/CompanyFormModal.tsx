@@ -22,9 +22,11 @@ const DEFAULT_FEATURES: CompanyFeatures = {
   shopbot_enabled: true,
   reports_enabled: true,
   max_users: 1,
+  branches_enabled: false,
+  max_branches: 1,
 };
 
-const FEATURE_LABELS: { key: keyof Omit<CompanyFeatures, 'max_users'>; label: string; description: string }[] = [
+const FEATURE_LABELS: { key: keyof Omit<CompanyFeatures, 'max_users' | 'max_branches'>; label: string; description: string }[] = [
   { key: 'sales_enabled', label: 'Sales Suite', description: 'POS, Quick Sale, Sales, Daily Balances' },
   { key: 'inventory_enabled', label: 'Inventory Suite', description: 'Products, Categories, Inventory' },
   { key: 'purchases_enabled', label: 'Purchases Suite', description: 'Purchases, Suppliers' },
@@ -32,6 +34,7 @@ const FEATURE_LABELS: { key: keyof Omit<CompanyFeatures, 'max_users'>; label: st
   { key: 'advance_invoice_enabled', label: 'Advance Invoices', description: 'Advance invoice management' },
   { key: 'shopbot_enabled', label: 'ShopBot', description: 'AI chat assistant' },
   { key: 'reports_enabled', label: 'Reports', description: 'Sales and inventory reports' },
+  { key: 'branches_enabled', label: 'Branches', description: 'Multi-branch support for this company' },
 ];
 
 const CompanyFormModal: React.FC<CompanyFormModalProps> = ({
@@ -44,6 +47,7 @@ const CompanyFormModal: React.FC<CompanyFormModalProps> = ({
   const { isSuperUser } = useAuth();
   const [features, setFeatures] = useState<CompanyFeatures>(DEFAULT_FEATURES);
   const [maxUsersInput, setMaxUsersInput] = useState(String(DEFAULT_FEATURES.max_users));
+  const [maxBranchesInput, setMaxBranchesInput] = useState(String(DEFAULT_FEATURES.max_branches));
   const [formData, setFormData] = useState({
     company_name: '',
     email: '',
@@ -105,6 +109,7 @@ const CompanyFormModal: React.FC<CompanyFormModalProps> = ({
       const f = company.features ? { ...DEFAULT_FEATURES, ...company.features } : DEFAULT_FEATURES;
       setFeatures(f);
       setMaxUsersInput(String(f.max_users));
+      setMaxBranchesInput(String(f.max_branches));
     } else {
       setFormData({
         company_name: '',
@@ -503,6 +508,34 @@ const CompanyFormModal: React.FC<CompanyFormModalProps> = ({
                   className="input-field w-20 text-center"
                 />
               </div>
+              {features.branches_enabled && (
+                <div className="flex items-center justify-between p-3 rounded-lg border border-gray-200">
+                  <div>
+                    <span className="text-sm font-medium text-gray-800">Max Branches</span>
+                    <span className="block text-xs text-gray-400">Maximum branches allowed for this company</span>
+                  </div>
+                  <input
+                    type="number"
+                    min={1}
+                    value={maxBranchesInput}
+                    onChange={(e) => {
+                      setMaxBranchesInput(e.target.value);
+                      const val = parseInt(e.target.value, 10);
+                      if (!isNaN(val) && val >= 1) {
+                        setFeatures(prev => ({ ...prev, max_branches: val }));
+                      }
+                    }}
+                    onBlur={() => {
+                      const val = parseInt(maxBranchesInput, 10);
+                      const clamped = isNaN(val) || val < 1 ? 1 : val;
+                      setMaxBranchesInput(String(clamped));
+                      setFeatures(prev => ({ ...prev, max_branches: clamped }));
+                    }}
+                    onWheel={(e) => (e.target as HTMLInputElement).blur()}
+                    className="input-field w-20 text-center"
+                  />
+                </div>
+              )}
             </div>
           </div>
         )}

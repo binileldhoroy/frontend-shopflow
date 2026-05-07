@@ -3,6 +3,7 @@ import { useAppDispatch, useAppSelector } from '@hooks/useRedux';
 import { useAuth } from '@hooks/useAuth';
 import { fetchProfile } from '@store/slices/authSlice';
 import { fetchCurrentCompany } from '@store/slices/companySlice';
+import { fetchBranches, setCurrentBranch, BRANCH_STORAGE_KEY } from '@store/slices/branchSlice';
 import { UserRole } from '../types/auth.types';
 
 interface AppInitializerProps {
@@ -41,11 +42,38 @@ const AppInitializer: React.FC<AppInitializerProps> = ({ children }) => {
       }
 
       // Step 2: Fetch company data once for non-super users
-      if (resolvedUser.role !== UserRole.SUPER_USER && !currentCompany) {
+      let company = currentCompany;
+      if (resolvedUser.role !== UserRole.SUPER_USER && !company) {
         try {
-          await dispatch(fetchCurrentCompany()).unwrap();
+          company = await dispatch(fetchCurrentCompany()).unwrap();
         } catch {
           // Non-critical — app works without company data
+        }
+      }
+
+      // Step 3: Fetch branches if the feature is enabled for this company
+      if (company?.features?.branches_enabled) {
+        try {
+          const branches = await dispatch(fetchBranches()).unwrap();
+
+          const nonAdminRoles = [UserRole.MANAGER, UserRole.CASHIER, UserRole.INVENTORY_STAFF];
+          if (nonAdminRoles.includes(resolvedUser.role) && resolvedUser.branch) {
+            // Non-admin: always use their profile-assigned branch
+            const assignedBranch = branches.find((b) => b.id === resolvedUser.branch);
+            if (assignedBranch) {
+              dispatch(setCurrentBranch(assignedBranch));
+            }
+          } else if (resolvedUser.role === UserRole.ADMIN) {
+            // Admin: restore previously selected branch from localStorage if still valid
+            const savedId = localStorage.getItem(BRANCH_STORAGE_KEY);
+            if (savedId) {
+              const restored = branches.find((b) => b.id === Number(savedId) && b.is_active);
+              dispatch(setCurrentBranch(restored ?? null));
+            }
+            // If no saved branch → stays in Overview mode (null)
+          }
+        } catch {
+          // Non-critical
         }
       }
 

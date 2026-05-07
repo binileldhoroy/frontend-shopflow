@@ -8,7 +8,7 @@ import { CompanyFeatures } from '../types/company.types';
 interface RoleBasedRouteProps {
   children: React.ReactNode;
   allowedRoles: UserRole[];
-  requiredFeature?: keyof Omit<CompanyFeatures, 'max_users'>;
+  requiredFeature?: keyof Omit<CompanyFeatures, 'max_users' | 'max_branches'>;
 }
 
 const RoleBasedRoute: React.FC<RoleBasedRouteProps> = ({ children, allowedRoles, requiredFeature }) => {

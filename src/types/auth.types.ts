@@ -16,6 +16,9 @@ export interface User {
   last_name: string;
   role: UserRole;
   company: number | null;
+  company_name?: string | null;
+  branch: number | null;
+  branch_name?: string | null;
   phone?: string;
   is_active: boolean;
 }

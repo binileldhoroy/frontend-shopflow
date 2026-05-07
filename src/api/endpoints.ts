@@ -95,12 +95,19 @@ export const API_ENDPOINTS = {
     RECEIVE: (id: number) => `/api/purchases/${id}/receive/`,
   },
 
+  // Branches
+  BRANCHES: {
+    LIST: '/api/settings/branches/',
+    DETAIL: (id: number) => `/api/settings/branches/${id}/`,
+  },
+
   // Inventory
   INVENTORY: {
     STOCK: '/api/inventory/stock/',
-    STOCK_DETAIL: (productId: number) => `/api/inventory/stock/${productId}/`,
+    STOCK_DETAIL: (id: number) => `/api/inventory/stock/${id}/`,
     MOVEMENTS: '/api/inventory/movements/',
     LOW_STOCK: '/api/inventory/low-stock/',
+    TRANSFER: '/api/inventory/transfer/',
   },
 
   // Payments

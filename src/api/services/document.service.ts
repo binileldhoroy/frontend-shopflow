@@ -1,22 +1,22 @@
 import api from '../axios';
 
 export const documentService = {
-  getProfitLoss: async (params: { start_date: string; end_date: string }) => {
+  getProfitLoss: async (params: { start_date: string; end_date: string; branch_id?: number | null }) => {
     const response = await api.get('/api/documents/profit-loss/', { params });
     return response.data;
   },
 
-  getBalanceSheet: async (params: { date: string }) => {
+  getBalanceSheet: async (params: { date: string; branch_id?: number | null }) => {
     const response = await api.get('/api/documents/balance-sheet/', { params });
     return response.data;
   },
 
-  getGSTRReport: async (params: { start_date: string; end_date: string; type: string }) => {
+  getGSTRReport: async (params: { start_date: string; end_date: string; type: string; branch_id?: number | null }) => {
     const response = await api.get('/api/documents/gstr/', { params });
     return response.data;
   },
 
-  getAccountStatement: async (params: { start_date: string; end_date: string; type: string; id: string }) => {
+  getAccountStatement: async (params: { start_date: string; end_date: string; type: string; id: string; branch_id?: number | null }) => {
     const response = await api.get('/api/documents/account-statement/', { params });
     return response.data;
   },

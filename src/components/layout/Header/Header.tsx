@@ -3,27 +3,39 @@ import { useNavigate } from 'react-router-dom';
 import { useAppDispatch } from '@hooks/useRedux';
 import { useAuth } from '@hooks/useAuth';
 import { useCompany } from '@hooks/useCompany';
+import { useBranch } from '@hooks/useBranch';
 import { logout } from '@store/slices/authSlice';
 import { toggleSidebar } from '@store/slices/uiSlice';
-import { Menu, User, Settings, LogOut, ChevronDown } from 'lucide-react';
+import { Menu, User, Settings, LogOut, ChevronDown, GitBranch } from 'lucide-react';
+import { UserRole } from '../../../types/auth.types';
 
 const Header: React.FC = () => {
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
   const { user } = useAuth();
   const { currentCompany } = useCompany();
+  const { branches, currentBranch, branchesEnabled, isOverviewMode, switchBranch } = useBranch();
   const [showUserMenu, setShowUserMenu] = useState(false);
+  const [showBranchMenu, setShowBranchMenu] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const branchDropdownRef = useRef<HTMLDivElement>(null);
+
+  const isAdmin = user?.role === UserRole.ADMIN;
+  const showBranchSwitcher = branchesEnabled && isAdmin && branches.length > 0;
+  const showBranchBadge = branchesEnabled && !isAdmin && !!user?.branch_name;
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
         setShowUserMenu(false);
       }
+      if (branchDropdownRef.current && !branchDropdownRef.current.contains(event.target as Node)) {
+        setShowBranchMenu(false);
+      }
     };
-    if (showUserMenu) document.addEventListener('mousedown', handleClickOutside);
+    if (showUserMenu || showBranchMenu) document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [showUserMenu]);
+  }, [showUserMenu, showBranchMenu]);
 
   const handleLogout = async () => {
     await dispatch(logout());
@@ -67,6 +79,58 @@ const Header: React.FC = () => {
               <span className="text-[15px] font-semibold text-white hidden sm:block tracking-tight">
                 {currentCompany.company_name}
               </span>
+            </div>
+          )}
+        </div>
+
+        {/* Center: branch switcher (admin) or badge (others) */}
+        <div className="flex items-center">
+          {showBranchSwitcher && (
+            <div className="relative" ref={branchDropdownRef}>
+              <button
+                onClick={() => setShowBranchMenu(!showBranchMenu)}
+                className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/[0.06] hover:bg-white/[0.1] border border-white/10 transition-all duration-150"
+              >
+                <GitBranch className="w-3.5 h-3.5 text-[#0d9158]" />
+                <span className="text-[12px] font-medium text-white hidden sm:block">
+                  {isOverviewMode ? 'All Branches' : currentBranch?.name}
+                </span>
+                {isOverviewMode && (
+                  <span className="hidden sm:block text-[10px] px-1.5 py-0.5 rounded bg-white/10 text-white/60">Overview</span>
+                )}
+                <ChevronDown className={`w-3 h-3 text-white/50 transition-transform ${showBranchMenu ? 'rotate-180' : ''}`} />
+              </button>
+
+              {showBranchMenu && (
+                <div className="absolute left-0 mt-2 w-52 bg-white border border-gray-200 rounded-xl shadow-lg py-1.5 z-50">
+                  <p className="px-3 py-1 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Switch Branch</p>
+                  <button
+                    onClick={() => { switchBranch(null); setShowBranchMenu(false); }}
+                    className={`w-full flex items-center gap-2 px-3 py-2 text-[13px] hover:bg-gray-50 transition-colors ${isOverviewMode ? 'text-[#0d9158] font-semibold' : 'text-gray-700'}`}
+                  >
+                    <span className="w-2 h-2 rounded-full bg-gray-300 flex-shrink-0" />
+                    All Branches (Overview)
+                  </button>
+                  {branches.filter((b) => b.is_active).map((branch) => (
+                    <button
+                      key={branch.id}
+                      onClick={() => { switchBranch(branch); setShowBranchMenu(false); }}
+                      className={`w-full flex items-center gap-2 px-3 py-2 text-[13px] hover:bg-gray-50 transition-colors ${currentBranch?.id === branch.id ? 'text-[#0d9158] font-semibold' : 'text-gray-700'}`}
+                    >
+                      <span className={`w-2 h-2 rounded-full flex-shrink-0 ${currentBranch?.id === branch.id ? 'bg-[#0d9158]' : 'bg-gray-300'}`} />
+                      {branch.name}
+                      {branch.city && <span className="text-gray-400 text-[11px] ml-auto">{branch.city}</span>}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {showBranchBadge && (
+            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/[0.06] border border-white/10">
+              <GitBranch className="w-3.5 h-3.5 text-[#0d9158]" />
+              <span className="text-[12px] font-medium text-white hidden sm:block">{user?.branch_name}</span>
             </div>
           )}
         </div>

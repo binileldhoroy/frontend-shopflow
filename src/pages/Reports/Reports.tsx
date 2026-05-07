@@ -1,19 +1,27 @@
 import React, { useState, useEffect } from 'react';
-import { FileText, BarChart2, PieChart, Shield, Download } from 'lucide-react';
+import { FileText, BarChart2, PieChart, Shield, Download, GitBranch } from 'lucide-react';
 import { documentService } from '../../api/services/document.service';
+import { useBranch } from '../../hooks/useBranch';
 
 import { customerService } from '../../api/services/customer.service';
 import { supplierService } from '../../api/services/supplier.service';
 
 const Reports: React.FC = () => {
+  const { branches, currentBranch, isOverviewMode, branchesEnabled } = useBranch();
   const [activeTab, setActiveTab] = useState('profit-loss');
   const [dateRange, setDateRange] = useState({
     start_date: new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0],
     end_date: new Date().toISOString().split('T')[0]
   });
+  const [selectedBranchId, setSelectedBranchId] = useState<number | null>(null);
   const [reportData, setReportData] = useState<any>(null);
   const [accountStatementData, setAccountStatementData] = useState<any>(null);
   const [loading, setLoading] = useState(false);
+
+  // In branch mode, always use the current branch; in overview mode use the filter selection
+  const effectiveBranchId = branchesEnabled
+    ? (isOverviewMode ? selectedBranchId : (currentBranch?.id ?? null))
+    : null;
 
   // Account Statement State
   const [accountParams, setAccountParams] = useState({
@@ -47,21 +55,22 @@ const Reports: React.FC = () => {
     if (!['account-statement', 'tally-export'].includes(activeTab)) {
         fetchReport();
     }
-  }, [activeTab, dateRange]);
+  }, [activeTab, dateRange, effectiveBranchId]);
 
   const fetchReport = async () => {
     setLoading(true);
     try {
+      const branchParam = effectiveBranchId ? { branch_id: effectiveBranchId } : {};
       if (activeTab === 'profit-loss') {
-        const data = await documentService.getProfitLoss(dateRange);
+        const data = await documentService.getProfitLoss({ ...dateRange, ...branchParam });
         setReportData(data);
       } else if (activeTab === 'balance-sheet') {
-        const data = await documentService.getBalanceSheet({ date: dateRange.end_date });
+        const data = await documentService.getBalanceSheet({ date: dateRange.end_date, ...branchParam });
         setReportData(data);
       } else if (activeTab === 'gstr') {
         const [gstr1Data, gstr2Data] = await Promise.all([
-           documentService.getGSTRReport({ ...dateRange, type: 'GSTR1' }),
-           documentService.getGSTRReport({ ...dateRange, type: 'GSTR2' })
+           documentService.getGSTRReport({ ...dateRange, type: 'GSTR1', ...branchParam }),
+           documentService.getGSTRReport({ ...dateRange, type: 'GSTR2', ...branchParam })
         ]);
         setReportData({ ...gstr1Data, ...gstr2Data });
       }
@@ -126,6 +135,35 @@ const Reports: React.FC = () => {
           </div>
         </div>
         <div className="filter-bar !py-3 !px-4 !mb-0 flex flex-wrap items-end gap-3">
+          {/* Branch filter — overview mode only */}
+          {branchesEnabled && isOverviewMode && (
+            <div className="flex flex-col gap-0.5">
+              <label className="text-xs text-gray-400 px-0.5 flex items-center gap-1">
+                <GitBranch className="w-3 h-3" /> Branch
+              </label>
+              <select
+                value={selectedBranchId ?? ''}
+                onChange={(e) => setSelectedBranchId(e.target.value ? Number(e.target.value) : null)}
+                className="px-3 py-2 text-sm border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-gray-400 focus:border-transparent transition-all bg-white text-gray-700"
+              >
+                <option value="">All Branches</option>
+                {branches.filter(b => b.is_active).map(b => (
+                  <option key={b.id} value={b.id}>{b.name}</option>
+                ))}
+              </select>
+            </div>
+          )}
+          {/* Branch badge — branch mode */}
+          {branchesEnabled && !isOverviewMode && currentBranch && (
+            <div className="flex flex-col gap-0.5">
+              <label className="text-xs text-gray-400 px-0.5 flex items-center gap-1">
+                <GitBranch className="w-3 h-3" /> Branch
+              </label>
+              <div className="px-3 py-2 text-sm border border-gray-200 rounded-lg bg-gray-50 text-gray-700">
+                {currentBranch.name}
+              </div>
+            </div>
+          )}
           <div className="flex flex-col gap-0.5">
             <label className="text-xs text-gray-400 px-0.5">From</label>
             <input

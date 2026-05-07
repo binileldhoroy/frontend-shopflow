@@ -1,5 +1,11 @@
 import axios, { AxiosInstance, AxiosError, InternalAxiosRequestConfig, AxiosResponse } from 'axios';
 
+// Lazily injected store reference to avoid circular imports
+let _store: { getState: () => any } | null = null;
+export const injectStore = (store: { getState: () => any }) => {
+  _store = store;
+};
+
 // Create axios instance
 const axiosInstance: AxiosInstance = axios.create({
     baseURL:
@@ -11,13 +17,22 @@ const axiosInstance: AxiosInstance = axios.create({
   },
 });
 
-// Request interceptor - Add auth token to requests
+// Request interceptor - Add auth token and branch context to requests
 axiosInstance.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
     const token = localStorage.getItem('accessToken');
     if (token && config.headers) {
       config.headers.Authorization = `Bearer ${token}`;
     }
+
+    // Attach current branch ID for admin branch-mode scoping
+    if (_store) {
+      const currentBranch = _store.getState().branch?.currentBranch;
+      if (currentBranch?.id && config.headers) {
+        config.headers['X-Branch-Id'] = String(currentBranch.id);
+      }
+    }
+
     return config;
   },
   (error: AxiosError) => {

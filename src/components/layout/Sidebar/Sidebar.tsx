@@ -3,6 +3,7 @@ import { NavLink } from 'react-router-dom';
 import { useAppSelector, useAppDispatch } from '@hooks/useRedux';
 import { useAuth } from '@hooks/useAuth';
 import { useCompanyFeatures } from '@hooks/useCompanyFeatures';
+import { useBranch } from '@hooks/useBranch';
 import { setSidebarOpen } from '@store/slices/uiSlice';
 import { UserRole } from '../../../types/auth.types';
 import { CompanyFeatures } from '../../../types/company.types';
@@ -27,6 +28,7 @@ import {
   FileClock,
   Store,
   MessageSquare,
+  GitBranch,
 } from 'lucide-react';
 
 interface NavItem {
@@ -34,7 +36,7 @@ interface NavItem {
   icon: React.ElementType;
   label: string;
   roles: UserRole[];
-  feature?: keyof Omit<CompanyFeatures, 'max_users'>;
+  feature?: keyof Omit<CompanyFeatures, 'max_users' | 'max_branches'>;
 }
 
 interface NavGroup {
@@ -199,6 +201,13 @@ const navGroups: NavGroup[] = [
         roles: [UserRole.SUPER_USER, UserRole.ADMIN, UserRole.MANAGER],
       },
       {
+        path: '/branches',
+        icon: GitBranch,
+        label: 'Branches',
+        roles: [UserRole.ADMIN],
+        feature: 'branches_enabled' as const,
+      },
+      {
         path: '/settings',
         icon: Settings,
         label: 'Settings',
@@ -208,11 +217,14 @@ const navGroups: NavGroup[] = [
   },
 ];
 
+const POS_PATHS = ['/pos', '/quick-sale'];
+
 const Sidebar: React.FC = () => {
   const dispatch = useAppDispatch();
   const { sidebarOpen } = useAppSelector((state) => state.ui);
   const { hasRole } = useAuth();
   const { isFeatureEnabled } = useCompanyFeatures();
+  const { isOverviewMode } = useBranch();
 
   return (
     <>
@@ -272,47 +284,69 @@ const Sidebar: React.FC = () => {
                   <div className="hidden md:block mx-auto w-6 h-px bg-white/10 mb-2" />
                 )}
 
-                {visibleItems.map((item) => (
-                  <NavLink
-                    key={item.path}
-                    to={item.path}
-                    className={({ isActive }) =>
-                      `relative flex items-center gap-3 px-3 py-2 rounded-lg mb-0.5 transition-all duration-150 group
-                      ${isActive
-                        ? 'bg-[#1a3d2b] text-[#4ade80]'
-                        : 'text-[#8aab96] hover:bg-white/[0.07] hover:text-white'
-                      }
-                      ${!sidebarOpen ? 'md:justify-center md:px-0' : ''}`
-                    }
-                  >
-                    {({ isActive }) => (
-                      <>
-                        {/* Active left border indicator */}
-                        {isActive && (
-                          <span className="absolute left-0 top-2 bottom-2 w-0.5 bg-[#4ade80] rounded-r-full" />
-                        )}
+                {visibleItems.map((item) => {
+                  const isPosDisabled = isOverviewMode && POS_PATHS.includes(item.path);
 
-                        <item.icon
-                          className={`w-4 h-4 flex-shrink-0 transition-colors duration-150
-                            ${isActive ? 'text-[#4ade80]' : 'text-[#8aab96] group-hover:text-white'}`}
-                        />
-
+                  if (isPosDisabled) {
+                    return (
+                      <div
+                        key={item.path}
+                        title="Select a branch to use POS"
+                        className={`relative flex items-center gap-3 px-3 py-2 rounded-lg mb-0.5 opacity-40 cursor-not-allowed
+                          text-[#8aab96] ${!sidebarOpen ? 'md:justify-center md:px-0' : ''}`}
+                      >
+                        <item.icon className="w-4 h-4 flex-shrink-0" />
                         {sidebarOpen && (
                           <span className="text-[13.5px] font-medium leading-none whitespace-nowrap">
                             {item.label}
                           </span>
                         )}
-
-                        {/* Tooltip for collapsed state */}
                         {!sidebarOpen && (
-                          <span className="absolute left-full ml-3 px-2.5 py-1.5 bg-[#0F1F18] border border-white/10 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-all duration-150 whitespace-nowrap z-50 hidden md:block pointer-events-none shadow-2xl">
-                            {item.label}
+                          <span className="absolute left-full ml-3 px-2.5 py-1.5 bg-[#0F1F18] border border-white/10 text-white text-xs rounded-lg opacity-0 hover:opacity-100 transition-all duration-150 whitespace-nowrap z-50 hidden md:block pointer-events-none shadow-2xl">
+                            {item.label} — Select a branch first
                           </span>
                         )}
-                      </>
-                    )}
-                  </NavLink>
-                ))}
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <NavLink
+                      key={item.path}
+                      to={item.path}
+                      className={({ isActive }) =>
+                        `relative flex items-center gap-3 px-3 py-2 rounded-lg mb-0.5 transition-all duration-150 group
+                        ${isActive
+                          ? 'bg-[#1a3d2b] text-[#4ade80]'
+                          : 'text-[#8aab96] hover:bg-white/[0.07] hover:text-white'
+                        }
+                        ${!sidebarOpen ? 'md:justify-center md:px-0' : ''}`
+                      }
+                    >
+                      {({ isActive }) => (
+                        <>
+                          {isActive && (
+                            <span className="absolute left-0 top-2 bottom-2 w-0.5 bg-[#4ade80] rounded-r-full" />
+                          )}
+                          <item.icon
+                            className={`w-4 h-4 flex-shrink-0 transition-colors duration-150
+                              ${isActive ? 'text-[#4ade80]' : 'text-[#8aab96] group-hover:text-white'}`}
+                          />
+                          {sidebarOpen && (
+                            <span className="text-[13.5px] font-medium leading-none whitespace-nowrap">
+                              {item.label}
+                            </span>
+                          )}
+                          {!sidebarOpen && (
+                            <span className="absolute left-full ml-3 px-2.5 py-1.5 bg-[#0F1F18] border border-white/10 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-all duration-150 whitespace-nowrap z-50 hidden md:block pointer-events-none shadow-2xl">
+                              {item.label}
+                            </span>
+                          )}
+                        </>
+                      )}
+                    </NavLink>
+                  );
+                })}
               </div>
             );
           })}

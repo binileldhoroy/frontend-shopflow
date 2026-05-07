@@ -36,6 +36,7 @@ import Reports from './pages/Reports/Reports';
 import Users from './pages/Users/Users';
 import Settings from './pages/Settings/Settings';
 import Chat from './pages/Chat/Chat';
+import Branches from './pages/Branches/Branches';
 
 // Routes
 import ProtectedRoute from './routes/ProtectedRoute';
@@ -296,6 +297,17 @@ function App() {
               <RoleBasedRoute allowedRoles={[UserRole.ADMIN, UserRole.MANAGER]}>
                 <Layout>
                   <Users />
+                </Layout>
+              </RoleBasedRoute>
+            }
+          />
+
+          <Route
+            path="/branches"
+            element={
+              <RoleBasedRoute allowedRoles={[UserRole.ADMIN]} requiredFeature="branches_enabled">
+                <Layout>
+                  <Branches />
                 </Layout>
               </RoleBasedRoute>
             }

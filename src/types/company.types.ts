@@ -7,6 +7,8 @@ export interface CompanyFeatures {
   shopbot_enabled: boolean;
   reports_enabled: boolean;
   max_users: number;
+  branches_enabled: boolean;
+  max_branches: number;
 }
 
 // Company interface
