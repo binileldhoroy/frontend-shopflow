@@ -42,6 +42,7 @@ import Branches from './pages/Branches/Branches';
 // Routes
 import ProtectedRoute from './routes/ProtectedRoute';
 import RoleBasedRoute from './routes/RoleBasedRoute';
+import MobileAwareRoute from './routes/MobileAwareRoute';
 import AppInitializer from './components/AppInitializer';
 import { UserRole } from './types/auth.types';
 
@@ -93,22 +94,26 @@ function App() {
           <Route
             path="/pos"
             element={
-              <RoleBasedRoute allowedRoles={[UserRole.ADMIN, UserRole.MANAGER, UserRole.CASHIER]} requiredFeature="sales_enabled">
-                <Layout>
-                  <POS />
-                </Layout>
-              </RoleBasedRoute>
+              <MobileAwareRoute>
+                <RoleBasedRoute allowedRoles={[UserRole.ADMIN, UserRole.MANAGER, UserRole.CASHIER]} requiredFeature="sales_enabled">
+                  <Layout>
+                    <POS />
+                  </Layout>
+                </RoleBasedRoute>
+              </MobileAwareRoute>
             }
           />
 
           <Route
             path="/quick-sale"
             element={
-              <RoleBasedRoute allowedRoles={[UserRole.ADMIN, UserRole.MANAGER, UserRole.CASHIER]} requiredFeature="sales_enabled">
-                <Layout>
-                  <QuickSale />
-                </Layout>
-              </RoleBasedRoute>
+              <MobileAwareRoute>
+                <RoleBasedRoute allowedRoles={[UserRole.ADMIN, UserRole.MANAGER, UserRole.CASHIER]} requiredFeature="sales_enabled">
+                  <Layout>
+                    <QuickSale />
+                  </Layout>
+                </RoleBasedRoute>
+              </MobileAwareRoute>
             }
           />
 

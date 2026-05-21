@@ -217,7 +217,7 @@ const navGroups: NavGroup[] = [
   },
 ];
 
-const POS_PATHS = ['/pos', '/quick-sale'];
+const POS_PATHS = ['/pos', '/quick-sale', '/mobile-pos'];
 
 const Sidebar: React.FC = () => {
   const dispatch = useAppDispatch();
