@@ -19,6 +19,7 @@ import Products from './pages/Products/Products';
 import Categories from './pages/Categories/Categories';
 import POS from './pages/POS/POS';
 import QuickSale from './pages/QuickSale/QuickSale';
+import MobilePOS from './pages/MobilePOS/MobilePOS';
 import Sales from './pages/Sales/Sales';
 import AdvanceInvoices from './pages/Sales/AdvanceInvoices';
 import AdvanceInvoiceCreate from './pages/Sales/AdvanceInvoiceCreate';
@@ -106,6 +107,17 @@ function App() {
               <RoleBasedRoute allowedRoles={[UserRole.ADMIN, UserRole.MANAGER, UserRole.CASHIER]} requiredFeature="sales_enabled">
                 <Layout>
                   <QuickSale />
+                </Layout>
+              </RoleBasedRoute>
+            }
+          />
+
+          <Route
+            path="/mobile-pos"
+            element={
+              <RoleBasedRoute allowedRoles={[UserRole.ADMIN, UserRole.MANAGER, UserRole.CASHIER]} requiredFeature="sales_enabled">
+                <Layout>
+                  <MobilePOS />
                 </Layout>
               </RoleBasedRoute>
             }
