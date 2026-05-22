@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import Modal from '../../common/Modal/Modal';
-import { Product, ProductFormData } from '../../../types/product.types';
+import { Product, ProductFormData, ProductAttribute, Brand } from '../../../types/product.types';
 import ProductPriceTiers from './ProductPriceTiers';
-import { Tag, X } from 'lucide-react';
+import { Tag, X, Plus, Trash2 } from 'lucide-react';
 import { categoryService, Category as ServiceCategory } from '../../../api/services/category.service';
+import { brandService } from '../../../api/services/brand.service';
 
 interface ProductFormModalProps {
   show: boolean;
@@ -25,11 +26,19 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({
   const [showCatDrop, setShowCatDrop] = useState(false);
   const catRef = useRef<HTMLDivElement>(null);
 
+  const [brandInput, setBrandInput] = useState('');
+  const [brandOptions, setBrandOptions] = useState<Brand[]>([]);
+  const [showBrandDrop, setShowBrandDrop] = useState(false);
+  const brandRef = useRef<HTMLDivElement>(null);
+
+  const [attributes, setAttributes] = useState<ProductAttribute[]>([]);
+
   const [formData, setFormData] = useState<ProductFormData>({
     name: '',
     sku: '',
     barcode: '',
     category: 0,
+    brand: null,
     hsn_code: '',
     unit: 'piece',
     cost_price: '' as any,
@@ -50,6 +59,7 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({
         sku: product.sku || '',
         barcode: product.barcode || '',
         category: product.category || 0,
+        brand: product.brand ?? null,
         hsn_code: product.hsn_code || '',
         unit: product.unit || 'piece',
         cost_price: product.cost_price || 0,
@@ -62,12 +72,14 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({
         image: product.image || null,
         is_active: product.is_active ?? true,
       });
+      setAttributes(product.attributes ? [...product.attributes] : []);
     } else {
       setFormData({
         name: '',
         sku: '',
         barcode: '',
         category: 0,
+        brand: null,
         hsn_code: '',
         unit: 'piece',
         cost_price: '' as any,
@@ -80,6 +92,7 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({
         image: null,
         is_active: true,
       });
+      setAttributes([]);
     }
   }, [product, show]);
 
@@ -89,6 +102,15 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({
       categoryService.getById(Number(product.category)).then(cat => setCatInput(cat.name)).catch(() => {});
     } else {
       setCatInput('');
+    }
+  }, [product, show]);
+
+  // Pre-fill brand name when editing
+  useEffect(() => {
+    if (product?.brand) {
+      brandService.getById(Number(product.brand)).then(b => setBrandInput(b.name)).catch(() => {});
+    } else {
+      setBrandInput('');
     }
   }, [product, show]);
 
@@ -103,21 +125,40 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({
     return () => clearTimeout(timer);
   }, [catInput]);
 
-  // Click outside to close dropdown
+  // Search brands via API with debounce
+  useEffect(() => {
+    const timer = setTimeout(async () => {
+      try {
+        const results = await brandService.getAll({ search: brandInput });
+        setBrandOptions(results);
+      } catch {}
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [brandInput]);
+
+  // Click outside to close dropdowns
   useEffect(() => {
     const handler = (e: MouseEvent) => {
-      if (catRef.current && !catRef.current.contains(e.target as Node)) {
-        setShowCatDrop(false);
-      }
+      if (catRef.current && !catRef.current.contains(e.target as Node)) setShowCatDrop(false);
+      if (brandRef.current && !brandRef.current.contains(e.target as Node)) setShowBrandDrop(false);
     };
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
   }, []);
 
+  const addAttribute = () => setAttributes(prev => [...prev, { name: '', value: '' }]);
+
+  const updateAttribute = (index: number, field: 'name' | 'value', val: string) => {
+    setAttributes(prev => prev.map((a, i) => i === index ? { ...a, [field]: val } : a));
+  };
+
+  const removeAttribute = (index: number) => {
+    setAttributes(prev => prev.filter((_, i) => i !== index));
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Convert empty strings to 0 for number fields before submitting
     const submitData = {
       ...formData,
       cost_price: formData.cost_price === '' ? 0 : Number(formData.cost_price),
@@ -125,6 +166,7 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({
       gst_rate: formData.gst_rate === '' ? 0 : Number(formData.gst_rate),
       stock_quantity: formData.stock_quantity === '' ? 0 : Number(formData.stock_quantity),
       reorder_level: formData.reorder_level === '' ? 0 : Number(formData.reorder_level),
+      attributes: attributes.filter(a => a.name.trim()),
     };
 
     onSubmit(submitData);
@@ -210,6 +252,39 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({
             </div>
           </div>
 
+          {/* Brand */}
+          <div>
+            <label className="label">Brand</label>
+            <div className="relative" ref={brandRef}>
+              <input
+                type="text"
+                placeholder="Search brand…"
+                value={brandInput}
+                onChange={e => { setBrandInput(e.target.value); setShowBrandDrop(true); setFormData(prev => ({ ...prev, brand: null })); }}
+                onFocus={() => setShowBrandDrop(true)}
+                className="input-field pr-7"
+              />
+              {brandInput && (
+                <button type="button" onClick={() => { setBrandInput(''); setFormData(prev => ({ ...prev, brand: null })); }} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
+              {showBrandDrop && brandOptions.length > 0 && (
+                <div className="absolute top-full left-0 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg z-50 max-h-48 overflow-y-auto">
+                  {brandOptions.map(b => (
+                    <div
+                      key={b.id}
+                      className={`px-3 py-2 text-sm cursor-pointer hover:bg-gray-50 ${formData.brand === b.id ? 'bg-green-50 text-green-700 font-medium' : 'text-gray-700'}`}
+                      onMouseDown={() => { setFormData(prev => ({ ...prev, brand: b.id })); setBrandInput(b.name); setShowBrandDrop(false); }}
+                    >
+                      {b.name}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+
           {/* Row 2: SKU | Barcode */}
           <div>
             <label className="label">SKU *</label>
@@ -260,6 +335,9 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({
               <option value="gram">Gram</option>
               <option value="liter">Liter</option>
               <option value="ml">Milliliter</option>
+              <option value="meter">Meter</option>
+              <option value="feet">Feet</option>
+              <option value="roll">Roll</option>
               <option value="dozen">Dozen</option>
               <option value="pack">Pack</option>
               <option value="box">Box</option>
@@ -406,7 +484,46 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({
           </label>
         </div>
 
-        {/* Price Tiers Section (Only shown for existing products) */}
+        {/* Attributes Section */}
+        <div className="bg-gray-50 p-4 rounded-lg border border-gray-200 mt-4">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="font-semibold text-gray-800 text-sm">
+              Specifications / Attributes
+              <span className="text-gray-400 font-normal ml-2 text-xs">(e.g. Size MM, Pressure Class, Volume)</span>
+            </h3>
+            <button type="button" onClick={addAttribute} className="flex items-center gap-1 text-xs text-primary-600 hover:text-primary-700 font-medium">
+              <Plus className="w-3.5 h-3.5" /> Add
+            </button>
+          </div>
+          {attributes.length === 0 ? (
+            <p className="text-xs text-gray-400 italic">No attributes added. Click Add to define specs like size or material.</p>
+          ) : (
+            <div className="space-y-2">
+              {attributes.map((attr, idx) => (
+                <div key={idx} className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    placeholder="Name (e.g. Size (MM))"
+                    value={attr.name}
+                    onChange={e => updateAttribute(idx, 'name', e.target.value)}
+                    className="input-field flex-1 text-sm py-1.5"
+                  />
+                  <input
+                    type="text"
+                    placeholder="Value (e.g. 25)"
+                    value={attr.value}
+                    onChange={e => updateAttribute(idx, 'value', e.target.value)}
+                    className="input-field flex-1 text-sm py-1.5"
+                  />
+                  <button type="button" onClick={() => removeAttribute(idx)} className="text-red-400 hover:text-red-600 shrink-0">
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
         {/* Price Tiers Section */}
         <div className="bg-gray-50 p-4 rounded-lg border border-gray-200 mt-4">
              <h3 className="font-semibold text-gray-800 flex items-center gap-2 mb-2">

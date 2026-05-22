@@ -867,7 +867,7 @@ const MobilePOS: React.FC = () => {
       <div className="flex-1 overflow-y-auto min-h-0 relative">
 
         {/* Register closed overlay */}
-        {needsSessionSetup && !sessionLoading ? (
+        {needsSessionSetup ? (
           <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-[#F2EFE8] p-6">
             <Lock className="w-14 h-14 text-gray-300 mb-4" />
             <h3 className="text-lg font-bold text-gray-800 mb-1">Register Closed</h3>

@@ -25,6 +25,8 @@ export const API_ENDPOINTS = {
 
   // Products
   PRODUCTS: {
+    BRANDS: '/api/products/brands/',
+    BRAND_DETAIL: (id: number) => `/api/products/brands/${id}/`,
     CATEGORIES: '/api/products/categories/',
     CATEGORY_DETAIL: (id: number) => `/api/products/categories/${id}/`,
     LIST: '/api/products/',

@@ -119,6 +119,13 @@ const navGroups: NavGroup[] = [
         feature: 'inventory_enabled',
       },
       {
+        path: '/brands',
+        icon: Tags,
+        label: 'Brands',
+        roles: [UserRole.SUPER_USER, UserRole.ADMIN, UserRole.MANAGER, UserRole.INVENTORY_STAFF],
+        feature: 'inventory_enabled',
+      },
+      {
         path: '/inventory',
         icon: Boxes,
         label: 'Inventory',

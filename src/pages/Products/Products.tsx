@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { productService, categoryService } from '@api/services/product.service';
 import { categoryService as catSearchService } from '@api/services/category.service';
-import { Product, Category, ProductFormData } from '../../types/product.types';
+import { brandService } from '@api/services/brand.service';
+import { Product, Category, Brand, ProductFormData } from '../../types/product.types';
 import ProductFormModal from '@components/features/products/ProductFormModal';
 import ProductCSVImportModal from '@components/features/products/ProductCSVImportModal';
 import DeleteConfirmModal from '@components/common/DeleteConfirmModal/DeleteConfirmModal';
@@ -17,6 +18,7 @@ const Products: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
+  const [brandFilter, setBrandFilter] = useState('');
   const [stockFilter, setStockFilter] = useState('');
 
   // Category filter search
@@ -24,6 +26,12 @@ const Products: React.FC = () => {
   const [catFilterOptions, setCatFilterOptions] = useState<Category[]>([]);
   const [showCatFilterDrop, setShowCatFilterDrop] = useState(false);
   const catFilterRef = useRef<HTMLDivElement>(null);
+
+  // Brand filter search
+  const [brandFilterInput, setBrandFilterInput] = useState('');
+  const [brandFilterOptions, setBrandFilterOptions] = useState<Brand[]>([]);
+  const [showBrandFilterDrop, setShowBrandFilterDrop] = useState(false);
+  const brandFilterRef = useRef<HTMLDivElement>(null);
 
   // Pagination states
   const [currentPage, setCurrentPage] = useState(1);
@@ -49,6 +57,7 @@ const Products: React.FC = () => {
       };
       if (searchTerm) params.search = searchTerm;
       if (categoryFilter) params.category = categoryFilter;
+      if (brandFilter) params.brand = brandFilter;
 
       const [productsResponse, categoriesData] = await Promise.all([
         productService.getAll(params),
@@ -83,23 +92,23 @@ const Products: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [searchTerm, categoryFilter, stockFilter, currentPage, pageSize, dispatch]);
+  }, [searchTerm, categoryFilter, brandFilter, stockFilter, currentPage, pageSize, dispatch]);
 
   // Debounced search effect - also handles initial load
   useEffect(() => {
     const timer = setTimeout(() => {
       loadData();
-    }, 300); // 300ms debounce (reduced from 500ms for faster response)
+    }, 300);
 
     return () => clearTimeout(timer);
-  }, [searchTerm, categoryFilter, stockFilter, currentPage, pageSize, loadData]);
+  }, [searchTerm, categoryFilter, brandFilter, stockFilter, currentPage, pageSize, loadData]);
 
   // Reset to page 1 when filters or page size change
   useEffect(() => {
     if (currentPage !== 1) {
       setCurrentPage(1);
     }
-  }, [searchTerm, categoryFilter, stockFilter, pageSize]);
+  }, [searchTerm, categoryFilter, brandFilter, stockFilter, pageSize]);
 
   // Category filter: search via API with debounce
   useEffect(() => {
@@ -112,11 +121,25 @@ const Products: React.FC = () => {
     return () => clearTimeout(timer);
   }, [catFilterInput]);
 
-  // Click outside to close category filter dropdown
+  // Brand filter: search via API with debounce
+  useEffect(() => {
+    const timer = setTimeout(async () => {
+      try {
+        const results = await brandService.getAll({ search: brandFilterInput });
+        setBrandFilterOptions(results);
+      } catch {}
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [brandFilterInput]);
+
+  // Click outside to close filter dropdowns
   useEffect(() => {
     const handler = (e: MouseEvent) => {
       if (catFilterRef.current && !catFilterRef.current.contains(e.target as Node)) {
         setShowCatFilterDrop(false);
+      }
+      if (brandFilterRef.current && !brandFilterRef.current.contains(e.target as Node)) {
+        setShowBrandFilterDrop(false);
       }
     };
     document.addEventListener('mousedown', handler);
@@ -180,12 +203,14 @@ const Products: React.FC = () => {
       Object.keys(data).forEach((key) => {
         const value = (data as any)[key];
 
-        // Handle image separately - only append if it's a new File upload
         if (key === "image") {
-          if (value instanceof File) {
-            formData.append("image", value);
+          if (value instanceof File) formData.append("image", value);
+          // Skip string URLs — backend keeps existing image
+        } else if (key === "attributes") {
+          // Serialize as JSON string for the backend
+          if (Array.isArray(value)) {
+            formData.append("attributes", JSON.stringify(value));
           }
-          // Skip if it's an existing URL string - backend keeps the current image
         } else if (value !== null && value !== undefined) {
           formData.append(key, value);
         }
@@ -321,6 +346,43 @@ const Products: React.FC = () => {
             </div>
           )}
         </div>
+        <div className="flex flex-col gap-0.5 relative" ref={brandFilterRef}>
+          <label className="text-xs text-gray-400 px-0.5">Brand</label>
+          <div className="relative">
+            <input
+              type="text"
+              placeholder="Search brand…"
+              value={brandFilterInput}
+              onChange={e => { setBrandFilterInput(e.target.value); setShowBrandFilterDrop(true); }}
+              onFocus={() => setShowBrandFilterDrop(true)}
+              className="px-3 py-2 text-sm border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-gray-400 focus:border-transparent transition-all bg-white text-gray-700 w-36 pr-7"
+            />
+            {brandFilterInput && (
+              <button onClick={() => { setBrandFilterInput(''); setBrandFilter(''); }} className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
+          {showBrandFilterDrop && brandFilterOptions.length > 0 && (
+            <div className="absolute top-full left-0 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg z-50 max-h-48 overflow-y-auto">
+              <div
+                className="px-3 py-2 text-sm text-gray-500 hover:bg-gray-50 cursor-pointer"
+                onMouseDown={() => { setBrandFilter(''); setBrandFilterInput(''); setShowBrandFilterDrop(false); }}
+              >
+                All Brands
+              </div>
+              {brandFilterOptions.map(b => (
+                <div
+                  key={b.id}
+                  className={`px-3 py-2 text-sm cursor-pointer hover:bg-gray-50 ${brandFilter === String(b.id) ? 'bg-green-50 text-green-700 font-medium' : 'text-gray-700'}`}
+                  onMouseDown={() => { setBrandFilter(String(b.id)); setBrandFilterInput(b.name); setShowBrandFilterDrop(false); }}
+                >
+                  {b.name}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
         <div className="flex flex-col gap-0.5">
           <label className="text-xs text-gray-400 px-0.5">Stock</label>
           <select value={stockFilter} onChange={(e) => setStockFilter(e.target.value)}
@@ -333,9 +395,9 @@ const Products: React.FC = () => {
           </select>
         </div>
         <div className="ml-auto flex items-end gap-3 pb-2">
-          {(searchTerm || categoryFilter || stockFilter) && (
+          {(searchTerm || categoryFilter || brandFilter || stockFilter) && (
             <button
-              onClick={() => { setSearchTerm(''); setCategoryFilter(''); setCatFilterInput(''); setStockFilter(''); }}
+              onClick={() => { setSearchTerm(''); setCategoryFilter(''); setCatFilterInput(''); setBrandFilter(''); setBrandFilterInput(''); setStockFilter(''); }}
               className="text-xs text-gray-400 hover:text-gray-700 underline underline-offset-2 transition-colors"
             >
               Reset
@@ -371,6 +433,7 @@ const Products: React.FC = () => {
                     <th>SKU</th>
                     <th>Name</th>
                     <th>Category</th>
+                    <th className="hidden lg:table-cell">Brand</th>
                     <th className="hidden md:table-cell">HSN</th>
                     <th className="hidden lg:table-cell">Unit</th>
                     <th className="th-right hidden lg:table-cell">Cost</th>
@@ -394,6 +457,7 @@ const Products: React.FC = () => {
                       <td>
                         <span className="badge badge-primary">{getCategoryName(product.category)}</span>
                       </td>
+                      <td className="text-gray-500 hidden lg:table-cell">{product.brand_name || '—'}</td>
                       <td className="text-gray-500 hidden md:table-cell">{product.hsn_code || '—'}</td>
                       <td className="text-gray-500 capitalize hidden lg:table-cell">{product.unit || 'piece'}</td>
                       <td className="td-right text-gray-500 hidden lg:table-cell">₹{parseFloat(String(product.cost_price || 0)).toFixed(2)}</td>
