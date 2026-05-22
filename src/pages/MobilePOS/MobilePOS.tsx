@@ -83,7 +83,7 @@ const MobilePOS: React.FC = () => {
   const [badgePop, setBadgePop] = useState(false);
 
   // ── Session state ─────────────────────────────────────────────────────────
-  const { needsSessionSetup, currentSession, loading: sessionLoading } = useAppSelector(
+  const { needsSessionSetup, currentSession } = useAppSelector(
     (state) => state.session,
   );
   const initialSession = createEmptySession(1);
