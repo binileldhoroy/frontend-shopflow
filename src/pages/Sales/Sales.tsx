@@ -21,6 +21,7 @@ interface SaleItem {
   gst_rate: string;
   total_with_gst: string;
   line_total: string;
+  product_attributes?: Array<{ name: string; value: string }>;
 }
 
 interface Sale {

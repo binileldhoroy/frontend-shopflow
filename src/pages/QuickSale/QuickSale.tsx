@@ -27,6 +27,7 @@ interface CartItem {
   tax_included: boolean;
   stock_quantity?: number;
   original_selling_price: number;
+  attributes?: Array<{ name: string; value: string }>;
 }
 
 interface CartState {
