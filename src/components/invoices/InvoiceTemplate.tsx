@@ -245,7 +245,16 @@ const InvoiceTemplate: React.FC<InvoiceTemplateProps> = ({
           return (
             <tr key={item.id} className={isMeasuring ? "measure-row" : ""}>
               <td style={{ ...tdBase, textAlign: 'center' as const }}>{startIndex + idx + 1}</td>
-              <td style={{ ...tdBase, textAlign: 'left' as const }}>{item.product_name}</td>
+              <td style={{ ...tdBase, textAlign: 'left' as const }}>
+                {item.product_name}
+                {(item as any).product_attributes?.length > 0 && (
+                  <div style={{ fontSize: '9px', color: '#6b7280', marginTop: '2px' }}>
+                    {(item as any).product_attributes.map((a: any, i: number) => (
+                      <span key={i} style={{ marginRight: '6px' }}>{a.name}: {a.value}</span>
+                    ))}
+                  </div>
+                )}
+              </td>
               <td style={{ ...tdBase, textAlign: 'center' as const }}>{item.hsn_code || '-'}</td>
               <td style={{ ...tdBase, textAlign: 'center' as const }}>{item.quantity}</td>
               <td style={{ ...tdBase, textAlign: 'right' as const }}>{Number(item.unit_price).toFixed(2)}</td>

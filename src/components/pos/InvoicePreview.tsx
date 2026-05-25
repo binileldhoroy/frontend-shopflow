@@ -45,6 +45,9 @@ const InvoicePreview: React.FC<InvoicePreviewProps> = ({ sale, onClose, onGenera
         <tr>
           <td style="padding:5px 4px;border-bottom:1px solid #e5e7eb;">
             <div style="font-weight:600">${item.product_name || item.product}</div>
+            ${(item.product_attributes && item.product_attributes.length > 0)
+              ? `<div style="font-size:9px;color:#6b7280;margin-top:1px">${item.product_attributes.map((a: any) => `${a.name}: ${a.value}`).join(' | ')}</div>`
+              : ''}
             <div style="font-size:9px;color:#6b7280">HSN: ${item.hsn_code || '—'} | GST ${gstRate}%</div>
           </td>
           <td style="text-align:center;padding:5px 4px;border-bottom:1px solid #e5e7eb;">${qty}</td>

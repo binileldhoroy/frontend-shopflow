@@ -848,6 +848,15 @@ const POS: React.FC = () => {
                     <div>
                       <div className="font-semibold text-gray-800 text-xs leading-tight">{product.name}</div>
                       <div className="text-[10px] text-gray-400 mt-0.5">{product.sku}</div>
+                      {product.attributes && product.attributes.length > 0 && (
+                        <div className="flex flex-wrap gap-0.5 mt-0.5">
+                          {product.attributes.map((a: any, i: number) => (
+                            <span key={i} className="text-[9px] bg-gray-100 text-gray-500 px-1 rounded leading-tight">
+                              {a.name}: {a.value}
+                            </span>
+                          ))}
+                        </div>
+                      )}
                     </div>
                     <div className="flex items-end justify-between mt-1.5 pt-1.5 border-t border-gray-100">
                        <div className="flex flex-col">

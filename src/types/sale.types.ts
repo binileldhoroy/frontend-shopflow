@@ -43,6 +43,7 @@ export interface SaleItem {
   line_total: number;
   gst_amount: number;
   total_with_gst: number;
+  product_attributes?: Array<{ name: string; value: string }>;
 }
 
 export interface SaleOrder {
