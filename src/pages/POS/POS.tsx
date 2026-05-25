@@ -1055,7 +1055,7 @@ const POS: React.FC = () => {
 
                     {/* Name + price */}
                     <div className="flex-1 min-w-0">
-                      <div className={`font-semibold text-xs text-gray-800 leading-tight ${isCartExpanded ? 'whitespace-normal' : 'truncate'}`}>{item.name}</div>
+                      <div className="font-semibold text-xs text-gray-800 leading-tight break-words">{item.name}</div>
                       <div className="text-[10px] text-gray-400">₹{item.unit_price.toFixed(2)} × {item.quantity}</div>
                     </div>
 
@@ -1063,16 +1063,16 @@ const POS: React.FC = () => {
                     <div className="flex items-center border border-gray-200 rounded-lg overflow-hidden shrink-0 bg-white">
                       <button
                         onClick={() => handleQuantityChange(item.id, Math.max(1, item.quantity - 1))}
-                        className="w-9 h-9 flex items-center justify-center hover:bg-gray-100 active:bg-gray-200 text-gray-500 transition-colors"
+                        className="w-6 h-7 flex items-center justify-center hover:bg-gray-100 active:bg-gray-200 text-gray-500 transition-colors"
                       >
-                        <Minus className="w-3.5 h-3.5" />
+                        <Minus className="w-3 h-3" />
                       </button>
-                      <span className="w-9 text-center text-xs font-bold text-gray-800 border-x border-gray-200">{item.quantity}</span>
+                      <span className="w-6 text-center text-xs font-bold text-gray-800 border-x border-gray-200">{item.quantity}</span>
                       <button
                         onClick={() => handleQuantityChange(item.id, item.quantity + 1)}
-                        className="w-9 h-9 flex items-center justify-center hover:bg-gray-100 active:bg-gray-200 text-gray-500 transition-colors"
+                        className="w-6 h-7 flex items-center justify-center hover:bg-gray-100 active:bg-gray-200 text-gray-500 transition-colors"
                       >
-                        <Plus className="w-3.5 h-3.5" />
+                        <Plus className="w-3 h-3" />
                       </button>
                     </div>
 

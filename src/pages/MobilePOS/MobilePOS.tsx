@@ -1319,7 +1319,7 @@ const MobilePOS: React.FC = () => {
                       </span>
 
                       <div className="flex-1 min-w-0">
-                        <div className="font-semibold text-sm text-gray-800 truncate">{item.name}</div>
+                        <div className="font-semibold text-sm text-gray-800 leading-tight break-words">{item.name}</div>
                         <div className="text-[10px] text-gray-400 mt-0.5">
                           ₹{item.unit_price.toFixed(2)} / unit
                           {item.gst_rate > 0 && (
@@ -1329,21 +1329,21 @@ const MobilePOS: React.FC = () => {
                       </div>
 
                       {/* Qty stepper */}
-                      <div className="flex items-center border border-gray-200 rounded-xl overflow-hidden shrink-0 shadow-sm">
+                      <div className="flex items-center border border-gray-200 rounded-lg overflow-hidden shrink-0 shadow-sm">
                         <button
                           onClick={() => updateQuantity(item.id, -1)}
-                          className="w-9 h-9 flex items-center justify-center hover:bg-gray-100 active:bg-gray-200 text-gray-500 transition-colors"
+                          className="w-7 h-8 flex items-center justify-center hover:bg-gray-100 active:bg-gray-200 text-gray-500 transition-colors"
                         >
-                          <Minus className="w-3.5 h-3.5" />
+                          <Minus className="w-3 h-3" />
                         </button>
-                        <span className="w-9 text-center text-sm font-bold text-gray-800 border-x border-gray-200">
+                        <span className="w-7 text-center text-sm font-bold text-gray-800 border-x border-gray-200">
                           {item.quantity}
                         </span>
                         <button
                           onClick={() => updateQuantity(item.id, 1)}
-                          className="w-9 h-9 flex items-center justify-center hover:bg-gray-100 active:bg-gray-200 text-gray-500 transition-colors"
+                          className="w-7 h-8 flex items-center justify-center hover:bg-gray-100 active:bg-gray-200 text-gray-500 transition-colors"
                         >
-                          <Plus className="w-3.5 h-3.5" />
+                          <Plus className="w-3 h-3" />
                         </button>
                       </div>
 
