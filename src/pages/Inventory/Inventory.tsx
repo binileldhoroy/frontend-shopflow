@@ -263,7 +263,18 @@ const Inventory: React.FC = () => {
                     {movements.map((movement) => (
                       <tr key={movement.id}>
                         <td className="text-gray-500 whitespace-nowrap">{new Date(movement.created_at).toLocaleDateString()}</td>
-                        <td className="font-semibold text-gray-900">{movement.product_name}</td>
+                        <td className="font-semibold text-gray-900">
+                          {movement.product_name}
+                          {movement.product_attributes && movement.product_attributes.length > 0 && (
+                            <div className="flex flex-wrap gap-1 mt-0.5">
+                              {movement.product_attributes.map((a, i) => (
+                                <span key={i} className="text-[10px] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded font-normal">
+                                  {a.name}: {a.value}
+                                </span>
+                              ))}
+                            </div>
+                          )}
+                        </td>
                         <td>
                           <span className={`badge ${getMovementBadgeClass(movement.movement_type)} inline-flex items-center gap-1`}>
                             {getMovementIcon(movement.movement_type)}
@@ -335,6 +346,15 @@ const Inventory: React.FC = () => {
                         <td>
                           <span className="font-semibold text-gray-900">{item.product_name}</span>
                           <div className="text-xs text-gray-400">{item.sku}</div>
+                          {item.product_attributes && item.product_attributes.length > 0 && (
+                            <div className="flex flex-wrap gap-1 mt-0.5">
+                              {item.product_attributes.map((a, i) => (
+                                <span key={i} className="text-[10px] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded">
+                                  {a.name}: {a.value}
+                                </span>
+                              ))}
+                            </div>
+                          )}
                         </td>
                         <td className="td-right">
                           <span className={`font-semibold ${

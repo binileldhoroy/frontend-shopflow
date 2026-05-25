@@ -117,4 +117,5 @@ export interface CartItem {
   hsn_code?: string;
   tax_included: boolean;
   stock_quantity?: number;
+  attributes?: Array<{ name: string; value: string }>;
 }

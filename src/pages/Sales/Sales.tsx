@@ -771,7 +771,18 @@ const Sales: React.FC = () => {
                       <tbody>
                         {selectedSale.items.map(item => (
                           <tr key={item.id} className="border-b border-gray-100">
-                            <td className="py-2 px-3 text-sm text-gray-900">{item.product_name}</td>
+                            <td className="py-2 px-3 text-sm text-gray-900">
+                              {item.product_name}
+                              {item.product_attributes && item.product_attributes.length > 0 && (
+                                <div className="flex flex-wrap gap-1 mt-0.5">
+                                  {item.product_attributes.map((a, i) => (
+                                    <span key={i} className="text-[10px] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded">
+                                      {a.name}: {a.value}
+                                    </span>
+                                  ))}
+                                </div>
+                              )}
+                            </td>
                             <td className="py-2 px-3 text-sm text-right text-gray-600">{item.quantity}</td>
                             <td className="py-2 px-3 text-sm text-right text-gray-600">₹{item.unit_price}</td>
                             <td className="py-2 px-3 text-sm text-right text-gray-600">{item.gst_rate}%</td>

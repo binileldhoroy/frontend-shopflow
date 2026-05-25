@@ -23,6 +23,7 @@ interface CartItem {
   tax_included: boolean;
   stock_quantity?: number;
   original_selling_price: number;
+  attributes?: Array<{ name: string; value: string }>;
 }
 
 interface CartState {
@@ -274,6 +275,7 @@ const AdvanceInvoiceCreate: React.FC = () => {
         tax_included: product.tax_included,
         stock_quantity: product.stock_quantity,
         original_selling_price: parseFloat(product.selling_price),
+        attributes: product.attributes || [],
       };
       setCart(prev => ({ ...prev, items: [...prev.items, newItem] }));
     }
@@ -471,6 +473,15 @@ const AdvanceInvoiceCreate: React.FC = () => {
                           <div className="flex items-center gap-2 text-xs text-gray-500 mt-1">
                             <span className="bg-gray-100 px-1.5 py-0.5 rounded border border-gray-200">SKU: {product.sku}</span>
                           </div>
+                          {product.attributes && product.attributes.length > 0 && (
+                            <div className="flex flex-wrap gap-1 mt-1">
+                              {product.attributes.map((a: any, i: number) => (
+                                <span key={i} className="text-[10px] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded">
+                                  {a.name}: {a.value}
+                                </span>
+                              ))}
+                            </div>
+                          )}
                         </div>
                         <div className="text-right">
                            <div className="font-bold text-lg leading-none text-blue-600">
@@ -520,6 +531,15 @@ const AdvanceInvoiceCreate: React.FC = () => {
                      </div>
                      <div className="flex-1 min-w-0">
                        <div className="font-bold text-gray-800 text-sm xl:text-base truncate pr-4">{item.name}</div>
+                       {item.attributes && item.attributes.length > 0 && (
+                         <div className="flex flex-wrap gap-1 mt-0.5">
+                           {item.attributes.map((a, i) => (
+                             <span key={i} className="text-[10px] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded">
+                               {a.name}: {a.value}
+                             </span>
+                           ))}
+                         </div>
+                       )}
                        <div className="flex items-center gap-3 mt-1">
                           <span className="text-[11px] text-gray-400 font-mono">SKU: {item.sku}</span>
                           <span className="text-[11px] font-medium text-gray-500 bg-gray-50 px-1.5 rounded">₹{item.unit_price.toFixed(2)} / unit</span>

@@ -378,6 +378,7 @@ const QuickSale: React.FC = () => {
         tax_included: product.tax_included,
         stock_quantity: product.stock_quantity,
         original_selling_price: parseFloat(product.selling_price),
+        attributes: product.attributes || [],
       };
       updateActiveSession(s => ({ ...s, cart: { ...s.cart, items: [...s.cart.items, newItem] } }));
     }
@@ -679,6 +680,15 @@ const QuickSale: React.FC = () => {
                             <span className="bg-gray-100 px-1.5 py-0.5 rounded border border-gray-200">SKU: {product.sku}</span>
                             {product.barcode && <span className="text-gray-400">| {product.barcode}</span>}
                           </div>
+                          {product.attributes && product.attributes.length > 0 && (
+                            <div className="flex flex-wrap gap-1 mt-1">
+                              {product.attributes.map((a: any, i: number) => (
+                                <span key={i} className="text-[10px] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded">
+                                  {a.name}: {a.value}
+                                </span>
+                              ))}
+                            </div>
+                          )}
                         </div>
                         <div className="text-right">
                            <div className={`font-bold text-lg leading-none ${isDiscounted ? 'text-green-600' : isPremium ? 'text-yellow-600' : 'text-blue-600'}`}>
@@ -752,6 +762,15 @@ const QuickSale: React.FC = () => {
                     {/* Product Details */}
                     <div className="flex-1 min-w-0">
                       <div className="font-semibold text-gray-800 text-sm truncate">{item.name}</div>
+                      {item.attributes && item.attributes.length > 0 && (
+                        <div className="flex flex-wrap gap-0.5 mt-0.5">
+                          {item.attributes.map((a: any, i: number) => (
+                            <span key={i} className="text-[9px] bg-gray-100 text-gray-500 px-1 rounded leading-tight">
+                              {a.name}: {a.value}
+                            </span>
+                          ))}
+                        </div>
+                      )}
                       <div className="flex items-center gap-2 mt-0.5">
                         <span className="text-[10px] text-gray-400">₹{item.unit_price.toFixed(2)} / unit</span>
                         {item.gst_rate > 0 && (
