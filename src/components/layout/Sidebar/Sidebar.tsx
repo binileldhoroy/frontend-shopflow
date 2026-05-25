@@ -244,7 +244,7 @@ const Sidebar: React.FC = () => {
       )}
 
       <aside
-        className={`fixed left-0 top-0 h-screen flex flex-col z-40 transition-all duration-300
+        className={`fixed left-0 top-0 h-viewport flex flex-col z-40 transition-all duration-300
           border-r border-white/[0.07]
           ${sidebarOpen
             ? 'w-64 bg-[#0F1F18]'

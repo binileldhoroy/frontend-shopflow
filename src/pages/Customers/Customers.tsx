@@ -254,7 +254,7 @@ const Customers: React.FC = () => {
       </div>
 
       {/* Customers Table */}
-      <div className="section-card flex flex-col" style={{ height: 'calc(100vh - 360px)', minHeight: '360px' }}>
+      <div className="section-card flex flex-col" style={{ height: 'calc(var(--viewport-height) - 360px)', minHeight: '360px' }}>
         {loading ? (
           <div className="loading-center flex-1">
             <div className="spinner" />

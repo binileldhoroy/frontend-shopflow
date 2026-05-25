@@ -118,7 +118,7 @@ const Chat: React.FC = () => {
   const hasContent = messages.length > 0 || streaming;
 
   return (
-    <div className="flex h-[calc(100vh-60px)] bg-gray-50">
+    <div className="flex h-full bg-gray-50">
       {/* Sidebar */}
       <aside className="w-[260px] flex-shrink-0 bg-white border-r border-gray-100 flex flex-col">
         <div className="p-4 border-b border-gray-100">
@@ -266,6 +266,9 @@ const Chat: React.FC = () => {
                 rows={1}
                 className="w-full resize-none rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:border-transparent transition-all duration-150 disabled:opacity-60 disabled:cursor-not-allowed max-h-[140px] overflow-y-auto"
                 style={{ minHeight: '46px' }}
+                onFocus={() => {
+                  setTimeout(() => textareaRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' }), 300);
+                }}
                 onInput={(e) => {
                   const el = e.currentTarget;
                   el.style.height = 'auto';

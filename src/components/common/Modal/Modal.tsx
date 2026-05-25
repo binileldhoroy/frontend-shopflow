@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { X } from 'lucide-react';
 
 interface ModalProps {
@@ -11,6 +11,8 @@ interface ModalProps {
 }
 
 const Modal: React.FC<ModalProps> = ({ show, onHide, title, children, size = 'md', footer }) => {
+  const bodyRef = useRef<HTMLDivElement>(null);
+
   useEffect(() => {
     if (show) {
       document.body.style.overflow = 'hidden';
@@ -20,6 +22,20 @@ const Modal: React.FC<ModalProps> = ({ show, onHide, title, children, size = 'md
     return () => {
       document.body.style.overflow = 'unset';
     };
+  }, [show]);
+
+  useEffect(() => {
+    if (!show) return;
+    const el = bodyRef.current;
+    if (!el) return;
+    const handleFocusIn = (e: FocusEvent) => {
+      const t = e.target as HTMLElement;
+      if (t && ['INPUT', 'TEXTAREA', 'SELECT'].includes(t.tagName)) {
+        setTimeout(() => t.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 300);
+      }
+    };
+    el.addEventListener('focusin', handleFocusIn);
+    return () => el.removeEventListener('focusin', handleFocusIn);
   }, [show]);
 
   if (!show) return null;
@@ -32,7 +48,10 @@ const Modal: React.FC<ModalProps> = ({ show, onHide, title, children, size = 'md
   };
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto">
+    <div
+      className="fixed inset-x-0 top-0 z-50 overflow-y-auto"
+      style={{ height: 'var(--viewport-height)' }}
+    >
       {/* Backdrop */}
       <div
         className="fixed inset-0 bg-black/50 transition-opacity"
@@ -40,8 +59,9 @@ const Modal: React.FC<ModalProps> = ({ show, onHide, title, children, size = 'md
       ></div>
 
       {/* Modal */}
-      <div className="flex min-h-full items-center justify-center p-4">
+      <div className="flex min-h-full items-start justify-center p-4">
         <div
+          ref={bodyRef}
           className={`relative bg-white rounded-lg shadow-xl ${sizeClasses[size]} w-full animate-fadeIn`}
           onClick={(e) => e.stopPropagation()}
         >

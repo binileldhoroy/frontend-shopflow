@@ -126,7 +126,7 @@ const Suppliers: React.FC = () => {
       </div>
 
       {/* List */}
-      <div className="section-card" style={{ height: 'calc(100vh - 250px)', display: 'flex', flexDirection: 'column' }}>
+      <div className="section-card" style={{ height: 'calc(var(--viewport-height) - 250px)', display: 'flex', flexDirection: 'column' }}>
         <SupplierList
           suppliers={filteredSuppliers}
           loading={loading}

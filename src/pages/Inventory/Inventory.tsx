@@ -237,7 +237,7 @@ const Inventory: React.FC = () => {
 
       {showMovements ? (
         /* Stock Movements Table */
-        <div className="section-card flex flex-col" style={{ height: 'calc(100vh - 220px)', minHeight: '400px' }}>
+        <div className="section-card flex flex-col" style={{ height: 'calc(var(--viewport-height) - 220px)', minHeight: '400px' }}>
           {loading ? (
             <div className="loading-center flex-1"><div className="spinner" /></div>
           ) : movements.length === 0 ? (
@@ -308,7 +308,7 @@ const Inventory: React.FC = () => {
         </div>
       ) : (
         /* Stock Levels Table */
-        <div className="section-card flex flex-col" style={{ height: 'calc(100vh - 320px)', minHeight: '400px' }}>
+        <div className="section-card flex flex-col" style={{ height: 'calc(var(--viewport-height) - 320px)', minHeight: '400px' }}>
           {loading ? (
             <div className="loading-center flex-1"><div className="spinner" /></div>
           ) : stock.length === 0 ? (

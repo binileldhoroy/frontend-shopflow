@@ -429,7 +429,7 @@ const AdvanceInvoiceCreate: React.FC = () => {
 
   return (
     <div className="h-full flex gap-4 p-2 relative">
-      <div className="flex-1 flex flex-col gap-3 h-[calc(100vh-4rem)]">
+      <div className="flex-1 flex flex-col gap-3 h-full">
         <div className="card shadow-sm p-3 relative z-20">
            <div className="relative">
              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
@@ -551,7 +551,7 @@ const AdvanceInvoiceCreate: React.FC = () => {
       </div>
 
       {/* Right Panel */}
-      <div className="w-[350px] lg:w-[400px] flex flex-col gap-3 h-[calc(100vh-4rem)]">
+      <div className="w-[350px] lg:w-[400px] flex flex-col gap-3 h-full">
         <div className="card shrink-0 shadow-sm p-3 border border-gray-100">
           <div className="flex justify-between items-center mb-2">
             <h3 className="text-sm font-semibold text-gray-700 flex items-center gap-1.5 border-l-2 border-blue-500 pl-2 -ml-3">

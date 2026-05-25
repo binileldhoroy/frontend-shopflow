@@ -410,7 +410,7 @@ const Products: React.FC = () => {
       </div>
 
       {/* Products Table */}
-      <div className="section-card flex flex-col" style={{ height: 'calc(100vh - 280px)', minHeight: '400px' }}>
+      <div className="section-card flex flex-col" style={{ height: 'calc(var(--viewport-height) - 280px)', minHeight: '400px' }}>
         {loading ? (
           <div className="loading-center flex-1">
             <div className="spinner" />

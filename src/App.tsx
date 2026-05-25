@@ -47,7 +47,10 @@ import MobileAwareRoute from './routes/MobileAwareRoute';
 import AppInitializer from './components/AppInitializer';
 import { UserRole } from './types/auth.types';
 
+import { useViewportHeight } from './hooks/useViewportHeight';
+
 function App() {
+  useViewportHeight();
   return (
     <Provider store={store}>
       <BrowserRouter>

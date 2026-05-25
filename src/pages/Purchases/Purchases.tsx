@@ -202,7 +202,7 @@ const Purchases: React.FC = () => {
       </div>
 
       {/* List */}
-      <div className="section-card" style={{ height: 'calc(100vh - 260px)', display: 'flex', flexDirection: 'column' }}>
+      <div className="section-card" style={{ height: 'calc(var(--viewport-height) - 260px)', display: 'flex', flexDirection: 'column' }}>
         <PurchaseList
           purchases={filteredPurchases}
           loading={loading}

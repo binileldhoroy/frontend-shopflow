@@ -1275,7 +1275,7 @@ const MobilePOS: React.FC = () => {
           />
 
           {/* Sheet */}
-          <div className="relative bg-white rounded-t-3xl shadow-2xl flex flex-col max-h-[95vh] animate-slideUp">
+          <div className="relative bg-white rounded-t-3xl shadow-2xl flex flex-col animate-slideUp" style={{ maxHeight: 'calc(var(--viewport-height) * 0.95)' }}>
             {/* Drag handle */}
             <div className="flex justify-center pt-3 pb-2 shrink-0">
               <div className="w-10 h-1 bg-gray-300 rounded-full" />
