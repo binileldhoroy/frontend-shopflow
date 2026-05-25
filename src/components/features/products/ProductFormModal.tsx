@@ -5,6 +5,7 @@ import ProductPriceTiers from './ProductPriceTiers';
 import { Tag, X, Plus, Trash2 } from 'lucide-react';
 import { categoryService, Category as ServiceCategory } from '../../../api/services/category.service';
 import { brandService } from '../../../api/services/brand.service';
+import { priceTierService, PriceTier } from '../../../api/services/priceTier.service';
 
 interface ProductFormModalProps {
   show: boolean;
@@ -32,6 +33,14 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({
   const brandRef = useRef<HTMLDivElement>(null);
 
   const [attributes, setAttributes] = useState<ProductAttribute[]>([]);
+  const [skuManuallyEdited, setSkuManuallyEdited] = useState(false);
+  const skuSuffixRef = useRef<string>('');
+
+  const [availableTiers, setAvailableTiers] = useState<PriceTier[]>([]);
+  const [pendingTierRules, setPendingTierRules] = useState<Array<{ tier: number; tier_name: string; type: 'percentage' | 'fixed'; value: number }>>([]);
+  const [newPendingTier, setNewPendingTier] = useState<number | ''>('');
+  const [newPendingType, setNewPendingType] = useState<'percentage' | 'fixed'>('percentage');
+  const [newPendingValue, setNewPendingValue] = useState('');
 
   const [formData, setFormData] = useState<ProductFormData>({
     name: '',
@@ -93,8 +102,34 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({
         is_active: true,
       });
       setAttributes([]);
+      setSkuManuallyEdited(false);
+      skuSuffixRef.current = '';
+    }
+    setPendingTierRules([]);
+    setNewPendingTier('');
+    setNewPendingValue('');
+    setNewPendingType('percentage');
+  }, [product, show]);
+
+  // Load available price tiers when adding a new product
+  useEffect(() => {
+    if (!product && show) {
+      priceTierService.getAllTiers()
+        .then(tiers => setAvailableTiers(tiers.filter(t => t.is_active)))
+        .catch(() => {});
     }
   }, [product, show]);
+
+  // Auto-generate SKU from product name for new products
+  useEffect(() => {
+    if (!product && !skuManuallyEdited && formData.name) {
+      if (!skuSuffixRef.current) {
+        skuSuffixRef.current = String(1000 + (Date.now() % 9000));
+      }
+      const prefix = formData.name.replace(/[^A-Z0-9]/gi, '').slice(0, 3).toUpperCase() || 'SKU';
+      setFormData(prev => ({ ...prev, sku: `${prefix}-${skuSuffixRef.current}` }));
+    }
+  }, [formData.name, product, skuManuallyEdited]);
 
   // When editing, pre-fill category name
   useEffect(() => {
@@ -156,6 +191,21 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({
     setAttributes(prev => prev.filter((_, i) => i !== index));
   };
 
+  const handleAddPendingTierRule = () => {
+    if (!newPendingTier || !newPendingValue) return;
+    const tier = availableTiers.find(t => t.id === Number(newPendingTier));
+    if (!tier) return;
+    setPendingTierRules(prev => [...prev, {
+      tier: tier.id,
+      tier_name: tier.name,
+      type: newPendingType,
+      value: Number(newPendingValue),
+    }]);
+    setNewPendingTier('');
+    setNewPendingValue('');
+    setNewPendingType('percentage');
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -167,6 +217,7 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({
       stock_quantity: formData.stock_quantity === '' ? 0 : Number(formData.stock_quantity),
       reorder_level: formData.reorder_level === '' ? 0 : Number(formData.reorder_level),
       attributes: attributes.filter(a => a.name.trim()),
+      priceTierRules: pendingTierRules,
     };
 
     onSubmit(submitData);
@@ -293,7 +344,7 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({
               name="sku"
               className="input-field"
               value={formData.sku}
-              onChange={handleChange}
+              onChange={e => { setSkuManuallyEdited(true); handleChange(e); }}
               required
             />
           </div>
@@ -526,18 +577,105 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({
 
         {/* Price Tiers Section */}
         <div className="bg-gray-50 p-4 rounded-lg border border-gray-200 mt-4">
-             <h3 className="font-semibold text-gray-800 flex items-center gap-2 mb-2">
-                 <Tag className="w-4 h-4" />
-                 Price Tier Customization
-             </h3>
-
-             {product && product.id ? (
-                 <ProductPriceTiers productId={product.id} />
-             ) : (
-                 <p className="text-sm text-gray-500 italic">
-                     Please save the product first to configure specific price tier rules.
-                 </p>
-             )}
+          <h3 className="font-semibold text-gray-800 flex items-center gap-2 mb-2">
+            <Tag className="w-4 h-4" />
+            Price Tier Customization
+          </h3>
+          {product && product.id ? (
+            <ProductPriceTiers productId={product.id} />
+          ) : (
+            <>
+              <p className="text-sm text-gray-500 mb-3">
+                Define specific pricing for customer groups. Rules override the tier's default percentage.
+              </p>
+              <div className="flex flex-wrap gap-2 items-end mb-3 p-3 bg-white rounded border border-gray-200 shadow-sm">
+                <div className="flex-1 min-w-[140px]">
+                  <label className="text-xs font-medium text-gray-700 mb-1 block">Tier Group</label>
+                  <select
+                    className="input-field py-1 text-sm"
+                    value={newPendingTier}
+                    onChange={e => setNewPendingTier(Number(e.target.value))}
+                  >
+                    <option value="">Select Tier</option>
+                    {availableTiers.filter(t => !pendingTierRules.some(r => r.tier === t.id)).map(t => (
+                      <option key={t.id} value={t.id}>{t.name} (Default: {t.default_percentage}%)</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="w-[120px]">
+                  <label className="text-xs font-medium text-gray-700 mb-1 block">Type</label>
+                  <select
+                    className="input-field py-1 text-sm"
+                    value={newPendingType}
+                    onChange={e => setNewPendingType(e.target.value as 'percentage' | 'fixed')}
+                  >
+                    <option value="percentage">Percentage (+/-)</option>
+                    <option value="fixed">Fixed Price (₹)</option>
+                  </select>
+                </div>
+                <div className="w-[100px]">
+                  <label className="text-xs font-medium text-gray-700 mb-1 block">Value</label>
+                  <input
+                    type="number"
+                    className="input-field py-1 text-sm"
+                    placeholder={newPendingType === 'percentage' ? '5.0' : '500'}
+                    value={newPendingValue}
+                    onChange={e => setNewPendingValue(e.target.value)}
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={handleAddPendingTierRule}
+                  disabled={!newPendingTier || !newPendingValue}
+                  className="btn btn-primary py-1 px-3 h-[34px]"
+                >
+                  <Plus className="w-4 h-4 mr-1" /> Add
+                </button>
+              </div>
+              {pendingTierRules.length === 0 ? (
+                <div className="text-center py-3 text-gray-400 text-sm">
+                  No custom rules. Default tier percentages will apply.
+                </div>
+              ) : (
+                <div className="bg-white border rounded overflow-hidden">
+                  <table className="w-full text-sm text-left">
+                    <thead className="bg-gray-50 text-gray-600 font-medium border-b">
+                      <tr>
+                        <th className="p-2 pl-3">Tier Name</th>
+                        <th className="p-2">Rule</th>
+                        <th className="p-2 text-right">Action</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100">
+                      {pendingTierRules.map((rule, i) => (
+                        <tr key={i}>
+                          <td className="p-2 pl-3 font-medium">{rule.tier_name}</td>
+                          <td className="p-2">
+                            {rule.type === 'fixed' ? (
+                              <span className="text-primary-600 font-bold">₹{rule.value}</span>
+                            ) : (
+                              <span className={Number(rule.value) >= 0 ? 'text-success-600' : 'text-danger-600'}>
+                                {Number(rule.value) > 0 ? '+' : ''}{rule.value}%
+                              </span>
+                            )}
+                          </td>
+                          <td className="p-2 text-right">
+                            <button
+                              type="button"
+                              onClick={() => setPendingTierRules(prev => prev.filter((_, idx) => idx !== i))}
+                              className="text-gray-400 hover:text-danger-500 p-1"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </>
+          )}
         </div>
       </form>
     </Modal>

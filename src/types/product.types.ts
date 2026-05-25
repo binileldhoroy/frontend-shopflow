@@ -77,6 +77,7 @@ export interface ProductFormData {
   image?: File | null | string;
   is_active?: boolean;
   attributes?: ProductAttribute[];
+  priceTierRules?: Array<{ tier: number; tier_name: string; type: 'percentage' | 'fixed'; value: number }>;
 }
 
 export interface CategoryFormData {

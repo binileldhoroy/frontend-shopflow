@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { productService, categoryService } from '@api/services/product.service';
+import { priceTierService } from '@api/services/priceTier.service';
 import { categoryService as catSearchService } from '@api/services/category.service';
 import { brandService } from '@api/services/brand.service';
 import { Product, Category, Brand, ProductFormData } from '../../types/product.types';
@@ -211,6 +212,8 @@ const Products: React.FC = () => {
           if (Array.isArray(value)) {
             formData.append("attributes", JSON.stringify(value));
           }
+        } else if (key === "priceTierRules") {
+          // handled separately after product creation
         } else if (value !== null && value !== undefined) {
           formData.append(key, value);
         }
@@ -223,7 +226,12 @@ const Products: React.FC = () => {
           type: 'success',
         }));
       } else {
-        await productService.create(formData);
+        const newProduct = await productService.create(formData);
+        if (data.priceTierRules && data.priceTierRules.length > 0) {
+          await Promise.all(data.priceTierRules.map(rule =>
+            priceTierService.createProductRule({ product: newProduct.id, tier: rule.tier, type: rule.type, value: rule.value })
+          ));
+        }
         dispatch(addNotification({
           message: 'Product created successfully',
           type: 'success',
@@ -453,7 +461,18 @@ const Products: React.FC = () => {
                           <div className="text-gray-400 text-xs mt-0.5">{product.barcode}</div>
                         )}
                       </td>
-                      <td className="font-medium text-gray-800">{product.name}</td>
+                      <td className="font-medium text-gray-800">
+                        {product.name}
+                        {product.attributes && product.attributes.length > 0 && (
+                          <div className="flex flex-wrap gap-1 mt-1">
+                            {product.attributes.map((attr, i) => (
+                              <span key={i} className="text-xs bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded">
+                                {attr.name}: {attr.value}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </td>
                       <td>
                         <span className="badge badge-primary">{getCategoryName(product.category)}</span>
                       </td>
