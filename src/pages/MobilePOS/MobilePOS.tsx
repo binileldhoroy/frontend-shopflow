@@ -11,7 +11,7 @@ import { fetchCurrentSession } from '@store/slices/sessionSlice';
 import {
   Search, LayoutGrid, ShoppingCart, Plus, Minus, Trash2, Package,
   Tag, Lock, Flag, Wallet, X, Banknote, CreditCard, Smartphone,
-  Building2, BookOpenCheck, ChevronUp, User,
+  Building2, BookOpenCheck, ChevronUp, ChevronDown, User,
 } from 'lucide-react';
 import InvoicePreview from '../../components/pos/InvoicePreview';
 import GenerateInvoiceModal from '../../components/invoices/GenerateInvoiceModal';
@@ -81,6 +81,7 @@ const MobilePOS: React.FC = () => {
   const [mode, setMode] = useState<'browse' | 'scan'>('browse');
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [badgePop, setBadgePop] = useState(false);
+  const [showGstDetails, setShowGstDetails] = useState(false);
 
   // ── Session state ─────────────────────────────────────────────────────────
   const { needsSessionSetup, currentSession } = useAppSelector(
@@ -1314,196 +1315,216 @@ const MobilePOS: React.FC = () => {
               </button>
             </div>
 
-            {/* Cart items */}
-            <div className="flex-1 overflow-y-auto min-h-[200px]">
+            {/* Cart items + summary rows — all scrollable together */}
+            <div className="flex-1 overflow-y-auto min-h-0">
               {cart.items.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-14 text-gray-400">
                   <ShoppingCart className="w-12 h-12 mb-3 text-gray-200" />
                   <p className="text-sm font-medium">Cart is empty</p>
                 </div>
               ) : (
-                <div className="divide-y divide-gray-50">
-                  {cart.items.map((item, index) => (
-                    <div
-                      key={item.id}
-                      className="flex items-center gap-3 px-5 py-3.5 bg-white hover:bg-gray-50/50 transition-colors group"
-                    >
-                      <span className="shrink-0 w-6 h-6 rounded-full bg-blue-100 text-blue-600 text-[10px] font-bold flex items-center justify-center">
-                        {index + 1}
-                      </span>
-
-                      <div className="flex-1 min-w-0">
-                        <div className="font-semibold text-sm text-gray-800 leading-tight break-words">{item.name}</div>
-                        <div className="text-[10px] text-gray-400 mt-0.5">
-                          ₹{item.unit_price.toFixed(2)} / unit
-                          {item.gst_rate > 0 && (
-                            <span className="ml-1.5 text-orange-500">GST {item.gst_rate}%</span>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Qty stepper */}
-                      <div className="flex items-center border border-gray-200 rounded-lg overflow-hidden shrink-0 shadow-sm">
-                        <button
-                          onClick={() => updateQuantity(item.id, -1)}
-                          className="w-7 h-8 flex items-center justify-center hover:bg-gray-100 active:bg-gray-200 text-gray-500 transition-colors"
-                        >
-                          <Minus className="w-3 h-3" />
-                        </button>
-                        <span className="w-7 text-center text-sm font-bold text-gray-800 border-x border-gray-200">
-                          {item.quantity}
-                        </span>
-                        <button
-                          onClick={() => updateQuantity(item.id, 1)}
-                          className="w-7 h-8 flex items-center justify-center hover:bg-gray-100 active:bg-gray-200 text-gray-500 transition-colors"
-                        >
-                          <Plus className="w-3 h-3" />
-                        </button>
-                      </div>
-
-                      <div className="shrink-0 text-right w-16">
-                        <div className="text-sm font-bold text-gray-800">
-                          ₹{(item.selling_price * item.quantity).toFixed(2)}
-                        </div>
-                      </div>
-
-                      <button
-                        onClick={() => removeItem(item.id)}
-                        className="shrink-0 p-1.5 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-full transition-all"
+                <>
+                  <div className="divide-y divide-gray-50">
+                    {cart.items.map((item, index) => (
+                      <div
+                        key={item.id}
+                        className="flex items-center gap-3 px-4 py-3 bg-white active:bg-gray-50/50 transition-colors"
                       >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
+                        <span className="shrink-0 w-6 h-6 rounded-full bg-blue-100 text-blue-600 text-[10px] font-bold flex items-center justify-center">
+                          {index + 1}
+                        </span>
+
+                        <div className="flex-1 min-w-0">
+                          <div className="font-semibold text-sm text-gray-800 leading-tight break-words">{item.name}</div>
+                          <div className="text-[10px] text-gray-400 mt-0.5">
+                            ₹{item.unit_price.toFixed(2)} / unit
+                            {item.gst_rate > 0 && (
+                              <span className="ml-1.5 text-orange-500">GST {item.gst_rate}%</span>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Qty stepper */}
+                        <div className="flex items-center border border-gray-200 rounded-lg overflow-hidden shrink-0 shadow-sm">
+                          <button
+                            onClick={() => updateQuantity(item.id, -1)}
+                            className="w-8 h-8 flex items-center justify-center active:bg-gray-200 text-gray-500 transition-colors"
+                          >
+                            <Minus className="w-3 h-3" />
+                          </button>
+                          <span className="w-7 text-center text-sm font-bold text-gray-800 border-x border-gray-200">
+                            {item.quantity}
+                          </span>
+                          <button
+                            onClick={() => updateQuantity(item.id, 1)}
+                            className="w-8 h-8 flex items-center justify-center active:bg-gray-200 text-gray-500 transition-colors"
+                          >
+                            <Plus className="w-3 h-3" />
+                          </button>
+                        </div>
+
+                        <div className="shrink-0 text-right w-[68px]">
+                          <div className="text-sm font-bold text-gray-800">
+                            ₹{(item.selling_price * item.quantity).toFixed(2)}
+                          </div>
+                        </div>
+
+                        <button
+                          onClick={() => removeItem(item.id)}
+                          className="shrink-0 p-1.5 text-gray-300 active:text-red-500 active:bg-red-50 rounded-full transition-all"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Summary rows — inside the scroll area so they don't push payment off screen */}
+                  <div className="border-t border-gray-100 px-4 pt-3 pb-3 space-y-2 bg-white">
+
+                    {/* Subtotal */}
+                    <div className="flex justify-between items-center text-sm">
+                      <span className="text-gray-500">Subtotal</span>
+                      <span className="font-semibold text-gray-700">₹{totals.subtotal.toFixed(2)}</span>
                     </div>
-                  ))}
-                </div>
+
+                    {/* Discount */}
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm text-gray-500 shrink-0">Discount</span>
+                      <div className="flex bg-gray-100 rounded-lg p-0.5 border border-gray-200 ml-auto">
+                        <button
+                          onClick={() =>
+                            updateActiveSession((s) => ({
+                              ...s,
+                              cart: { ...s.cart, discount_type: 'percentage' },
+                            }))
+                          }
+                          className={`px-2 py-0.5 text-[11px] font-bold rounded transition-all ${
+                            cart.discount_type === 'percentage'
+                              ? 'bg-white shadow-sm text-blue-700'
+                              : 'text-gray-400'
+                          }`}
+                        >
+                          %
+                        </button>
+                        <button
+                          onClick={() =>
+                            updateActiveSession((s) => ({
+                              ...s,
+                              cart: { ...s.cart, discount_type: 'amount' },
+                            }))
+                          }
+                          className={`px-2 py-0.5 text-[11px] font-bold rounded transition-all ${
+                            cart.discount_type === 'amount'
+                              ? 'bg-white shadow-sm text-blue-700'
+                              : 'text-gray-400'
+                          }`}
+                        >
+                          ₹
+                        </button>
+                      </div>
+                      <input
+                        type="number"
+                        inputMode="decimal"
+                        min="0"
+                        value={
+                          cart.discount_type === 'percentage'
+                            ? cart.discount_percentage || ''
+                            : cart.discount_amount || ''
+                        }
+                        onChange={(e) => {
+                          const val = parseFloat(e.target.value) || 0;
+                          if (cart.discount_type === 'percentage') {
+                            updateActiveSession((s) => ({
+                              ...s,
+                              cart: { ...s.cart, discount_percentage: val > 100 ? 100 : val },
+                            }));
+                          } else {
+                            updateActiveSession((s) => ({
+                              ...s,
+                              cart: { ...s.cart, discount_amount: val },
+                            }));
+                          }
+                        }}
+                        className="w-20 text-right px-2 py-1 border border-gray-200 rounded-lg text-sm outline-none focus:border-[#0d9158] focus:ring-1 focus:ring-[#0d9158]/20 font-medium text-gray-700 bg-white"
+                        placeholder="0"
+                      />
+                      {totals.discount > 0 && (
+                        <span className="text-sm font-semibold text-green-600 shrink-0">
+                          -₹{totals.discount.toFixed(2)}
+                        </span>
+                      )}
+                    </div>
+
+                    {/* GST — collapsed by default, tap to expand */}
+                    {(totals.totalGst > 0 || totals.exemptedAmount > 0) && (
+                      <div className="rounded-xl border border-orange-100 overflow-hidden">
+                        {/* Summary row — always visible, tappable */}
+                        <button
+                          onClick={() => setShowGstDetails((v) => !v)}
+                          className="w-full flex items-center justify-between px-3 py-2.5 bg-orange-50 active:bg-orange-100 transition-colors"
+                        >
+                          <div className="flex items-center gap-2">
+                            <span className="text-[11px] font-bold text-orange-700 uppercase tracking-wide">GST</span>
+                            {showGstDetails ? (
+                              <ChevronUp className="w-3 h-3 text-orange-400" />
+                            ) : (
+                              <ChevronDown className="w-3 h-3 text-orange-400" />
+                            )}
+                            <span className="text-[10px] text-orange-400">
+                              {showGstDetails ? 'hide details' : 'tap for details'}
+                            </span>
+                          </div>
+                          <span className="text-sm font-bold text-orange-700">₹{totals.totalGst.toFixed(2)}</span>
+                        </button>
+
+                        {/* Expanded details */}
+                        {showGstDetails && (
+                          <div className="bg-orange-50/60 px-3 pb-2.5 pt-1 space-y-1.5 border-t border-orange-100">
+                            {Object.entries(totals.taxBreakdown).map(([rate, data]) => (
+                              <div key={rate} className="space-y-0.5">
+                                <div className="flex justify-between text-[11px] text-orange-600 font-semibold">
+                                  <span>GST {rate}%</span>
+                                  <span className="text-orange-400">Taxable: ₹{data.taxableAmount.toFixed(2)}</span>
+                                </div>
+                                <div className="flex justify-between text-[11px] text-orange-500 pl-3">
+                                  <span>CGST {(parseFloat(rate) / 2).toFixed(1)}%</span>
+                                  <span>₹{data.cgst.toFixed(2)}</span>
+                                </div>
+                                <div className="flex justify-between text-[11px] text-orange-500 pl-3">
+                                  <span>SGST {(parseFloat(rate) / 2).toFixed(1)}%</span>
+                                  <span>₹{data.sgst.toFixed(2)}</span>
+                                </div>
+                              </div>
+                            ))}
+                            {totals.exemptedAmount > 0 && (
+                              <div className="flex justify-between text-[11px] text-gray-500 border-t border-orange-100 pt-1">
+                                <span>Exempted (0%)</span>
+                                <span>₹{totals.exemptedAmount.toFixed(2)}</span>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Round-off */}
+                    {totals.roundOff !== 0 && (
+                      <div className="flex justify-between items-center text-xs text-gray-400">
+                        <span>Round Off</span>
+                        <span>{totals.roundOff > 0 ? '+' : ''}₹{totals.roundOff.toFixed(2)}</span>
+                      </div>
+                    )}
+                  </div>
+                </>
               )}
             </div>
 
-            {/* Summary + Payments */}
+            {/* Grand Total + Payment — always pinned at bottom */}
             {cart.items.length > 0 && (
-              <div className="shrink-0 border-t border-gray-100">
-                {/* Full GST breakdown */}
-                <div className="px-4 pt-3 pb-2 space-y-2">
-
-                  {/* Subtotal row */}
-                  <div className="flex justify-between items-center text-sm">
-                    <span className="text-gray-500">Subtotal</span>
-                    <span className="font-semibold text-gray-700">₹{totals.subtotal.toFixed(2)}</span>
-                  </div>
-
-                  {/* Discount row */}
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm text-gray-500 shrink-0">Discount</span>
-                    <div className="flex bg-gray-100 rounded-lg p-0.5 border border-gray-200 ml-auto">
-                      <button
-                        onClick={() =>
-                          updateActiveSession((s) => ({
-                            ...s,
-                            cart: { ...s.cart, discount_type: 'percentage' },
-                          }))
-                        }
-                        className={`px-2 py-0.5 text-[11px] font-bold rounded transition-all ${
-                          cart.discount_type === 'percentage'
-                            ? 'bg-white shadow-sm text-blue-700'
-                            : 'text-gray-400'
-                        }`}
-                      >
-                        %
-                      </button>
-                      <button
-                        onClick={() =>
-                          updateActiveSession((s) => ({
-                            ...s,
-                            cart: { ...s.cart, discount_type: 'amount' },
-                          }))
-                        }
-                        className={`px-2 py-0.5 text-[11px] font-bold rounded transition-all ${
-                          cart.discount_type === 'amount'
-                            ? 'bg-white shadow-sm text-blue-700'
-                            : 'text-gray-400'
-                        }`}
-                      >
-                        ₹
-                      </button>
-                    </div>
-                    <input
-                      type="number"
-                      min="0"
-                      value={
-                        cart.discount_type === 'percentage'
-                          ? cart.discount_percentage || ''
-                          : cart.discount_amount || ''
-                      }
-                      onChange={(e) => {
-                        const val = parseFloat(e.target.value) || 0;
-                        if (cart.discount_type === 'percentage') {
-                          updateActiveSession((s) => ({
-                            ...s,
-                            cart: { ...s.cart, discount_percentage: val > 100 ? 100 : val },
-                          }));
-                        } else {
-                          updateActiveSession((s) => ({
-                            ...s,
-                            cart: { ...s.cart, discount_amount: val },
-                          }));
-                        }
-                      }}
-                      className="w-20 text-right px-2 py-1 border border-gray-200 rounded-lg text-sm outline-none focus:border-[#0d9158] focus:ring-1 focus:ring-[#0d9158]/20 font-medium text-gray-700 bg-white"
-                      placeholder="0"
-                    />
-                    {totals.discount > 0 && (
-                      <span className="text-sm font-semibold text-green-600 shrink-0">
-                        -₹{totals.discount.toFixed(2)}
-                      </span>
-                    )}
-                  </div>
-
-                  {/* GST breakdown card */}
-                  {(totals.totalGst > 0 || totals.exemptedAmount > 0) && (
-                    <div className="bg-orange-50 border border-orange-100 rounded-xl px-3 py-2.5 space-y-1.5">
-                      <div className="text-[11px] font-bold text-orange-700 uppercase tracking-wide mb-1">
-                        GST Breakdown
-                      </div>
-                      {Object.entries(totals.taxBreakdown).map(([rate, data]) => (
-                        <div key={rate} className="space-y-0.5">
-                          <div className="flex justify-between text-[11px] text-orange-600 font-semibold">
-                            <span>GST {rate}%</span>
-                            <span>Taxable: ₹{data.taxableAmount.toFixed(2)}</span>
-                          </div>
-                          <div className="flex justify-between text-[11px] text-orange-500 pl-2">
-                            <span>CGST {(parseFloat(rate) / 2).toFixed(1)}%</span>
-                            <span>₹{data.cgst.toFixed(2)}</span>
-                          </div>
-                          <div className="flex justify-between text-[11px] text-orange-500 pl-2">
-                            <span>SGST {(parseFloat(rate) / 2).toFixed(1)}%</span>
-                            <span>₹{data.sgst.toFixed(2)}</span>
-                          </div>
-                        </div>
-                      ))}
-                      {totals.exemptedAmount > 0 && (
-                        <div className="flex justify-between text-[11px] text-gray-500 border-t border-orange-100 pt-1">
-                          <span>Exempted (0%)</span>
-                          <span>₹{totals.exemptedAmount.toFixed(2)}</span>
-                        </div>
-                      )}
-                      <div className="flex justify-between text-xs font-bold text-orange-700 border-t border-orange-200 pt-1.5 mt-1">
-                        <span>Total GST</span>
-                        <span>₹{totals.totalGst.toFixed(2)}</span>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Round-off */}
-                  {totals.roundOff !== 0 && (
-                    <div className="flex justify-between items-center text-xs text-gray-400">
-                      <span>Round Off</span>
-                      <span>{totals.roundOff > 0 ? '+' : ''}₹{totals.roundOff.toFixed(2)}</span>
-                    </div>
-                  )}
-                </div>
-
+              <div className="shrink-0 bg-white border-t border-gray-100">
                 {/* Grand total */}
-                <div className="mx-4 my-2.5 flex justify-between items-center bg-blue-600 text-white rounded-xl px-4 py-2.5 shadow-sm">
+                <div className="mx-4 mt-3 mb-2 flex justify-between items-center bg-blue-600 text-white rounded-xl px-4 py-2.5 shadow-sm">
                   <div>
                     <div className="font-bold text-sm leading-none">Grand Total</div>
                     {totals.roundOff !== 0 && (
@@ -1517,34 +1538,34 @@ const MobilePOS: React.FC = () => {
                   </span>
                 </div>
 
-                {/* Payment — compact horizontal scrollable strip */}
-                <div className="px-4" style={{ paddingBottom: 'max(env(safe-area-inset-bottom), 16px)' }}>
-                  <div className="flex gap-2 overflow-x-auto pb-1" style={{ scrollbarWidth: 'none' }}>
+                {/* Payment buttons — always reachable */}
+                <div className="px-4 pb-1" style={{ paddingBottom: 'max(env(safe-area-inset-bottom), 12px)' }}>
+                  <div className="flex gap-2 overflow-x-auto" style={{ scrollbarWidth: 'none' }}>
                     <button
                       disabled={isProcessing}
                       onClick={() => processPayment('cash')}
-                      className="shrink-0 flex flex-col items-center gap-1 px-5 py-2 bg-white border-2 border-green-500 hover:bg-green-50 active:bg-green-100 text-green-700 rounded-xl shadow-sm transition-all active:scale-[0.95] disabled:opacity-40 disabled:border-gray-200 disabled:text-gray-400"
+                      className="shrink-0 flex flex-col items-center gap-1 px-5 py-2.5 bg-white border-2 border-green-500 active:bg-green-100 text-green-700 rounded-xl shadow-sm transition-all active:scale-[0.95] disabled:opacity-40 disabled:border-gray-200 disabled:text-gray-400"
                     >
-                      <Banknote className="w-4 h-4" />
-                      <span className="font-bold text-[10px] tracking-wide">CASH</span>
+                      <Banknote className="w-5 h-5" />
+                      <span className="font-bold text-[11px] tracking-wide">CASH</span>
                     </button>
 
                     <button
                       disabled={isProcessing}
                       onClick={() => processPayment('upi')}
-                      className="shrink-0 flex flex-col items-center gap-1 px-5 py-2 bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white rounded-xl shadow-md transition-all active:scale-[0.95] disabled:opacity-40"
+                      className="shrink-0 flex flex-col items-center gap-1 px-5 py-2.5 bg-indigo-600 active:bg-indigo-800 text-white rounded-xl shadow-md transition-all active:scale-[0.95] disabled:opacity-40"
                     >
-                      <Smartphone className="w-4 h-4" />
-                      <span className="font-bold text-[10px] tracking-wide">UPI</span>
+                      <Smartphone className="w-5 h-5" />
+                      <span className="font-bold text-[11px] tracking-wide">UPI</span>
                     </button>
 
                     <button
                       disabled={isProcessing}
                       onClick={() => processPayment('card')}
-                      className="shrink-0 flex flex-col items-center gap-1 px-5 py-2 bg-slate-800 hover:bg-slate-900 active:bg-slate-950 text-white rounded-xl shadow-md transition-all active:scale-[0.95] disabled:opacity-40"
+                      className="shrink-0 flex flex-col items-center gap-1 px-5 py-2.5 bg-slate-800 active:bg-slate-950 text-white rounded-xl shadow-md transition-all active:scale-[0.95] disabled:opacity-40"
                     >
-                      <CreditCard className="w-4 h-4" />
-                      <span className="font-bold text-[10px] tracking-wide">CARD</span>
+                      <CreditCard className="w-5 h-5" />
+                      <span className="font-bold text-[11px] tracking-wide">CARD</span>
                     </button>
 
                     <button
@@ -1557,10 +1578,10 @@ const MobilePOS: React.FC = () => {
                           ? 'Credit limit exceeded'
                           : 'Pay via Credit'
                       }
-                      className="shrink-0 flex flex-col items-center gap-1 px-5 py-2 bg-orange-500 hover:bg-orange-600 active:bg-orange-700 text-white rounded-xl shadow-md transition-all active:scale-[0.95] disabled:opacity-40"
+                      className="shrink-0 flex flex-col items-center gap-1 px-5 py-2.5 bg-orange-500 active:bg-orange-700 text-white rounded-xl shadow-md transition-all active:scale-[0.95] disabled:opacity-40"
                     >
-                      <BookOpenCheck className="w-4 h-4" />
-                      <span className="font-bold text-[10px] tracking-wide">CREDIT</span>
+                      <BookOpenCheck className="w-5 h-5" />
+                      <span className="font-bold text-[11px] tracking-wide">CREDIT</span>
                     </button>
 
                     <button
@@ -1573,10 +1594,10 @@ const MobilePOS: React.FC = () => {
                           ? 'No wallet balance'
                           : `Pay from wallet`
                       }
-                      className="shrink-0 flex flex-col items-center gap-1 px-4 py-2 bg-purple-600 hover:bg-purple-700 active:bg-purple-800 text-white rounded-xl shadow-md transition-all active:scale-[0.95] disabled:opacity-40"
+                      className="shrink-0 flex flex-col items-center gap-1 px-4 py-2.5 bg-purple-600 active:bg-purple-800 text-white rounded-xl shadow-md transition-all active:scale-[0.95] disabled:opacity-40"
                     >
-                      <Wallet className="w-4 h-4" />
-                      <span className="font-bold text-[10px] tracking-wide whitespace-nowrap">
+                      <Wallet className="w-5 h-5" />
+                      <span className="font-bold text-[11px] tracking-wide whitespace-nowrap">
                         {hasWalletBalance && isEligibleForCredit
                           ? `₹${walletBalance.toFixed(0)}`
                           : 'WALLET'}
@@ -1586,10 +1607,10 @@ const MobilePOS: React.FC = () => {
                     <button
                       disabled={isProcessing}
                       onClick={() => processPayment('net_banking')}
-                      className="shrink-0 flex flex-col items-center gap-1 px-4 py-2 bg-white border border-gray-200 hover:bg-gray-50 active:bg-gray-100 text-gray-600 rounded-xl shadow-sm transition-all active:scale-[0.95] disabled:opacity-40"
+                      className="shrink-0 flex flex-col items-center gap-1 px-4 py-2.5 bg-white border border-gray-200 active:bg-gray-100 text-gray-600 rounded-xl shadow-sm transition-all active:scale-[0.95] disabled:opacity-40"
                     >
-                      <Building2 className="w-4 h-4" />
-                      <span className="font-bold text-[10px] tracking-wide whitespace-nowrap">NET</span>
+                      <Building2 className="w-5 h-5" />
+                      <span className="font-bold text-[11px] tracking-wide whitespace-nowrap">NET</span>
                     </button>
                   </div>
 
