@@ -734,12 +734,15 @@ const MobilePOS: React.FC = () => {
   // ─── Render ───────────────────────────────────────────────────────────────
 
   return (
-    <div className="h-full flex flex-col overflow-hidden relative bg-[#F2EFE8]">
+    <div
+      className="fixed inset-0 z-50 flex flex-col overflow-hidden bg-[#F2EFE8]"
+      style={{ paddingTop: 'env(safe-area-inset-top)' }}
+    >
 
       {/* ══ SESSION HEADER ══════════════════════════════════════════════════ */}
-      <div className="shrink-0 bg-[#0F1F18] px-3 py-2 flex items-center gap-2">
+      <div className="shrink-0 bg-[#0F1F18] px-3 py-2 flex items-center gap-2 min-w-0">
         {/* Session tabs */}
-        <div className="flex items-center gap-1.5 flex-1 overflow-x-auto min-w-0">
+        <div className="flex items-center gap-1.5 overflow-x-auto min-w-0 flex-1" style={{ scrollbarWidth: 'none' }}>
           {sessions.map((session) => {
             const isActive = session.id === activeSessionId;
             return (
@@ -787,16 +790,16 @@ const MobilePOS: React.FC = () => {
         </div>
 
         {/* Tier selector + register status */}
-        <div className="shrink-0 flex items-center gap-2">
+        <div className="shrink-0 flex items-center gap-1.5">
           {priceTiers.length > 0 && (
-            <div className="flex items-center gap-1 bg-white/10 rounded-full px-2.5 py-1">
+            <div className="flex items-center gap-1 bg-white/10 rounded-full px-2 py-1">
               <Tag className="w-3 h-3 text-white/60 shrink-0" />
               <select
                 value={selectedTierId || ''}
                 onChange={(e) => setSelectedTierId(e.target.value ? Number(e.target.value) : null)}
-                className="bg-transparent border-none text-[11px] focus:ring-0 outline-none text-white/80 cursor-pointer w-20"
+                className="bg-transparent border-none text-[11px] focus:ring-0 outline-none text-white/80 cursor-pointer max-w-[64px]"
               >
-                <option value="" className="text-gray-800 bg-white">Standard</option>
+                <option value="" className="text-gray-800 bg-white">Std</option>
                 {priceTiers.map((tier) => (
                   <option key={tier.id} value={tier.id} className="text-gray-800 bg-white">
                     {tier.name}
@@ -807,28 +810,30 @@ const MobilePOS: React.FC = () => {
           )}
 
           {currentSession ? (
-            <div className="flex items-center gap-1.5 bg-green-500/20 border border-green-500/30 rounded-full px-2.5 py-1">
-              <div className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
-              <span className="text-[10px] text-green-300 font-semibold">Active</span>
+            <div className="flex items-center gap-1 bg-green-500/20 border border-green-500/30 rounded-full px-2 py-1">
+              <div className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse shrink-0" />
+              <span className="text-[10px] text-green-300 font-semibold hidden xs:inline">Active</span>
               <button
                 onClick={() => setShowCloseModal(true)}
-                className="text-red-400 hover:text-red-300 transition-colors ml-0.5"
+                className="text-red-400 hover:text-red-300 transition-colors"
                 title="Close Register"
               >
                 <Flag className="w-3 h-3" />
               </button>
             </div>
           ) : (
-            <div className="flex items-center gap-1.5 bg-amber-500/20 border border-amber-500/30 rounded-full px-2.5 py-1">
-              <div className="w-1.5 h-1.5 rounded-full bg-amber-400" />
-              <span className="text-[10px] text-amber-300 font-semibold">Closed</span>
+            <div className="flex items-center gap-1 bg-amber-500/20 border border-amber-500/30 rounded-full px-2 py-1">
+              <div className="w-1.5 h-1.5 rounded-full bg-amber-400 shrink-0" />
+              <span className="text-[10px] text-amber-300 font-semibold hidden xs:inline">Closed</span>
             </div>
           )}
         </div>
       </div>
 
       {/* ══ MODE TOGGLE ═════════════════════════════════════════════════════ */}
-      <div className="shrink-0 bg-white border-b border-gray-100 px-4 py-2.5 flex items-center justify-between gap-3 shadow-sm">
+      <div className="shrink-0 bg-white border-b border-gray-100 py-2 flex items-center justify-between gap-3 shadow-sm"
+        style={{ paddingLeft: 'max(env(safe-area-inset-left), 12px)', paddingRight: 'max(env(safe-area-inset-right), 12px)' }}
+      >
         <div className="relative flex bg-gray-100 rounded-full p-1">
           {/* Sliding thumb */}
           <div
@@ -881,10 +886,10 @@ const MobilePOS: React.FC = () => {
         ) : mode === 'browse' ? (
 
           /* ── BROWSE MODE ─────────────────────────────────────────────── */
-          <div className="px-3 pt-3 pb-2">
+          <div className="pt-3 pb-2" style={{ paddingLeft: 'max(env(safe-area-inset-left), 12px)', paddingRight: 'max(env(safe-area-inset-right), 12px)' }}>
             {/* Category chips */}
             {categories.length > 0 && (
-              <div className="flex gap-2 overflow-x-auto pb-3 -mx-3 px-3">
+              <div className="flex gap-2 overflow-x-auto pb-3" style={{ scrollbarWidth: 'none', marginLeft: 'calc(-1 * max(env(safe-area-inset-left), 12px))', marginRight: 'calc(-1 * max(env(safe-area-inset-right), 12px))', paddingLeft: 'max(env(safe-area-inset-left), 12px)', paddingRight: 'max(env(safe-area-inset-right), 12px)' }}>
                 <button
                   onClick={() => setSelectedCategory(null)}
                   className={`shrink-0 rounded-full px-4 py-1.5 text-sm font-medium border transition-all ${
@@ -951,7 +956,7 @@ const MobilePOS: React.FC = () => {
                     </div>
 
                     {/* Image area */}
-                    <div className="h-24 bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center overflow-hidden">
+                    <div className="h-[88px] bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center overflow-hidden">
                       {product.image ? (
                         <img
                           src={product.image}
@@ -1019,7 +1024,7 @@ const MobilePOS: React.FC = () => {
         ) : (
 
           /* ── SCAN MODE ───────────────────────────────────────────────── */
-          <div className="px-3 pt-3 relative">
+          <div className="pt-3 relative" style={{ paddingLeft: 'max(env(safe-area-inset-left), 12px)', paddingRight: 'max(env(safe-area-inset-right), 12px)' }}>
             <div className="relative z-20">
               <div className="relative">
                 <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" />
@@ -1138,7 +1143,9 @@ const MobilePOS: React.FC = () => {
       </div>
 
       {/* ══ CUSTOMER WIDGET ═════════════════════════════════════════════════ */}
-      <div className="shrink-0 bg-white border-t border-gray-100 px-4 py-3">
+      <div className="shrink-0 bg-white border-t border-gray-100 px-3 py-2.5"
+        style={{ paddingLeft: 'max(env(safe-area-inset-left), 12px)', paddingRight: 'max(env(safe-area-inset-right), 12px)' }}
+      >
         {cart.customer_id ? (
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-full bg-[#0d9158] flex items-center justify-center shrink-0">
@@ -1183,9 +1190,10 @@ const MobilePOS: React.FC = () => {
           </div>
         ) : (
           <div className="flex gap-2">
-            <div className="relative flex-1">
+            <div className="relative w-[48%]">
               <input
                 type="tel"
+                inputMode="numeric"
                 placeholder="Phone No."
                 value={guestPhone}
                 onChange={(e) => {
@@ -1205,7 +1213,7 @@ const MobilePOS: React.FC = () => {
               placeholder="Name (opt)"
               value={guestName}
               onChange={(e) => updateActiveSession((s) => ({ ...s, guestName: e.target.value }))}
-              className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-xl outline-none focus:border-[#0d9158] focus:ring-2 focus:ring-[#0d9158]/10 transition-all bg-gray-50"
+              className="flex-1 min-w-0 px-3 py-2 text-sm border border-gray-200 rounded-xl outline-none focus:border-[#0d9158] focus:ring-2 focus:ring-[#0d9158]/10 transition-all bg-gray-50"
             />
           </div>
         )}
@@ -1214,9 +1222,15 @@ const MobilePOS: React.FC = () => {
       {/* ══ CART FLOATING BAR ═══════════════════════════════════════════════ */}
       <div
         onClick={() => totalItems > 0 && setIsCartOpen(true)}
-        className={`shrink-0 bg-white rounded-t-3xl shadow-2xl px-5 py-4 border-t border-gray-100 transition-all ${
-          totalItems > 0 ? 'cursor-pointer hover:bg-gray-50/80' : 'opacity-50 cursor-not-allowed'
+        className={`shrink-0 bg-white rounded-t-2xl shadow-2xl border-t border-gray-100 transition-all ${
+          totalItems > 0 ? 'cursor-pointer active:bg-gray-50/80' : 'opacity-50 cursor-not-allowed'
         }`}
+        style={{
+          paddingTop: '12px',
+          paddingBottom: 'max(env(safe-area-inset-bottom), 12px)',
+          paddingLeft: 'max(env(safe-area-inset-left), 16px)',
+          paddingRight: 'max(env(safe-area-inset-right), 16px)',
+        }}
       >
         <div className="flex items-center gap-3">
           {/* Cart icon with badge */}
@@ -1275,7 +1289,7 @@ const MobilePOS: React.FC = () => {
           />
 
           {/* Sheet */}
-          <div className="relative bg-white rounded-t-3xl shadow-2xl flex flex-col animate-slideUp" style={{ maxHeight: 'calc(var(--viewport-height) * 0.95)' }}>
+          <div className="relative bg-white rounded-t-3xl shadow-2xl flex flex-col animate-slideUp" style={{ maxHeight: 'calc(var(--viewport-height, 100vh) * 0.95)' }}>
             {/* Drag handle */}
             <div className="flex justify-center pt-3 pb-2 shrink-0">
               <div className="w-10 h-1 bg-gray-300 rounded-full" />
@@ -1504,8 +1518,8 @@ const MobilePOS: React.FC = () => {
                 </div>
 
                 {/* Payment — compact horizontal scrollable strip */}
-                <div className="px-4 pb-4">
-                  <div className="flex gap-2 overflow-x-auto pb-1">
+                <div className="px-4" style={{ paddingBottom: 'max(env(safe-area-inset-bottom), 16px)' }}>
+                  <div className="flex gap-2 overflow-x-auto pb-1" style={{ scrollbarWidth: 'none' }}>
                     <button
                       disabled={isProcessing}
                       onClick={() => processPayment('cash')}
