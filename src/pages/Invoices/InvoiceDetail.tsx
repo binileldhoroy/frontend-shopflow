@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useReactToPrint } from 'react-to-print';
 import { ArrowLeft, Download, Printer, Share2, Mail, Copy, Check, MessageCircle, X } from 'lucide-react';
 import { format } from 'date-fns';
 import html2pdf from 'html2pdf.js';
@@ -49,32 +48,66 @@ const InvoiceDetail: React.FC = () => {
     }
   };
 
-  const handlePrint = useReactToPrint({
-    contentRef: invoiceRef,
-    documentTitle: `Invoice_${invoice?.invoice_number || id}`,
-  });
+  const handlePrint = () => {
+    if (!invoiceRef.current || !invoice) return;
+    const styleContent = invoiceRef.current.querySelector('style')?.textContent ?? '';
+    const outerWrapper = invoiceRef.current.querySelector('.invoice-outer-wrapper');
+    const invoiceHTML = outerWrapper ? outerWrapper.outerHTML : invoiceRef.current.innerHTML;
+    const html = `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8"/>
+  <title>Invoice ${invoice.invoice_number}</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { margin: 0; padding: 0; background: white; }
+    ${styleContent}
+  </style>
+</head>
+<body>${invoiceHTML}</body>
+</html>`;
+    const blob = new Blob([html], { type: 'text/html' });
+    const url = URL.createObjectURL(blob);
+    const win = window.open(url, '_blank');
+    if (win) {
+      win.onload = () => {
+        win.focus();
+        win.print();
+        setTimeout(() => URL.revokeObjectURL(url), 2000);
+      };
+    }
+  };
 
   const handleDownloadPDF = async () => {
     if (!invoiceRef.current || !invoice) return;
     setDownloading(true);
 
-    // Target the inner wrapper to avoid capturing non-invoice DOM nodes
-    const element =
-      invoiceRef.current.querySelector<HTMLElement>('.invoice-outer-wrapper') ??
-      invoiceRef.current;
+    // Clone into off-screen container (not inside page scroll area) for full-height capture
+    const offScreen = document.createElement('div');
+    offScreen.style.cssText =
+      'position:fixed;left:-9999px;top:0;width:210mm;background:white;z-index:-9999;';
+    offScreen.appendChild(invoiceRef.current.cloneNode(true));
+    document.body.appendChild(offScreen);
 
-    // Temporarily zero the screen-only inter-page gap so html2pdf sees
-    // each .invoice-page as exactly 297 mm with no overflow into a blank page
     const tempStyle = document.createElement('style');
-    tempStyle.textContent =
-      '.invoice-page + .invoice-page { margin-top: 0 !important; }';
+    tempStyle.textContent = '.invoice-page + .invoice-page { margin-top: 0 !important; }';
     document.head.appendChild(tempStyle);
+
+    await new Promise<void>(r => setTimeout(r, 80));
+
+    const element = offScreen.querySelector<HTMLElement>('.invoice-outer-wrapper') ?? offScreen;
 
     const opt = {
       margin: 0,
       filename: `Invoice_${invoice.invoice_number}.pdf`,
-      image: { type: 'jpeg' as const, quality: 0.98 },
-      html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff' },
+      image: { type: 'png' as const },
+      html2canvas: {
+        scale: 3,
+        useCORS: true,
+        backgroundColor: '#ffffff',
+        logging: false,
+        allowTaint: false,
+      },
       jsPDF: { unit: 'mm' as const, format: 'a4' as const, orientation: 'portrait' as const },
       pagebreak: { mode: 'css', before: '.invoice-page:not(:first-child)' },
     };
@@ -82,6 +115,7 @@ const InvoiceDetail: React.FC = () => {
     try {
       await html2pdf().set(opt).from(element).save();
     } finally {
+      document.body.removeChild(offScreen);
       document.head.removeChild(tempStyle);
       setDownloading(false);
     }
