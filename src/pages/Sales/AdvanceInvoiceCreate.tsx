@@ -573,8 +573,8 @@ const AdvanceInvoiceCreate: React.FC = () => {
       {/* Right Panel */}
       <div className="w-[350px] lg:w-[400px] flex flex-col gap-3 h-full">
         <div className="card shrink-0 shadow-sm p-3 border border-gray-100">
-          <div className="flex justify-between items-center mb-2">
-            <h3 className="text-sm font-semibold text-gray-700 flex items-center gap-1.5 border-l-2 border-blue-500 pl-2 -ml-3">
+          <div className="flex justify-between items-center mb-2 gap-2">
+            <h3 className="text-sm font-semibold text-gray-700 flex items-center gap-1.5 border-l-2 border-blue-500 pl-2 -ml-3 whitespace-nowrap">
               Customer Details
             </h3>
             <div className="flex items-center gap-1.5 bg-gray-50 rounded border border-gray-200 px-2 py-0.5">
@@ -641,9 +641,9 @@ const AdvanceInvoiceCreate: React.FC = () => {
               <span className="font-medium text-gray-800">₹{totals.totalGst.toFixed(2)}</span>
             </div>
             <div className="pt-2">
-              <div className="flex justify-between items-end">
-                <span className="text-gray-900 font-bold text-lg">Grand Total</span>
-                <span className="text-blue-600 font-bold text-3xl tabular-nums leading-none">
+              <div className="flex justify-between items-center gap-2">
+                <span className="text-gray-900 font-bold text-base whitespace-nowrap">Grand Total</span>
+                <span className="text-blue-600 font-bold text-2xl tabular-nums leading-none whitespace-nowrap">
                   ₹{totals.grandTotal.toFixed(2)}
                 </span>
               </div>
@@ -654,7 +654,7 @@ const AdvanceInvoiceCreate: React.FC = () => {
              <button
                onClick={generateAdvanceInvoice}
                disabled={isProcessing || cart.items.length === 0}
-               className="w-full btn bg-blue-600 text-white hover:bg-blue-700 py-3.5 rounded-xl shadow-lg hover:shadow-xl font-bold text-lg disabled:opacity-50 transition-all flex items-center justify-center gap-2"
+               className="w-full btn bg-blue-600 text-white hover:bg-blue-700 py-3.5 rounded-xl shadow-lg hover:shadow-xl font-bold text-base disabled:opacity-50 transition-all flex items-center justify-center gap-2 whitespace-nowrap"
              >
                {isProcessing ? 'Generating...' : 'Generate Advance Invoice'}
              </button>

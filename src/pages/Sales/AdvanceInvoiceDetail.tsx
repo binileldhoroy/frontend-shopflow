@@ -8,7 +8,6 @@ import { format } from 'date-fns';
 import QRCode from 'react-qr-code';
 import { companyService } from '../../api/services/company.service';
 import { Company } from '../../types/company.types';
-import { useReactToPrint } from 'react-to-print';
 import InvoiceTemplate from '../../components/invoices/InvoiceTemplate';
 import { useRef } from 'react';
 import html2pdf from 'html2pdf.js';
@@ -23,7 +22,29 @@ const AdvanceInvoiceDetail: React.FC = () => {
   const [updatingStatus, setUpdatingStatus] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState('upi');
+  const [downloading, setDownloading] = useState(false);
   const invoiceRef = useRef<HTMLDivElement>(null);
+  const paymentBackdropRef = useRef<HTMLDivElement>(null);
+
+  // Keep payment modal anchored to visual viewport above keyboard on Android
+  useEffect(() => {
+    const update = () => {
+      const vv = window.visualViewport;
+      if (!paymentBackdropRef.current) return;
+      const top = vv?.offsetTop ?? 0;
+      const h = vv?.height ?? window.innerHeight;
+      paymentBackdropRef.current.style.top = `${top}px`;
+      paymentBackdropRef.current.style.height = `${h}px`;
+    };
+    update();
+    const vv = window.visualViewport;
+    if (vv) { vv.addEventListener('resize', update); vv.addEventListener('scroll', update); }
+    else { window.addEventListener('resize', update); }
+    return () => {
+      if (vv) { vv.removeEventListener('resize', update); vv.removeEventListener('scroll', update); }
+      else { window.removeEventListener('resize', update); }
+    };
+  }, []);
 
   useEffect(() => {
     if (id) {
@@ -66,24 +87,63 @@ const AdvanceInvoiceDetail: React.FC = () => {
     }
   };
 
-  const handlePrint = useReactToPrint({
-    contentRef: invoiceRef,
-    documentTitle: `Advance_Invoice_${sale?.order_number || ''}`,
-  });
+  const handlePrint = () => {
+    if (!invoiceRef.current || !sale) return;
+    const styleContent = invoiceRef.current.querySelector('style')?.textContent ?? '';
+    const outerWrapper = invoiceRef.current.querySelector('.invoice-outer-wrapper');
+    const invoiceHTML = outerWrapper ? outerWrapper.outerHTML : invoiceRef.current.innerHTML;
+    const html = `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8"/>
+  <title>Advance Invoice ${sale.order_number}</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { margin: 0; padding: 0; background: white; }
+    ${styleContent}
+  </style>
+</head>
+<body>${invoiceHTML}</body>
+</html>`;
+    const blob = new Blob([html], { type: 'text/html' });
+    const url = URL.createObjectURL(blob);
+    const win = window.open(url, '_blank');
+    if (win) {
+      win.onload = () => {
+        win.focus();
+        win.print();
+        setTimeout(() => URL.revokeObjectURL(url), 2000);
+      };
+    }
+  };
 
-  const handleDownloadPDF = () => {
-    if (!invoiceRef.current) return;
-
-    const element = invoiceRef.current;
+  const handleDownloadPDF = async () => {
+    if (!invoiceRef.current || !sale) return;
+    setDownloading(true);
+    const offScreen = document.createElement('div');
+    offScreen.style.cssText = 'position:fixed;left:-9999px;top:0;width:210mm;background:white;z-index:-9999;';
+    offScreen.appendChild(invoiceRef.current.cloneNode(true));
+    document.body.appendChild(offScreen);
+    const tempStyle = document.createElement('style');
+    tempStyle.textContent = '.invoice-page + .invoice-page { margin-top: 0 !important; }';
+    document.head.appendChild(tempStyle);
+    await new Promise<void>(r => setTimeout(r, 80));
+    const element = offScreen.querySelector<HTMLElement>('.invoice-outer-wrapper') ?? offScreen;
     const opt = {
       margin: 0,
-      filename: `Advance_Invoice_${sale?.order_number || 'download'}.pdf`,
-      image: { type: 'jpeg' as const, quality: 0.98 },
-      html2canvas: { scale: 2, useCORS: true },
-      jsPDF: { unit: 'mm' as const, format: 'a4' as const, orientation: 'portrait' as const }
+      filename: `Advance_Invoice_${sale.order_number}.pdf`,
+      image: { type: 'png' as const },
+      html2canvas: { scale: 3, useCORS: true, backgroundColor: '#ffffff', logging: false, allowTaint: false },
+      jsPDF: { unit: 'mm' as const, format: 'a4' as const, orientation: 'portrait' as const },
+      pagebreak: { mode: 'css', before: '.invoice-page:not(:first-child)' },
     };
-
-    html2pdf().set(opt).from(element).save();
+    try {
+      await html2pdf().set(opt).from(element).save();
+    } finally {
+      document.body.removeChild(offScreen);
+      document.head.removeChild(tempStyle);
+      setDownloading(false);
+    }
   };
 
   const renderQRCode = () => {
@@ -154,11 +214,13 @@ const AdvanceInvoiceDetail: React.FC = () => {
            </div>
         </div>
         <div className="flex items-center gap-3">
-           <button onClick={handleDownloadPDF} className="btn btn-secondary flex items-center gap-2 bg-white hover:bg-gray-50 text-gray-700 border border-gray-300">
-             <Download className="w-4 h-4" /> Download PDF
+           <button onClick={handleDownloadPDF} disabled={downloading} className="btn btn-secondary flex items-center gap-2 bg-white hover:bg-gray-50 text-gray-700 border border-gray-300 disabled:opacity-50">
+             {downloading ? <div className="w-4 h-4 border-2 border-gray-400 border-t-gray-700 rounded-full animate-spin" /> : <Download className="w-4 h-4" />}
+             <span className="hidden sm:inline">Download PDF</span>
            </button>
            <button onClick={handlePrint} className="btn btn-secondary flex items-center gap-2">
-             <Printer className="w-4 h-4" /> Print
+             <Printer className="w-4 h-4" />
+             <span className="hidden sm:inline">Print</span>
            </button>
         </div>
       </div>
@@ -220,8 +282,9 @@ const AdvanceInvoiceDetail: React.FC = () => {
 
            <div className="card border border-gray-200 shadow-sm space-y-3 bg-gradient-to-b from-white to-gray-50 p-5">
               <h3 className="text-lg font-semibold text-gray-900 mb-2 border-b border-gray-100 pb-2">Actions</h3>
-              <button onClick={handleDownloadPDF} className="w-full btn flex items-center justify-center gap-2 py-3 shadow-sm hover:shadow-md transition-all bg-white hover:bg-gray-50 text-gray-700 border border-gray-300 font-medium">
-                <Download className="w-5 h-5" /> Download PDF
+              <button onClick={handleDownloadPDF} disabled={downloading} className="w-full btn flex items-center justify-center gap-2 py-3 shadow-sm hover:shadow-md transition-all bg-white hover:bg-gray-50 text-gray-700 border border-gray-300 font-medium disabled:opacity-50">
+                {downloading ? <div className="w-5 h-5 border-2 border-gray-400 border-t-gray-700 rounded-full animate-spin" /> : <Download className="w-5 h-5" />}
+                Download PDF
               </button>
               <button onClick={handlePrint} className="w-full btn btn-primary flex items-center justify-center gap-2 py-3 shadow-md hover:shadow-lg transition-all">
                 <Printer className="w-5 h-5" /> Print Invoice
@@ -233,8 +296,15 @@ const AdvanceInvoiceDetail: React.FC = () => {
 
       {/* Payment Confirmation Modal */}
       {showPaymentModal && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[60] p-4 animate-in fade-in duration-200">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-8 animate-in zoom-in-95 duration-200">
+        <div
+          ref={paymentBackdropRef}
+          className="fixed inset-x-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[60] p-4 animate-in fade-in duration-200"
+          style={{ top: 0, height: '100vh' }}
+        >
+          <div
+            className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-8 animate-in zoom-in-95 duration-200"
+            style={{ maxHeight: 'calc(var(--viewport-height, 100vh) - 32px)', overflowY: 'auto' }}
+          >
             <h3 className="text-2xl font-bold text-gray-900 mb-2">Confirm Payment</h3>
             <p className="text-gray-500 mb-6 leading-relaxed">
               Please select the payment method used by the customer. This will permanently mark this advance invoice as paid.
