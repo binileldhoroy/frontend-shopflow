@@ -3,6 +3,7 @@ import {
   X, FileText, Search, User, ChevronLeft, ChevronRight,
   CheckCircle2, Printer, Download, MessageCircle, Mail, Copy, Check,
 } from 'lucide-react';
+import PhoneInput from '../common/PhoneInput/PhoneInput';
 import { format } from 'date-fns';
 import html2pdf from 'html2pdf.js';
 import { invoiceService } from '../../api/services/invoice.service';
@@ -96,7 +97,7 @@ const GenerateInvoiceModal: React.FC<GenerateInvoiceModalProps> = ({
       return {
         customer_name: '', customer_gstin: '', customer_address: '',
         customer_city: '', customer_state: undefined, customer_pincode: '',
-        customer_phone: '', customer_email: '',
+        customer_country_code: '91', customer_phone: '', customer_email: '',
       };
     }
     if (initialSale.customer && typeof initialSale.customer === 'object') {
@@ -109,6 +110,7 @@ const GenerateInvoiceModal: React.FC<GenerateInvoiceModalProps> = ({
           customer_city: c.billing_city || c.city || '',
           customer_state: c.billing_state || c.state || undefined,
           customer_pincode: c.billing_pincode || c.pincode || '',
+          customer_country_code: c.country_code || '91',
           customer_phone: c.phone || '',
           customer_email: c.email || '',
         };
@@ -117,7 +119,7 @@ const GenerateInvoiceModal: React.FC<GenerateInvoiceModalProps> = ({
     return {
       customer_name: initialSale.customer_name || '',
       customer_gstin: '', customer_address: '', customer_city: '',
-      customer_state: undefined, customer_pincode: '', customer_phone: '', customer_email: '',
+      customer_state: undefined, customer_pincode: '', customer_country_code: '91', customer_phone: '', customer_email: '',
     };
   };
 
@@ -186,7 +188,7 @@ const GenerateInvoiceModal: React.FC<GenerateInvoiceModalProps> = ({
     setCustomerDetails({
       customer_name: sale.customer_name || '',
       customer_gstin: '', customer_address: '', customer_city: '',
-      customer_state: undefined, customer_pincode: '', customer_phone: '', customer_email: '',
+      customer_state: undefined, customer_pincode: '', customer_country_code: '91', customer_phone: '', customer_email: '',
     });
     setCurrentStep(2);
   };
@@ -202,6 +204,7 @@ const GenerateInvoiceModal: React.FC<GenerateInvoiceModalProps> = ({
         customer_city: (customer as any).billing_city || (customer as any).city || '',
         customer_state: Number((customer as any).state) || 0,
         customer_pincode: (customer as any).billing_pincode || (customer as any).pincode || '',
+        customer_country_code: (customer as any).country_code || '91',
         customer_phone: customer.phone || '',
         customer_email: customer.email || '',
       });
@@ -219,8 +222,10 @@ const GenerateInvoiceModal: React.FC<GenerateInvoiceModalProps> = ({
     if (!customerDetails.customer_name?.trim()) newErrors.customer_name = 'Customer name is required';
     if (customerDetails.customer_pincode && !/^\d{6}$/.test(customerDetails.customer_pincode))
       newErrors.customer_pincode = 'Pincode must be 6 digits';
-    if (customerDetails.customer_phone && !/^\+?[\d\s-]{10,15}$/.test(customerDetails.customer_phone))
-      newErrors.customer_phone = 'Invalid phone number';
+    if (customerDetails.customer_phone) {
+      const digits = customerDetails.customer_phone.replace(/\D/g, '');
+      if (digits.length > 0 && digits.length < 7) newErrors.customer_phone = 'Invalid phone number';
+    }
     if (customerDetails.customer_email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(customerDetails.customer_email))
       newErrors.customer_email = 'Invalid email address';
     if (customerDetails.customer_gstin && !customerDetails.customer_state)
@@ -239,6 +244,7 @@ const GenerateInvoiceModal: React.FC<GenerateInvoiceModalProps> = ({
       if (customerDetails.customer_address?.trim()) invoiceData.customer_address = customerDetails.customer_address.trim();
       if (customerDetails.customer_city?.trim()) invoiceData.customer_city = customerDetails.customer_city.trim();
       if (customerDetails.customer_pincode?.trim()) invoiceData.customer_pincode = customerDetails.customer_pincode.trim();
+      invoiceData.customer_country_code = customerDetails.customer_country_code || '91';
       if (customerDetails.customer_phone?.trim()) invoiceData.customer_phone = customerDetails.customer_phone.trim();
       if (customerDetails.customer_email?.trim()) invoiceData.customer_email = customerDetails.customer_email.trim();
       if (customerDetails.customer_state) invoiceData.customer_state = Number(customerDetails.customer_state);
@@ -511,6 +517,7 @@ const GenerateInvoiceModal: React.FC<GenerateInvoiceModalProps> = ({
                   city: customerDetails.customer_city,
                   state: states.find(s => s.id === customerDetails.customer_state)?.name,
                   pincode: customerDetails.customer_pincode,
+                  country_code: customerDetails.customer_country_code || '91',
                   phone: customerDetails.customer_phone,
                   email: customerDetails.customer_email,
                 }}
@@ -719,6 +726,21 @@ const GenerateInvoiceModal: React.FC<GenerateInvoiceModalProps> = ({
 
                 {/* Form fields */}
                 <div className="border-t border-gray-100 pt-4 grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {/* Phone field — rendered separately to use PhoneInput */}
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">Phone</label>
+                    <PhoneInput
+                      phone={customerDetails.customer_phone || ''}
+                      countryCode={customerDetails.customer_country_code ?? '91'}
+                      onPhoneChange={(v) => handleDetailChange('customer_phone', v)}
+                      onCountryCodeChange={(v) => handleDetailChange('customer_country_code', v)}
+                      hasError={!!errors.customer_phone}
+                    />
+                    {errors.customer_phone && (
+                      <p className="text-xs text-red-500 mt-1">{errors.customer_phone}</p>
+                    )}
+                  </div>
+
                   {(
                     [
                       {
@@ -728,12 +750,6 @@ const GenerateInvoiceModal: React.FC<GenerateInvoiceModalProps> = ({
                         placeholder: 'Full name',
                       },
                       { label: 'GSTIN', field: 'customer_gstin', placeholder: '22AAAAA0000A1Z5' },
-                      {
-                        label: 'Phone',
-                        field: 'customer_phone',
-                        placeholder: '+91 9876543210',
-                        type: 'tel',
-                      },
                       {
                         label: 'Email',
                         field: 'customer_email',
@@ -835,6 +851,7 @@ const GenerateInvoiceModal: React.FC<GenerateInvoiceModalProps> = ({
                     city: customerDetails.customer_city,
                     state: states.find(s => s.id === customerDetails.customer_state)?.name,
                     pincode: customerDetails.customer_pincode,
+                    country_code: customerDetails.customer_country_code || '91',
                     phone: customerDetails.customer_phone,
                     email: customerDetails.customer_email,
                   }}

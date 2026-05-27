@@ -15,6 +15,7 @@ interface InvoiceTemplateProps {
     city?: string;
     state?: string;
     pincode?: string;
+    country_code?: string;
     phone?: string;
     email?: string;
   };
@@ -407,7 +408,7 @@ const InvoiceTemplate: React.FC<InvoiceTemplateProps> = ({
         )}
         {customerDetails?.phone && (
           <p style={{ fontSize: BASE, margin: '2px 0' }}>
-            <span style={{ fontWeight: '600' }}>Ph:</span> {customerDetails.phone}
+            <span style={{ fontWeight: '600' }}>Ph:</span> +{customerDetails.country_code || '91'} {customerDetails.phone}
           </p>
         )}
         {customerDetails?.email && (

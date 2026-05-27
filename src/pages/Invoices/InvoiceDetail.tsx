@@ -281,6 +281,7 @@ const InvoiceDetail: React.FC = () => {
               address: invoice.customer_address,
               city: invoice.customer_city,
               pincode: invoice.customer_pincode,
+              country_code: invoice.customer_country_code || '91',
               phone: invoice.customer_phone,
               email: invoice.customer_email,
             }}

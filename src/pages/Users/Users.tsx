@@ -8,6 +8,7 @@ import { addNotification } from '@store/slices/uiSlice';
 import { Users as UsersIcon, Plus, Trash2, Search, Mail, Phone, Shield, GitBranch } from 'lucide-react';
 import Modal from '../../components/common/Modal/Modal';
 import DeleteConfirmModal from '../../components/common/DeleteConfirmModal/DeleteConfirmModal';
+import PhoneInput from '../../components/common/PhoneInput/PhoneInput';
 
 const BRANCH_REQUIRED_ROLES = [UserRole.MANAGER, UserRole.CASHIER, UserRole.INVENTORY_STAFF];
 
@@ -35,6 +36,7 @@ const Users: React.FC = () => {
     first_name: '',
     last_name: '',
     role: UserRole.CASHIER,
+    country_code: '91',
     phone: '',
     password_confirm: '',
     branch: null,
@@ -77,6 +79,7 @@ const Users: React.FC = () => {
       first_name: '',
       last_name: '',
       role: UserRole.CASHIER,
+      country_code: '91',
       phone: '',
       password_confirm: '',
       branch: null,
@@ -358,12 +361,11 @@ const Users: React.FC = () => {
 
           <div>
              <label className="label">Phone</label>
-             <input
-               type="tel"
-               name="phone"
-               value={formData.phone}
-               onChange={handleInputChange}
-               className="input-field"
+             <PhoneInput
+               phone={formData.phone || ''}
+               countryCode={formData.country_code ?? '91'}
+               onPhoneChange={(v) => setFormData(prev => ({ ...prev, phone: v }))}
+               onCountryCodeChange={(v) => setFormData(prev => ({ ...prev, country_code: v }))}
              />
           </div>
 

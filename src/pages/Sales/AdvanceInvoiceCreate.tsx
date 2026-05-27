@@ -7,8 +7,9 @@ import { saleService } from '@api/services/sale.service';
 import { customerService } from '@api/services/customer.service';
 import { priceTierService, PriceTier, ProductTierPrice } from '@api/services/priceTier.service';
 import { addNotification } from '@store/slices/uiSlice';
-import { Search, ShoppingCart, Trash2, Plus, Minus, Tag, Building2, Smartphone, Edit2 } from 'lucide-react';
+import { Search, ShoppingCart, Trash2, Plus, Minus, Tag, Building2, Edit2 } from 'lucide-react';
 import CustomerFormModal from '../../components/features/customers/CustomerFormModal';
+import PhoneInput from '../../components/common/PhoneInput/PhoneInput';
 
 interface CartItem {
   id: number;
@@ -61,6 +62,7 @@ const AdvanceInvoiceCreate: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
 
   const [guestName, setGuestName] = useState('');
+  const [guestCountryCode, setGuestCountryCode] = useState('91');
   const [guestPhone, setGuestPhone] = useState('');
   const [currentCustomerObj, setCurrentCustomerObj] = useState<any>(null);
   const [showCustomerModal, setShowCustomerModal] = useState(false);
@@ -392,7 +394,7 @@ const AdvanceInvoiceCreate: React.FC = () => {
         if (currentCustomerObj && currentCustomerObj.phone === guestPhone) {
           customerId = currentCustomerObj.id;
         } else {
-          const payload: any = { name: guestName || 'Walk-in Customer' };
+          const payload: any = { name: guestName || 'Walk-in Customer', country_code: guestCountryCode };
           if (guestPhone) payload.phone = guestPhone;
           const guest = await customerService.create(payload);
           customerId = guest.id;
@@ -612,10 +614,14 @@ const AdvanceInvoiceCreate: React.FC = () => {
                 <Building2 className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2"/>
                 <input type="text" placeholder="Customer Name (Optional)" className="w-full text-sm pl-9 pr-3 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all outline-none" value={guestName} onChange={e => setGuestName(e.target.value)} />
               </div>
-              <div className="relative text-group">
-                <Smartphone className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2"/>
-                <input type="tel" maxLength={10} placeholder="Phone Number (Enter 10 pos to search)" className={`w-full text-sm pl-9 pr-3 py-2 bg-gray-50 border ${guestPhone.length > 0 && guestPhone.length !== 10 ? 'border-amber-300 focus:border-amber-500 focus:ring-amber-100' : 'border-gray-200 focus:border-blue-500 focus:ring-blue-100'} rounded-lg transition-all outline-none`} value={guestPhone} onChange={e => setGuestPhone(e.target.value.replace(/\D/g, ''))} />
-              </div>
+              <PhoneInput
+                phone={guestPhone}
+                countryCode={guestCountryCode}
+                onPhoneChange={(v) => setGuestPhone(v)}
+                onCountryCodeChange={(v) => setGuestCountryCode(v)}
+                placeholder="Phone (10 digits to search)"
+                hasError={guestPhone.length > 0 && guestPhone.length !== 10}
+              />
               <button onClick={() => { setCurrentCustomerObj({ name: guestName, phone: guestPhone }); setShowCustomerModal(true); }} className="w-full py-1.5 mt-1 text-sm bg-blue-50 text-blue-700 hover:bg-blue-100 rounded-lg transition-colors border border-blue-200 font-medium">
                 Add Full Customer Details
               </button>

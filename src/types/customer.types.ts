@@ -26,6 +26,7 @@ export interface Customer {
   id: number;
   name: string;
   email?: string;
+  country_code?: string;
   phone: string;
   address?: string;
   city?: string;
@@ -43,6 +44,7 @@ export interface Customer {
 export interface CustomerFormData {
   name: string;
   email?: string;
+  country_code?: string;
   phone: string;
   address?: string;
   city?: string;

@@ -13,6 +13,7 @@ export interface TaxInvoice {
   customer_city?: string;
   customer_state: number; // FK to StateMaster
   customer_pincode?: string;
+  customer_country_code?: string;
   customer_phone?: string;
   customer_email?: string;
   is_cancelled: boolean;
@@ -32,6 +33,7 @@ export interface TaxInvoiceCreate {
   customer_city?: string;
   customer_state?: number; // FK to StateMaster
   customer_pincode?: string;
+  customer_country_code?: string;
   customer_phone?: string;
   customer_email?: string;
 }

@@ -4,6 +4,7 @@ import { API_ENDPOINTS } from '../endpoints';
 export interface CustomerFormData {
   name: string;
   email?: string;
+  country_code?: string;
   phone?: string;
   address_line1?: string;
   city?: string;

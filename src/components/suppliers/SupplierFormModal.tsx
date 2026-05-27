@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import Modal from '../common/Modal/Modal';
+import PhoneInput from '../common/PhoneInput/PhoneInput';
 import { Supplier, SupplierFormData } from '../../types/supplier.types';
 
 interface SupplierFormModalProps {
@@ -23,7 +24,9 @@ const SupplierFormModal: React.FC<SupplierFormModalProps> = ({
     name: '',
     contact_person: '',
     email: '',
+    country_code: '91',
     phone: '',
+    alternate_country_code: '91',
     alternate_phone: '',
     address_line1: '',
     address_line2: '',
@@ -44,7 +47,9 @@ const SupplierFormModal: React.FC<SupplierFormModalProps> = ({
         name: supplier.name,
         contact_person: supplier.contact_person || '',
         email: supplier.email || '',
+        country_code: supplier.country_code || '91',
         phone: supplier.phone,
+        alternate_country_code: supplier.alternate_country_code || '91',
         alternate_phone: supplier.alternate_phone || '',
         address_line1: supplier.address_line1,
         address_line2: supplier.address_line2 || '',
@@ -61,7 +66,9 @@ const SupplierFormModal: React.FC<SupplierFormModalProps> = ({
         name: '',
         contact_person: '',
         email: '',
+        country_code: '91',
         phone: '',
+        alternate_country_code: '91',
         alternate_phone: '',
         address_line1: '',
         address_line2: '',
@@ -91,6 +98,7 @@ const SupplierFormModal: React.FC<SupplierFormModalProps> = ({
     const e: FieldErrors = {};
     if (!formData.name.trim()) e.name = 'Company name is required';
     if (!formData.phone.trim()) e.phone = 'Phone number is required';
+    else if (formData.phone.length < 7) e.phone = 'Enter a valid phone number';
     if (!formData.address_line1.trim()) e.address_line1 = 'Address is required';
     if (!formData.city.trim()) e.city = 'City is required';
     if (!formData.state.trim()) e.state = 'State is required';
@@ -152,12 +160,12 @@ const SupplierFormModal: React.FC<SupplierFormModalProps> = ({
           </div>
           <div>
             <label className="label">Phone *</label>
-            <input
-              type="text"
-              name="phone"
-              className={`input-field ${errors.phone ? 'border-red-500' : ''}`}
-              value={formData.phone}
-              onChange={handleChange}
+            <PhoneInput
+              phone={formData.phone}
+              countryCode={formData.country_code ?? '91'}
+              onPhoneChange={(v) => { setFormData(prev => ({ ...prev, phone: v })); if (errors.phone) setErrors(prev => ({ ...prev, phone: undefined })); }}
+              onCountryCodeChange={(v) => setFormData(prev => ({ ...prev, country_code: v }))}
+              hasError={!!errors.phone}
             />
             {errors.phone && <p className="mt-1 text-xs text-red-500">{errors.phone}</p>}
           </div>

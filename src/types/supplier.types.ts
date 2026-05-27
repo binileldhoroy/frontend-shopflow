@@ -3,7 +3,9 @@ export interface Supplier {
   name: string;
   contact_person?: string;
   email?: string;
+  country_code?: string;
   phone: string;
+  alternate_country_code?: string;
   alternate_phone?: string;
   address_line1: string;
   address_line2?: string;
@@ -23,7 +25,9 @@ export interface SupplierFormData {
   name: string;
   contact_person?: string;
   email?: string;
+  country_code?: string;
   phone: string;
+  alternate_country_code?: string;
   alternate_phone?: string;
   address_line1: string;
   address_line2?: string;

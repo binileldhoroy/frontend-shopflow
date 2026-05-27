@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FileText, Plus, Eye, X, Printer, Download, ChevronRight, ChevronLeft, Search, User, Share2, Mail, Copy, Check, MessageCircle } from 'lucide-react';
+import PhoneInput from '../../components/common/PhoneInput/PhoneInput';
 import { format } from 'date-fns';
 import html2pdf from 'html2pdf.js';
 import { invoiceService } from '../../api/services/invoice.service';
@@ -57,6 +58,7 @@ const Invoices: React.FC = () => {
     customer_city: '',
     customer_state: undefined,
     customer_pincode: '',
+    customer_country_code: '91',
     customer_phone: '',
     customer_email: '',
   });
@@ -379,6 +381,7 @@ const Invoices: React.FC = () => {
       customer_city: '',
       customer_state: undefined,
       customer_pincode: '',
+      customer_country_code: '91',
       customer_phone: '',
       customer_email: '',
     });
@@ -396,6 +399,7 @@ const Invoices: React.FC = () => {
         customer_city: '',
         customer_state: undefined,
         customer_pincode: '',
+        customer_country_code: '91',
         customer_phone: '',
         customer_email: '',
       });
@@ -416,6 +420,7 @@ const Invoices: React.FC = () => {
         customer_city: (customer as any).billing_city || (customer as any).city || '',
         customer_state: Number((customer as any).state) || 0,
         customer_pincode: (customer as any).billing_pincode || (customer as any).pincode || '',
+        customer_country_code: (customer as any).country_code || '91',
         customer_phone: customer.phone || '',
         customer_email: customer.email || '',
       });
@@ -444,8 +449,9 @@ const Invoices: React.FC = () => {
       newErrors.customer_pincode = 'Pincode must be 6 digits';
     }
 
-    if (customerDetails.customer_phone && !/^\+?[\d\s-]{10,15}$/.test(customerDetails.customer_phone)) {
-      newErrors.customer_phone = 'Invalid phone number';
+    if (customerDetails.customer_phone) {
+      const digits = customerDetails.customer_phone.replace(/\D/g, '');
+      if (digits.length > 0 && digits.length < 7) newErrors.customer_phone = 'Invalid phone number';
     }
 
     if (customerDetails.customer_email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(customerDetails.customer_email)) {
@@ -487,6 +493,7 @@ const Invoices: React.FC = () => {
       if (customerDetails.customer_pincode?.trim()) {
         invoiceData.customer_pincode = customerDetails.customer_pincode.trim();
       }
+      invoiceData.customer_country_code = customerDetails.customer_country_code ?? '91';
       if (customerDetails.customer_phone?.trim()) {
         invoiceData.customer_phone = customerDetails.customer_phone.trim();
       }
@@ -896,10 +903,22 @@ const Invoices: React.FC = () => {
                   </div>
 
                   <div className="border-t border-gray-100 pt-4 grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {/* Phone — separate PhoneInput with country code */}
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 mb-1">Phone</label>
+                      <PhoneInput
+                        phone={customerDetails.customer_phone ?? ''}
+                        countryCode={customerDetails.customer_country_code ?? '91'}
+                        onPhoneChange={(v) => handleCustomerDetailChange('customer_phone', v)}
+                        onCountryCodeChange={(v) => handleCustomerDetailChange('customer_country_code', v)}
+                        hasError={!!errors.customer_phone}
+                      />
+                      {errors.customer_phone && <p className="text-xs text-red-500 mt-1">{errors.customer_phone}</p>}
+                    </div>
+
                     {[
                       { label: 'Customer Name', field: 'customer_name', required: true, placeholder: 'Full name' },
                       { label: 'GSTIN', field: 'customer_gstin', placeholder: '22AAAAA0000A1Z5' },
-                      { label: 'Phone', field: 'customer_phone', placeholder: '+91 9876543210', type: 'tel' },
                       { label: 'Email', field: 'customer_email', placeholder: 'customer@example.com', type: 'email' },
                       { label: 'City', field: 'customer_city', placeholder: 'City' },
                       { label: 'Pincode', field: 'customer_pincode', placeholder: '123456', maxLength: 6 },
@@ -963,6 +982,7 @@ const Invoices: React.FC = () => {
                       city: customerDetails.customer_city,
                       state: states.find(s => s.id === customerDetails.customer_state)?.name,
                       pincode: customerDetails.customer_pincode,
+                      country_code: customerDetails.customer_country_code || '91',
                       phone: customerDetails.customer_phone,
                       email: customerDetails.customer_email,
                     }}
@@ -1095,6 +1115,7 @@ const Invoices: React.FC = () => {
                     address: viewingInvoice.customer_address,
                     city: viewingInvoice.customer_city,
                     pincode: viewingInvoice.customer_pincode,
+                    country_code: viewingInvoice.customer_country_code || '91',
                     phone: viewingInvoice.customer_phone,
                     email: viewingInvoice.customer_email,
                   }}

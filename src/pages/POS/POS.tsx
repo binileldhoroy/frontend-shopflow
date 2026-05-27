@@ -13,6 +13,7 @@ import {
   Tag, Lock, Flag, Wallet, X, Banknote, CreditCard, Smartphone,
   Building2, BookOpenCheck, ChevronDown, ChevronUp, User,
 } from 'lucide-react';
+import PhoneInput from '../../components/common/PhoneInput/PhoneInput';
 import InvoicePreview from '../../components/pos/InvoicePreview';
 import GenerateInvoiceModal from '../../components/invoices/GenerateInvoiceModal';
 import OpeningBalanceModal from '../../components/pos/OpeningBalanceModal';
@@ -52,6 +53,7 @@ interface CustomerSession {
   cart: CartState;
   currentCustomerObj: any | null;
   guestName: string;
+  guestCountryCode: string;
   guestPhone: string;
 }
 
@@ -70,6 +72,7 @@ const createEmptySession = (index: number): CustomerSession => ({
   },
   currentCustomerObj: null,
   guestName: '',
+  guestCountryCode: '91',
   guestPhone: '',
 });
 
@@ -105,6 +108,7 @@ const POS: React.FC = () => {
   const cart = activeSession.cart;
   const currentCustomerObj = activeSession.currentCustomerObj;
   const guestName = activeSession.guestName;
+  const guestCountryCode = activeSession.guestCountryCode;
   const guestPhone = activeSession.guestPhone;
 
   // ── Browse products ───────────────────────────────────────────────────────
@@ -625,6 +629,7 @@ const POS: React.FC = () => {
     const snapCart = snap.cart;
     const snapGuestPhone = snap.guestPhone;
     const snapGuestName = snap.guestName;
+    const snapGuestCountryCode = snap.guestCountryCode;
     const snapCustomerObj = snap.currentCustomerObj;
 
     setIsProcessing(true);
@@ -636,7 +641,7 @@ const POS: React.FC = () => {
         if (snapCustomerObj && snapCustomerObj.phone === snapGuestPhone) {
           customerId = snapCustomerObj.id;
         } else {
-          const payload: any = { name: snapGuestName || 'Walk-in Customer' };
+          const payload: any = { name: snapGuestName || 'Walk-in Customer', country_code: snapGuestCountryCode };
           if (snapGuestPhone) payload.phone = snapGuestPhone;
           const guest = await customerService.create(payload);
           customerId = guest.id;
@@ -1169,18 +1174,15 @@ const POS: React.FC = () => {
                   </button>
                 </div>
               ) : (
-                <div className="flex gap-2">
-                  <div className="relative w-[48%]">
-                    <input
-                      type="tel"
-                      inputMode="numeric"
+                <div className="flex flex-col gap-2">
+                  <div className="relative">
+                    <PhoneInput
+                      phone={guestPhone}
+                      countryCode={guestCountryCode}
+                      onPhoneChange={(v) => updateActiveSession((s) => ({ ...s, guestPhone: v }))}
+                      onCountryCodeChange={(v) => updateActiveSession((s) => ({ ...s, guestCountryCode: v }))}
                       placeholder="Phone No."
-                      value={guestPhone}
-                      onChange={(e) => {
-                        const val = e.target.value.replace(/\D/g, '').slice(0, 10);
-                        updateActiveSession((s) => ({ ...s, guestPhone: val }));
-                      }}
-                      className="w-full px-3 py-2 text-sm border border-gray-200 rounded-xl outline-none focus:border-[#0d9158] focus:ring-2 focus:ring-[#0d9158]/10 transition-all bg-gray-50"
+                      hasError={guestPhone.length > 0 && guestPhone.length !== 10}
                     />
                     {isLoading && (
                       <div className="absolute right-2.5 top-1/2 -translate-y-1/2">
@@ -1193,7 +1195,7 @@ const POS: React.FC = () => {
                     placeholder="Name (opt)"
                     value={guestName}
                     onChange={(e) => updateActiveSession((s) => ({ ...s, guestName: e.target.value }))}
-                    className="flex-1 min-w-0 px-3 py-2 text-sm border border-gray-200 rounded-xl outline-none focus:border-[#0d9158] focus:ring-2 focus:ring-[#0d9158]/10 transition-all bg-gray-50"
+                    className="w-full px-3 py-2 text-sm border border-gray-200 rounded-xl outline-none focus:border-[#0d9158] focus:ring-2 focus:ring-[#0d9158]/10 transition-all bg-gray-50"
                   />
                 </div>
               )}

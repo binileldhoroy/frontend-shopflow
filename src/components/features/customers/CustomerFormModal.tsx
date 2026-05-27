@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import Modal from '../../common/Modal/Modal';
+import PhoneInput from '../../common/PhoneInput/PhoneInput';
 import axiosInstance from '@api/axios';
 
 interface CustomerFormModalProps {
@@ -14,6 +15,7 @@ const CustomerFormModal: React.FC<CustomerFormModalProps> = ({ customer, onClose
   const [formData, setFormData] = useState({
     name: '',
     email: '',
+    country_code: '91',
     phone: '',
     address_line1: '',
     city: '',
@@ -41,6 +43,7 @@ const CustomerFormModal: React.FC<CustomerFormModalProps> = ({ customer, onClose
       setFormData({
         name: customer.name || '',
         email: customer.email || '',
+        country_code: customer.country_code || '91',
         phone: customer.phone || '',
         address_line1: customer.address_line1 || '',
         city: customer.city || '',
@@ -110,12 +113,11 @@ const CustomerFormModal: React.FC<CustomerFormModalProps> = ({ customer, onClose
 
           <div>
             <label className="label">Phone</label>
-            <input
-              type="tel"
-              name="phone"
-              value={formData.phone}
-              onChange={handleChange}
-              className="input-field"
+            <PhoneInput
+              phone={formData.phone}
+              countryCode={formData.country_code}
+              onPhoneChange={(v) => setFormData(prev => ({ ...prev, phone: v }))}
+              onCountryCodeChange={(v) => setFormData(prev => ({ ...prev, country_code: v }))}
             />
           </div>
 

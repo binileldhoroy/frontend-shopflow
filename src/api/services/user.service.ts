@@ -11,6 +11,7 @@ export interface UserCreateData {
   last_name: string;
   role: string;
   company?: number | null;
+  country_code?: string;
   phone?: string;
   branch?: number | null;
 }
@@ -21,6 +22,7 @@ export interface UserUpdateData {
   last_name?: string;
   role?: string;
   company?: number | null;
+  country_code?: string;
   phone?: string;
   is_active?: boolean;
   branch?: number | null;

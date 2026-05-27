@@ -105,7 +105,7 @@ const InvoicePreview: React.FC<InvoicePreviewProps> = ({ sale, onClose, onGenera
     <tr><td style="width:40%">Invoice:</td><td style="text-align:right;font-weight:700">#${sale.order_number}</td></tr>
     <tr><td>Date:</td><td style="text-align:right">${new Date(sale.created_at).toLocaleString()}</td></tr>
     <tr><td>Customer:</td><td style="text-align:right">${sale.customer?.name || 'Walk-in Customer'}</td></tr>
-    ${sale.customer?.phone ? `<tr><td>Phone:</td><td style="text-align:right">${sale.customer.phone}</td></tr>` : ''}
+    ${sale.customer?.phone ? `<tr><td>Phone:</td><td style="text-align:right">+${sale.customer.country_code || '91'} ${sale.customer.phone}</td></tr>` : ''}
     <tr><td>Payment:</td><td style="text-align:right;text-transform:uppercase">${sale.payment_method}</td></tr>
   </table>
 
@@ -230,7 +230,7 @@ const InvoicePreview: React.FC<InvoicePreviewProps> = ({ sale, onClose, onGenera
             {sale.customer?.phone && (
               <div className="flex justify-between">
                 <span>Phone:</span>
-                <span>{sale.customer.phone}</span>
+                <span>+{sale.customer.country_code || '91'} {sale.customer.phone}</span>
               </div>
             )}
             <div className="flex justify-between">
