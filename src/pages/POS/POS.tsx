@@ -1443,32 +1443,32 @@ const POS: React.FC = () => {
                     </span>
                   </div>
 
-                  {/* Payment buttons — 2-col grid, always visible */}
-                  <div className="px-3 pb-3 space-y-2">
-                    <div className="grid grid-cols-3 gap-2">
+                  {/* Payment buttons — single scrollable capsule row */}
+                  <div className="px-3 pb-2">
+                    <div className="flex gap-2 overflow-x-auto pb-1" style={{ scrollbarWidth: 'none' }}>
                       <button
                         disabled={isProcessing}
                         onClick={() => setPendingMethod('cash')}
-                        className="flex flex-col items-center gap-1 py-3 bg-white border-2 border-green-500 hover:bg-green-50 active:bg-green-100 text-green-700 rounded-xl shadow-sm transition-all active:scale-[0.96] disabled:opacity-40 disabled:border-gray-200 disabled:text-gray-400"
+                        className="flex-none flex items-center gap-1.5 px-3 py-2 bg-white border-2 border-green-500 hover:bg-green-50 active:bg-green-100 text-green-700 rounded-full shadow-sm transition-all active:scale-[0.96] disabled:opacity-40 disabled:border-gray-200 disabled:text-gray-400"
                       >
-                        <Banknote className="w-5 h-5" />
-                        <span className="font-bold text-[11px] tracking-wide">CASH</span>
+                        <Banknote className="w-4 h-4 flex-none" />
+                        <span className="font-bold text-[11px] tracking-wide whitespace-nowrap">CASH</span>
                       </button>
                       <button
                         disabled={isProcessing}
                         onClick={() => setPendingMethod('upi')}
-                        className="flex flex-col items-center gap-1 py-3 bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white rounded-xl shadow-md transition-all active:scale-[0.96] disabled:opacity-40"
+                        className="flex-none flex items-center gap-1.5 px-3 py-2 bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white rounded-full shadow-md transition-all active:scale-[0.96] disabled:opacity-40"
                       >
-                        <Smartphone className="w-5 h-5" />
-                        <span className="font-bold text-[11px] tracking-wide">UPI</span>
+                        <Smartphone className="w-4 h-4 flex-none" />
+                        <span className="font-bold text-[11px] tracking-wide whitespace-nowrap">UPI</span>
                       </button>
                       <button
                         disabled={isProcessing}
                         onClick={() => setPendingMethod('card')}
-                        className="flex flex-col items-center gap-1 py-3 bg-slate-800 hover:bg-slate-900 active:bg-slate-950 text-white rounded-xl shadow-md transition-all active:scale-[0.96] disabled:opacity-40"
+                        className="flex-none flex items-center gap-1.5 px-3 py-2 bg-slate-800 hover:bg-slate-900 active:bg-slate-950 text-white rounded-full shadow-md transition-all active:scale-[0.96] disabled:opacity-40"
                       >
-                        <CreditCard className="w-5 h-5" />
-                        <span className="font-bold text-[11px] tracking-wide">CARD</span>
+                        <CreditCard className="w-4 h-4 flex-none" />
+                        <span className="font-bold text-[11px] tracking-wide whitespace-nowrap">CARD</span>
                       </button>
                       <button
                         disabled={isProcessing || !isEligibleForCredit || !canAffordCredit}
@@ -1480,10 +1480,10 @@ const POS: React.FC = () => {
                             ? 'Credit limit exceeded'
                             : 'Pay via Credit'
                         }
-                        className="flex flex-col items-center gap-1 py-3 bg-orange-500 hover:bg-orange-600 active:bg-orange-700 text-white rounded-xl shadow-md transition-all active:scale-[0.96] disabled:opacity-40"
+                        className="flex-none flex items-center gap-1.5 px-3 py-2 bg-orange-500 hover:bg-orange-600 active:bg-orange-700 text-white rounded-full shadow-md transition-all active:scale-[0.96] disabled:opacity-40"
                       >
-                        <BookOpenCheck className="w-5 h-5" />
-                        <span className="font-bold text-[11px] tracking-wide">CREDIT</span>
+                        <BookOpenCheck className="w-4 h-4 flex-none" />
+                        <span className="font-bold text-[11px] tracking-wide whitespace-nowrap">CREDIT</span>
                       </button>
                       <button
                         disabled={isProcessing || !isEligibleForCredit || !hasWalletBalance}
@@ -1495,22 +1495,22 @@ const POS: React.FC = () => {
                             ? 'No wallet balance'
                             : `Pay from wallet (₹${walletBalance.toFixed(2)})`
                         }
-                        className="flex flex-col items-center gap-1 py-3 bg-purple-600 hover:bg-purple-700 active:bg-purple-800 text-white rounded-xl shadow-md transition-all active:scale-[0.96] disabled:opacity-40"
+                        className="flex-none flex items-center gap-1.5 px-3 py-2 bg-purple-600 hover:bg-purple-700 active:bg-purple-800 text-white rounded-full shadow-md transition-all active:scale-[0.96] disabled:opacity-40"
                       >
-                        <Wallet className="w-5 h-5" />
+                        <Wallet className="w-4 h-4 flex-none" />
                         <span className="font-bold text-[11px] tracking-wide whitespace-nowrap">
                           {hasWalletBalance && isEligibleForCredit
-                            ? `₹${walletBalance.toFixed(0)}`
+                            ? `WALLET ₹${walletBalance.toFixed(0)}`
                             : 'WALLET'}
                         </span>
                       </button>
                       <button
                         disabled={isProcessing}
                         onClick={() => setPendingMethod('net_banking')}
-                        className="flex flex-col items-center gap-1 py-3 bg-white border border-gray-200 hover:bg-gray-50 active:bg-gray-100 text-gray-600 rounded-xl shadow-sm transition-all active:scale-[0.96] disabled:opacity-40"
+                        className="flex-none flex items-center gap-1.5 px-3 py-2 bg-white border border-gray-200 hover:bg-gray-50 active:bg-gray-100 text-gray-600 rounded-full shadow-sm transition-all active:scale-[0.96] disabled:opacity-40"
                       >
-                        <Building2 className="w-5 h-5" />
-                        <span className="font-bold text-[11px] tracking-wide">NET</span>
+                        <Building2 className="w-4 h-4 flex-none" />
+                        <span className="font-bold text-[11px] tracking-wide whitespace-nowrap">NET</span>
                       </button>
                     </div>
 

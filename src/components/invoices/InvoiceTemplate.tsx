@@ -680,7 +680,7 @@ const InvoiceTemplate: React.FC<InvoiceTemplateProps> = ({
 
         @media print {
           /* Zero browser margin — our content div handles its own sizing */
-          @page { size: A4; margin: 10mm; }
+          @page { size: A4; margin: 0; }
 
           html, body {
             -webkit-print-color-adjust: exact;

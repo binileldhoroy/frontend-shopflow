@@ -233,9 +233,10 @@ const GenerateInvoiceModal: React.FC<GenerateInvoiceModalProps> = ({
       }}
     >
       <div
-        className={`bg-white rounded-xl shadow-2xl w-full max-w-4xl h-[95vh] flex flex-col transition-all duration-200 ${
+        className={`bg-white rounded-xl shadow-2xl w-full max-w-4xl flex flex-col transition-all duration-200 ${
           visible ? 'opacity-100 scale-100' : 'opacity-0 scale-95'
         }`}
+        style={{ maxHeight: 'calc(var(--viewport-height, 100vh) - 32px)' }}
       >
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
@@ -589,7 +590,7 @@ const GenerateInvoiceModal: React.FC<GenerateInvoiceModalProps> = ({
 
           {/* Step 3 — preview */}
           {currentStep === 3 && selectedSale && (
-            <div className="bg-gray-50 rounded-lg overflow-auto max-h-[80vh] border border-gray-200">
+            <div className="bg-gray-50 rounded-lg overflow-auto border border-gray-200">
               <InvoiceTemplate
                 saleOrder={selectedSale}
                 invoiceNumber="PREVIEW"

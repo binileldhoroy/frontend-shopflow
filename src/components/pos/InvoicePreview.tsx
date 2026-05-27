@@ -149,26 +149,38 @@ const InvoicePreview: React.FC<InvoicePreviewProps> = ({ sale, onClose, onGenera
     const blob = new Blob([html], { type: 'text/html' });
     const blobUrl = URL.createObjectURL(blob);
 
-    const iframe = document.createElement('iframe');
-    iframe.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:none;visibility:hidden;';
-    document.body.appendChild(iframe);
-
-    iframe.onload = () => {
-      iframe.contentWindow?.focus();
-      iframe.contentWindow?.print();
-      setTimeout(() => {
-        URL.revokeObjectURL(blobUrl);
-        if (document.body.contains(iframe)) document.body.removeChild(iframe);
-      }, 1000);
-    };
-
-    iframe.src = blobUrl;
+    const printWindow = window.open(blobUrl, '_blank');
+    if (printWindow) {
+      printWindow.focus();
+      printWindow.onload = () => {
+        printWindow.print();
+        setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
+      };
+    } else {
+      // Fallback if popup is blocked — hidden iframe approach
+      const iframe = document.createElement('iframe');
+      iframe.style.cssText =
+        'position:fixed;right:0;bottom:0;width:0;height:0;border:none;visibility:hidden;';
+      document.body.appendChild(iframe);
+      iframe.onload = () => {
+        iframe.contentWindow?.focus();
+        iframe.contentWindow?.print();
+        setTimeout(() => {
+          URL.revokeObjectURL(blobUrl);
+          if (document.body.contains(iframe)) document.body.removeChild(iframe);
+        }, 1000);
+      };
+      iframe.src = blobUrl;
+    }
   };
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-        {/* Header - Hidden on print */}
-        <div className="flex items-center justify-between p-4 border-b border-gray-200 print:hidden">
+      <div
+        className="bg-white rounded-lg shadow-xl w-full max-w-2xl flex flex-col"
+        style={{ maxHeight: 'calc(var(--viewport-height, 100vh) - 32px)' }}
+      >
+        {/* Pinned header — always visible, hidden on print */}
+        <div className="shrink-0 flex items-center justify-between p-4 border-b border-gray-200 print:hidden">
           <h2 className="text-lg font-bold text-gray-900">Invoice Preview</h2>
           <div className="flex gap-2">
             {onGenerateInvoice && (
@@ -190,8 +202,8 @@ const InvoicePreview: React.FC<InvoicePreviewProps> = ({ sale, onClose, onGenera
           </div>
         </div>
 
-        {/* Thermal Receipt Content */}
-        <div className="p-4 font-mono text-sm" id="thermal-receipt">
+        {/* Scrollable receipt content */}
+        <div className="flex-1 overflow-y-auto min-h-0 p-4 font-mono text-sm" id="thermal-receipt">
           {/* Company Header */}
           <div className="text-center border-b-2 border-dashed border-gray-400 pb-3 mb-3">
             <h1 className="text-lg font-bold">{sale.company?.company_name || 'COMPANY NAME'}</h1>

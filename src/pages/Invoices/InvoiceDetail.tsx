@@ -57,17 +57,32 @@ const InvoiceDetail: React.FC = () => {
   const handleDownloadPDF = async () => {
     if (!invoiceRef.current || !invoice) return;
     setDownloading(true);
+
+    // Target the inner wrapper to avoid capturing non-invoice DOM nodes
+    const element =
+      invoiceRef.current.querySelector<HTMLElement>('.invoice-outer-wrapper') ??
+      invoiceRef.current;
+
+    // Temporarily zero the screen-only inter-page gap so html2pdf sees
+    // each .invoice-page as exactly 297 mm with no overflow into a blank page
+    const tempStyle = document.createElement('style');
+    tempStyle.textContent =
+      '.invoice-page + .invoice-page { margin-top: 0 !important; }';
+    document.head.appendChild(tempStyle);
+
     const opt = {
       margin: 0,
       filename: `Invoice_${invoice.invoice_number}.pdf`,
       image: { type: 'jpeg' as const, quality: 0.98 },
       html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff' },
       jsPDF: { unit: 'mm' as const, format: 'a4' as const, orientation: 'portrait' as const },
-      pagebreak: { mode: ['css', 'legacy'], before: '.invoice-page:not(:first-child)' },
+      pagebreak: { mode: 'css', before: '.invoice-page:not(:first-child)' },
     };
+
     try {
-      await html2pdf().set(opt).from(invoiceRef.current).save();
+      await html2pdf().set(opt).from(element).save();
     } finally {
+      document.head.removeChild(tempStyle);
       setDownloading(false);
     }
   };
