@@ -18,6 +18,7 @@ import GenerateInvoiceModal from '../../components/invoices/GenerateInvoiceModal
 import OpeningBalanceModal from '../../components/pos/OpeningBalanceModal';
 import CloseRegisterModal from '../../components/pos/CloseRegisterModal';
 import Modal from '../../components/common/Modal/Modal';
+import PaymentConfirmModal from '../../components/pos/PaymentConfirmModal';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -86,6 +87,10 @@ const POS: React.FC = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [completedSale, setCompletedSale] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [pendingMethod, setPendingMethod] = useState<string | null>(null);
+
+  // ── Company (for UPI QR) ──────────────────────────────────────────────────
+  const currentCompany = useAppSelector((s) => s.company.currentCompany);
 
   // ── Session ───────────────────────────────────────────────────────────────
   const { needsSessionSetup, currentSession } = useAppSelector((s) => s.session);
@@ -1440,7 +1445,7 @@ const POS: React.FC = () => {
                     <div className="grid grid-cols-3 gap-2">
                       <button
                         disabled={isProcessing}
-                        onClick={() => processPayment('cash')}
+                        onClick={() => setPendingMethod('cash')}
                         className="flex flex-col items-center gap-1 py-3 bg-white border-2 border-green-500 hover:bg-green-50 active:bg-green-100 text-green-700 rounded-xl shadow-sm transition-all active:scale-[0.96] disabled:opacity-40 disabled:border-gray-200 disabled:text-gray-400"
                       >
                         <Banknote className="w-5 h-5" />
@@ -1448,7 +1453,7 @@ const POS: React.FC = () => {
                       </button>
                       <button
                         disabled={isProcessing}
-                        onClick={() => processPayment('upi')}
+                        onClick={() => setPendingMethod('upi')}
                         className="flex flex-col items-center gap-1 py-3 bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white rounded-xl shadow-md transition-all active:scale-[0.96] disabled:opacity-40"
                       >
                         <Smartphone className="w-5 h-5" />
@@ -1456,7 +1461,7 @@ const POS: React.FC = () => {
                       </button>
                       <button
                         disabled={isProcessing}
-                        onClick={() => processPayment('card')}
+                        onClick={() => setPendingMethod('card')}
                         className="flex flex-col items-center gap-1 py-3 bg-slate-800 hover:bg-slate-900 active:bg-slate-950 text-white rounded-xl shadow-md transition-all active:scale-[0.96] disabled:opacity-40"
                       >
                         <CreditCard className="w-5 h-5" />
@@ -1464,7 +1469,7 @@ const POS: React.FC = () => {
                       </button>
                       <button
                         disabled={isProcessing || !isEligibleForCredit || !canAffordCredit}
-                        onClick={() => processPayment('credit')}
+                        onClick={() => setPendingMethod('credit')}
                         title={
                           !isEligibleForCredit
                             ? 'Only for registered customers'
@@ -1479,7 +1484,7 @@ const POS: React.FC = () => {
                       </button>
                       <button
                         disabled={isProcessing || !isEligibleForCredit || !hasWalletBalance}
-                        onClick={() => processPayment('wallet')}
+                        onClick={() => setPendingMethod('wallet')}
                         title={
                           !isEligibleForCredit
                             ? 'Only for registered customers'
@@ -1498,7 +1503,7 @@ const POS: React.FC = () => {
                       </button>
                       <button
                         disabled={isProcessing}
-                        onClick={() => processPayment('net_banking')}
+                        onClick={() => setPendingMethod('net_banking')}
                         className="flex flex-col items-center gap-1 py-3 bg-white border border-gray-200 hover:bg-gray-50 active:bg-gray-100 text-gray-600 rounded-xl shadow-sm transition-all active:scale-[0.96] disabled:opacity-40"
                       >
                         <Building2 className="w-5 h-5" />
@@ -1577,6 +1582,24 @@ const POS: React.FC = () => {
       )}
 
       {showCloseModal && <CloseRegisterModal onClose={() => setShowCloseModal(false)} />}
+
+      {pendingMethod && (
+        <PaymentConfirmModal
+          method={pendingMethod}
+          cartItems={cart.items}
+          totals={calculateTotals()}
+          upiId={currentCompany?.upi_id}
+          companyName={currentCompany?.company_name}
+          customerName={currentCustomerObj?.name}
+          walletBalance={walletBalance}
+          onConfirm={() => {
+            const m = pendingMethod;
+            setPendingMethod(null);
+            processPayment(m);
+          }}
+          onClose={() => setPendingMethod(null)}
+        />
+      )}
     </div>
   );
 };
