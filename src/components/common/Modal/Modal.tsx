@@ -11,19 +11,16 @@ interface ModalProps {
 }
 
 const Modal: React.FC<ModalProps> = ({ show, onHide, title, children, size = 'md', footer }) => {
+  const backdropRef = useRef<HTMLDivElement>(null);
   const bodyRef = useRef<HTMLDivElement>(null);
 
+  // Lock body scroll while open
   useEffect(() => {
-    if (show) {
-      document.body.style.overflow = 'hidden';
-    } else {
-      document.body.style.overflow = 'unset';
-    }
-    return () => {
-      document.body.style.overflow = 'unset';
-    };
+    document.body.style.overflow = show ? 'hidden' : 'unset';
+    return () => { document.body.style.overflow = 'unset'; };
   }, [show]);
 
+  // Scroll focused input into view (Android keyboard)
   useEffect(() => {
     if (!show) return;
     const el = bodyRef.current;
@@ -38,6 +35,28 @@ const Modal: React.FC<ModalProps> = ({ show, onHide, title, children, size = 'md
     return () => el.removeEventListener('focusin', handleFocusIn);
   }, [show]);
 
+  // Keep the modal backdrop anchored to the visual viewport so it stays above
+  // the software keyboard on Android Chrome.
+  useEffect(() => {
+    if (!show) return;
+    const update = () => {
+      const vv = window.visualViewport;
+      if (!backdropRef.current) return;
+      const top = vv?.offsetTop ?? 0;
+      const h = vv?.height ?? window.innerHeight;
+      backdropRef.current.style.top = `${top}px`;
+      backdropRef.current.style.height = `${h}px`;
+    };
+    update();
+    const vv = window.visualViewport;
+    if (vv) { vv.addEventListener('resize', update); vv.addEventListener('scroll', update); }
+    else { window.addEventListener('resize', update); }
+    return () => {
+      if (vv) { vv.removeEventListener('resize', update); vv.removeEventListener('scroll', update); }
+      else { window.removeEventListener('resize', update); }
+    };
+  }, [show]);
+
   if (!show) return null;
 
   const sizeClasses = {
@@ -49,44 +68,39 @@ const Modal: React.FC<ModalProps> = ({ show, onHide, title, children, size = 'md
 
   return (
     <div
-      className="fixed inset-x-0 top-0 z-50 overflow-y-auto"
-      style={{ height: 'var(--viewport-height)' }}
+      ref={backdropRef}
+      className="fixed inset-x-0 z-50 flex items-center justify-center p-4 bg-black/50"
+      style={{ top: 0, height: '100vh' }}
+      onClick={e => { if (e.target === e.currentTarget) onHide(); }}
     >
-      {/* Backdrop */}
       <div
-        className="fixed inset-0 bg-black/50 transition-opacity"
-        onClick={onHide}
-      ></div>
-
-      {/* Modal */}
-      <div className="flex min-h-full items-start justify-center p-4">
-        <div
-          ref={bodyRef}
-          className={`relative bg-white rounded-lg shadow-xl ${sizeClasses[size]} w-full animate-fadeIn`}
-          onClick={(e) => e.stopPropagation()}
-        >
-          {/* Header */}
-          <div className="flex items-center justify-between p-6 border-b border-gray-200">
-            <h3 className="text-xl font-semibold text-gray-900">{title}</h3>
-            <button
-              type="button"
-              onClick={onHide}
-              className="p-1 hover:bg-gray-100 rounded-lg transition-colors"
-            >
-              <X className="w-5 h-5 text-gray-500" />
-            </button>
-          </div>
-
-          {/* Body */}
-          <div className="p-6">{children}</div>
-
-          {/* Footer */}
-          {footer && (
-            <div className="flex items-center justify-end gap-3 p-6 border-t border-gray-200">
-              {footer}
-            </div>
-          )}
+        className={`relative bg-white rounded-lg shadow-xl ${sizeClasses[size]} w-full flex flex-col animate-fadeIn`}
+        style={{ maxHeight: 'calc(var(--viewport-height, 100vh) - 32px)' }}
+        onClick={e => e.stopPropagation()}
+      >
+        {/* Header — always visible */}
+        <div className="shrink-0 flex items-center justify-between px-6 py-4 border-b border-gray-200">
+          <h3 className="text-xl font-semibold text-gray-900">{title}</h3>
+          <button
+            type="button"
+            onClick={onHide}
+            className="p-1 hover:bg-gray-100 rounded-lg transition-colors"
+          >
+            <X className="w-5 h-5 text-gray-500" />
+          </button>
         </div>
+
+        {/* Body — scrollable */}
+        <div ref={bodyRef} className="flex-1 overflow-auto min-h-0 p-6">
+          {children}
+        </div>
+
+        {/* Footer — always visible */}
+        {footer && (
+          <div className="shrink-0 flex items-center justify-end gap-3 px-6 py-4 border-t border-gray-200 bg-gray-50/50 rounded-b-lg">
+            {footer}
+          </div>
+        )}
       </div>
     </div>
   );
