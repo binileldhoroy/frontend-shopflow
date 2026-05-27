@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Modal from '../common/Modal/Modal';
 import { PurchaseOrder, PurchaseOrderCreate, PurchaseStatus } from '../../types/purchase.types';
 import { Supplier } from '../../types/supplier.types';
 import { Product } from '../../types/product.types';
 import { Plus, Trash2 } from 'lucide-react';
+import axiosInstance from '../../api/axios';
 
 interface PurchaseFormModalProps {
   show: boolean;
@@ -11,7 +12,7 @@ interface PurchaseFormModalProps {
   onSubmit: (data: PurchaseOrderCreate) => void;
   purchase: PurchaseOrder | null;
   suppliers: Supplier[];
-  products: Product[];
+  products?: Product[];
   loading?: boolean;
 }
 
@@ -23,10 +24,19 @@ interface PurchaseItemFormData {
   tax_rate: number | string;
 }
 
+interface DropdownState {
+  results: Product[];
+  page: number;
+  hasMore: boolean;
+  loading: boolean;
+}
+
 type FormErrors = {
   supplier?: string;
   items?: string;
 };
+
+const EMPTY_DROPDOWN: DropdownState = { results: [], page: 1, hasMore: false, loading: false };
 
 const PurchaseFormModal: React.FC<PurchaseFormModalProps> = ({
   show,
@@ -34,7 +44,6 @@ const PurchaseFormModal: React.FC<PurchaseFormModalProps> = ({
   onSubmit,
   purchase,
   suppliers,
-  products,
   loading = false,
 }) => {
   const [formData, setFormData] = useState<{
@@ -57,9 +66,11 @@ const PurchaseFormModal: React.FC<PurchaseFormModalProps> = ({
 
   const [items, setItems] = useState<PurchaseItemFormData[]>([]);
   const [productSearches, setProductSearches] = useState<string[]>([]);
+  const [dropdownStates, setDropdownStates] = useState<DropdownState[]>([]);
   const [openDropdownIndex, setOpenDropdownIndex] = useState<number | null>(null);
   const [dropdownPos, setDropdownPos] = useState({ top: 0, left: 0, width: 0 });
   const [errors, setErrors] = useState<FormErrors>({});
+  const debounceRefs = useRef<Record<number, ReturnType<typeof setTimeout>>>({});
 
   useEffect(() => {
     if (purchase) {
@@ -81,6 +92,7 @@ const PurchaseFormModal: React.FC<PurchaseFormModalProps> = ({
       }));
       setItems(newItems);
       setProductSearches(newItems.map(item => item.product_name));
+      setDropdownStates(newItems.map(() => ({ ...EMPTY_DROPDOWN })));
     } else {
       resetForm();
     }
@@ -99,16 +111,87 @@ const PurchaseFormModal: React.FC<PurchaseFormModalProps> = ({
     });
     setItems([{ product: '', product_name: '', quantity: 1, unit_price: 0, tax_rate: 0 }]);
     setProductSearches(['']);
+    setDropdownStates([{ ...EMPTY_DROPDOWN }]);
+  };
+
+  const fetchProducts = async (index: number, search: string, page: number, append: boolean) => {
+    setDropdownStates(prev => {
+      const next = [...prev];
+      if (!next[index]) next[index] = { ...EMPTY_DROPDOWN };
+      next[index] = { ...next[index], loading: true };
+      return next;
+    });
+
+    try {
+      const response = await axiosInstance.get('/api/products/', { params: { search, page } });
+      const data = response.data;
+      setDropdownStates(prev => {
+        const next = [...prev];
+        const existing = next[index] || { ...EMPTY_DROPDOWN };
+        next[index] = {
+          results: append ? [...existing.results, ...(data.results || [])] : (data.results || []),
+          page,
+          hasMore: !!data.next,
+          loading: false,
+        };
+        return next;
+      });
+    } catch {
+      setDropdownStates(prev => {
+        const next = [...prev];
+        if (next[index]) next[index] = { ...next[index], loading: false };
+        return next;
+      });
+    }
+  };
+
+  const handleSearchChange = (index: number, value: string) => {
+    setProductSearches(prev => {
+      const next = [...prev];
+      next[index] = value;
+      return next;
+    });
+    setOpenDropdownIndex(index);
+    clearTimeout(debounceRefs.current[index]);
+    debounceRefs.current[index] = setTimeout(() => {
+      fetchProducts(index, value, 1, false);
+    }, 300);
+  };
+
+  const handleDropdownOpen = (index: number, e: React.FocusEvent<HTMLInputElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    setDropdownPos({
+      top: rect.bottom + 4,
+      left: rect.left,
+      width: Math.max(rect.width, 240),
+    });
+    setOpenDropdownIndex(index);
+    const state = dropdownStates[index];
+    if (!state || state.results.length === 0) {
+      fetchProducts(index, productSearches[index] ?? '', 1, false);
+    }
+  };
+
+  const handleDropdownScroll = (e: React.UIEvent<HTMLDivElement>, index: number) => {
+    const el = e.currentTarget;
+    if (el.scrollTop + el.clientHeight >= el.scrollHeight - 20) {
+      const state = dropdownStates[index];
+      if (state?.hasMore && !state?.loading) {
+        fetchProducts(index, productSearches[index] ?? '', state.page + 1, true);
+      }
+    }
   };
 
   const handleAddItem = () => {
     setItems(prev => [...prev, { product: '', product_name: '', quantity: 1, unit_price: 0, tax_rate: 0 }]);
     setProductSearches(prev => [...prev, '']);
+    setDropdownStates(prev => [...prev, { ...EMPTY_DROPDOWN }]);
   };
 
   const handleRemoveItem = (index: number) => {
     setItems(prev => prev.filter((_, i) => i !== index));
     setProductSearches(prev => prev.filter((_, i) => i !== index));
+    setDropdownStates(prev => prev.filter((_, i) => i !== index));
   };
 
   const handleItemChange = (index: number, field: keyof PurchaseItemFormData, value: any) => {
@@ -116,7 +199,8 @@ const PurchaseFormModal: React.FC<PurchaseFormModalProps> = ({
     const item = newItems[index];
 
     if (field === 'product') {
-      const selectedProduct = products.find(p => p.id === Number(value));
+      const state = dropdownStates[index];
+      const selectedProduct = state?.results.find(p => p.id === Number(value));
       if (selectedProduct) {
         item.product = selectedProduct.id;
         item.product_name = selectedProduct.name;
@@ -303,9 +387,7 @@ const PurchaseFormModal: React.FC<PurchaseFormModalProps> = ({
                   const tax = Number(item.tax_rate) || 0;
                   const total = (qty * price) * (1 + tax / 100);
                   const searchVal = productSearches[index] ?? '';
-                  const filtered = products.filter(p =>
-                    p.name.toLowerCase().includes(searchVal.toLowerCase())
-                  );
+                  const dropState = dropdownStates[index] || EMPTY_DROPDOWN;
 
                   return (
                     <tr key={index} className="border-b last:border-b-0">
@@ -316,52 +398,46 @@ const PurchaseFormModal: React.FC<PurchaseFormModalProps> = ({
                           value={searchVal}
                           placeholder="Search product..."
                           autoComplete="off"
-                          onChange={(e) => {
-                            setProductSearches(prev => {
-                              const next = [...prev];
-                              next[index] = e.target.value;
-                              return next;
-                            });
-                            setOpenDropdownIndex(index);
-                          }}
-                          onFocus={(e) => {
-                            const rect = e.currentTarget.getBoundingClientRect();
-                            setDropdownPos({
-                              top: rect.bottom + 4,
-                              left: rect.left,
-                              width: Math.max(rect.width, 240),
-                            });
-                            setOpenDropdownIndex(index);
-                          }}
+                          onChange={(e) => handleSearchChange(index, e.target.value)}
+                          onFocus={(e) => handleDropdownOpen(index, e)}
                           onBlur={() => setTimeout(() => setOpenDropdownIndex(null), 150)}
                         />
                         {openDropdownIndex === index && (
                           <div
                             className="fixed z-[9999] bg-white border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto"
                             style={{ top: dropdownPos.top, left: dropdownPos.left, width: dropdownPos.width }}
+                            onScroll={(e) => handleDropdownScroll(e, index)}
                           >
-                            {filtered.length === 0 ? (
+                            {dropState.results.length === 0 && !dropState.loading ? (
                               <div className="px-3 py-2 text-sm text-gray-400">No products found</div>
                             ) : (
-                              filtered.map(p => (
-                                <button
-                                  key={p.id}
-                                  type="button"
-                                  className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 border-b border-gray-50 last:border-0"
-                                  onMouseDown={(e) => e.preventDefault()}
-                                  onClick={() => {
-                                    handleItemChange(index, 'product', String(p.id));
-                                    setProductSearches(prev => {
-                                      const next = [...prev];
-                                      next[index] = p.name;
-                                      return next;
-                                    });
-                                    setOpenDropdownIndex(null);
-                                  }}
-                                >
-                                  {p.name}
-                                </button>
-                              ))
+                              <>
+                                {dropState.results.map(p => (
+                                  <button
+                                    key={p.id}
+                                    type="button"
+                                    className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 border-b border-gray-50 last:border-0"
+                                    onMouseDown={(e) => e.preventDefault()}
+                                    onClick={() => {
+                                      handleItemChange(index, 'product', String(p.id));
+                                      setProductSearches(prev => {
+                                        const next = [...prev];
+                                        next[index] = p.name;
+                                        return next;
+                                      });
+                                      setOpenDropdownIndex(null);
+                                    }}
+                                  >
+                                    {p.name}
+                                  </button>
+                                ))}
+                                {dropState.loading && (
+                                  <div className="px-3 py-2 text-xs text-gray-400 text-center">Loading...</div>
+                                )}
+                                {!dropState.hasMore && !dropState.loading && dropState.results.length > 0 && (
+                                  <div className="px-3 py-2 text-xs text-gray-300 text-center">End of results</div>
+                                )}
+                              </>
                             )}
                           </div>
                         )}

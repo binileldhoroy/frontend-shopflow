@@ -10,7 +10,7 @@ export const injectStore = (store: { getState: () => any }) => {
 const axiosInstance: AxiosInstance = axios.create({
     baseURL:
       // @ts-ignore
-      import.meta.env.VITE_API_URL || 'http://localhost:8000',
+      import.meta.env.VITE_API_URL || 'http://localhost:4000',
   timeout: 10000,
   headers: {
     'Content-Type': 'application/json',
@@ -108,8 +108,11 @@ axiosInstance.interceptors.response.use(
           { refresh: refreshToken }
         );
 
-        const { access } = response.data;
+        const { access, refresh: newRefresh } = response.data;
         localStorage.setItem('accessToken', access);
+        if (newRefresh) {
+          localStorage.setItem('refreshToken', newRefresh);
+        }
 
         // Notify all queued requests
         processQueue(null, access);
