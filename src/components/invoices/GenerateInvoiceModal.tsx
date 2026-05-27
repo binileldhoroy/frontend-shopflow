@@ -60,6 +60,36 @@ const GenerateInvoiceModal: React.FC<GenerateInvoiceModalProps> = ({
   const [copied, setCopied] = useState(false);
 
   const invoiceRef = useRef<HTMLDivElement>(null);
+  const backdropRef = useRef<HTMLDivElement>(null);
+
+  // Keep the backdrop container anchored to the visual viewport so the modal
+  // stays above the software keyboard on Android Chrome.
+  useEffect(() => {
+    const update = () => {
+      const vv = window.visualViewport;
+      if (!backdropRef.current) return;
+      const top = vv?.offsetTop ?? 0;
+      const h = vv?.height ?? window.innerHeight;
+      backdropRef.current.style.top = `${top}px`;
+      backdropRef.current.style.height = `${h}px`;
+    };
+    update();
+    const vv = window.visualViewport;
+    if (vv) {
+      vv.addEventListener('resize', update);
+      vv.addEventListener('scroll', update);
+    } else {
+      window.addEventListener('resize', update);
+    }
+    return () => {
+      if (vv) {
+        vv.removeEventListener('resize', update);
+        vv.removeEventListener('scroll', update);
+      } else {
+        window.removeEventListener('resize', update);
+      }
+    };
+  }, []);
 
   const buildInitialCustomerDetails = (): Partial<TaxInvoiceCreate> => {
     if (!initialSale) {
@@ -378,9 +408,11 @@ const GenerateInvoiceModal: React.FC<GenerateInvoiceModalProps> = ({
 
   return (
     <div
-      className={`fixed inset-0 z-[60] flex items-center justify-center p-4 transition-all duration-200 ${
+      ref={backdropRef}
+      className={`fixed inset-x-0 z-[60] flex items-center justify-center p-4 transition-colors duration-200 ${
         visible ? 'bg-black/40' : 'bg-black/0'
       }`}
+      style={{ top: 0, height: '100vh' }}
       onClick={e => {
         if (e.target === e.currentTarget) handleClose();
       }}
@@ -487,7 +519,7 @@ const GenerateInvoiceModal: React.FC<GenerateInvoiceModalProps> = ({
           </div>
         ) : (
           /* Wizard steps */
-          <div className="flex-1 overflow-auto p-6">
+          <div className="flex-1 overflow-auto min-h-0 p-6">
             {/* Step 1 — sale selection (only when no initialSale) */}
             {currentStep === 1 && !initialSale && (
               <div className="space-y-4">

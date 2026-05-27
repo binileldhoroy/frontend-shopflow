@@ -172,26 +172,26 @@ const InvoiceDetail: React.FC = () => {
   return (
     <div className="max-w-5xl mx-auto space-y-4">
       {/* ── Top action bar ── */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-start justify-between gap-3 flex-wrap">
         {/* Left: Back + title */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 min-w-0">
           <button
             onClick={() => navigate('/invoices')}
-            className="p-2 hover:bg-gray-100 rounded-lg transition-colors text-gray-500"
+            className="p-2 hover:bg-gray-100 rounded-lg transition-colors text-gray-500 shrink-0"
             title="Back to Invoices"
           >
             <ArrowLeft className="w-5 h-5" />
           </button>
-          <div>
-            <h1 className="text-xl font-bold text-gray-900 font-mono">{invoice.invoice_number}</h1>
-            <p className="text-sm text-gray-500 mt-0.5">
+          <div className="min-w-0">
+            <h1 className="text-xl font-bold text-gray-900 font-mono truncate">{invoice.invoice_number}</h1>
+            <p className="text-sm text-gray-500 mt-0.5 truncate">
               {format(new Date(invoice.invoice_date), 'dd MMM yyyy')} · {invoice.customer_name}
             </p>
           </div>
         </div>
 
         {/* Right: Actions */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap shrink-0">
           {/* Download PDF */}
           <button
             onClick={handleDownloadPDF}

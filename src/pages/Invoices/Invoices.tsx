@@ -1,9 +1,8 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FileText, Plus, Eye, X, Printer, ChevronRight, ChevronLeft, Search, User, Share2, Mail, Copy, Check, MessageCircle } from 'lucide-react';
+import { FileText, Plus, Eye, X, Printer, Download, ChevronRight, ChevronLeft, Search, User, Share2, Mail, Copy, Check, MessageCircle } from 'lucide-react';
 import { format } from 'date-fns';
-import { useReactToPrint } from 'react-to-print';
-// import html2pdf from 'html2pdf.js';
+import html2pdf from 'html2pdf.js';
 import { invoiceService } from '../../api/services/invoice.service';
 import { saleService } from '../../api/services/sale.service';
 import { customerService } from '../../api/services/customer.service';
@@ -67,9 +66,11 @@ const Invoices: React.FC = () => {
 
   const invoiceRef = useRef<HTMLDivElement>(null);
   const shareMenuRef = useRef<HTMLDivElement>(null);
+  const createBackdropRef = useRef<HTMLDivElement>(null);
+  const viewBackdropRef = useRef<HTMLDivElement>(null);
   const [showShareMenu, setShowShareMenu] = useState(false);
   const [copied, setCopied] = useState(false);
-  // const [downloading, setDownloading] = useState(false);
+  const [downloading, setDownloading] = useState(false);
 
   // Close share menu on outside click
   useEffect(() => {
@@ -80,6 +81,38 @@ const Invoices: React.FC = () => {
     };
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  // Keep modal backdrops anchored to the visual viewport so modals stay above
+  // the software keyboard on Android Chrome.
+  useEffect(() => {
+    const update = () => {
+      const vv = window.visualViewport;
+      const top = vv?.offsetTop ?? 0;
+      const h = vv?.height ?? window.innerHeight;
+      for (const ref of [createBackdropRef, viewBackdropRef]) {
+        if (ref.current) {
+          ref.current.style.top = `${top}px`;
+          ref.current.style.height = `${h}px`;
+        }
+      }
+    };
+    update();
+    const vv = window.visualViewport;
+    if (vv) {
+      vv.addEventListener('resize', update);
+      vv.addEventListener('scroll', update);
+    } else {
+      window.addEventListener('resize', update);
+    }
+    return () => {
+      if (vv) {
+        vv.removeEventListener('resize', update);
+        vv.removeEventListener('scroll', update);
+      } else {
+        window.removeEventListener('resize', update);
+      }
+    };
   }, []);
 
   // Debounce search input → searchQuery (triggers API)
@@ -238,29 +271,64 @@ const Invoices: React.FC = () => {
     }
   };
 
-  // Print handler
-  const handlePrint = useReactToPrint({
-    contentRef: invoiceRef,
-    documentTitle: `${viewingInvoice?.invoice_number || 'Invoice'}`,
-  });
+  const handlePrint = () => {
+    if (!invoiceRef.current || !viewingInvoice) return;
+    const styleContent = invoiceRef.current.querySelector('style')?.textContent ?? '';
+    const outerWrapper = invoiceRef.current.querySelector('.invoice-outer-wrapper');
+    const invoiceHTML = outerWrapper ? outerWrapper.outerHTML : invoiceRef.current.innerHTML;
+    const html = `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8"/>
+  <title>Invoice ${viewingInvoice.invoice_number}</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { margin: 0; padding: 0; background: white; }
+    ${styleContent}
+  </style>
+</head>
+<body>${invoiceHTML}</body>
+</html>`;
+    const blob = new Blob([html], { type: 'text/html' });
+    const url = URL.createObjectURL(blob);
+    const win = window.open(url, '_blank');
+    if (win) {
+      win.onload = () => {
+        win.focus();
+        win.print();
+        setTimeout(() => URL.revokeObjectURL(url), 2000);
+      };
+    }
+  };
 
-  // const handleDownloadPDF = async () => {
-  //   if (!invoiceRef.current || !viewingInvoice) return;
-  //   setDownloading(true);
-  //   const opt = {
-  //     margin: [8, 8, 8, 8] as [number, number, number, number],
-  //     filename: `Invoice_${viewingInvoice.invoice_number}.pdf`,
-  //     image: { type: 'jpeg' as const, quality: 0.98 },
-  //     html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff' },
-  //     jsPDF: { unit: 'mm' as const, format: 'a4' as const, orientation: 'portrait' as const },
-  //     pagebreak: { mode: ['css', 'legacy'], before: '.invoice-page:not(:first-child)' },
-  //   };
-  //   try {
-  //     await html2pdf().set(opt).from(invoiceRef.current).save();
-  //   } finally {
-  //     setDownloading(false);
-  //   }
-  // };
+  const handleDownloadPDF = async () => {
+    if (!invoiceRef.current || !viewingInvoice) return;
+    setDownloading(true);
+    const offScreen = document.createElement('div');
+    offScreen.style.cssText = 'position:fixed;left:-9999px;top:0;width:210mm;background:white;z-index:-9999;';
+    offScreen.appendChild(invoiceRef.current.cloneNode(true));
+    document.body.appendChild(offScreen);
+    const tempStyle = document.createElement('style');
+    tempStyle.textContent = '.invoice-page + .invoice-page { margin-top: 0 !important; }';
+    document.head.appendChild(tempStyle);
+    await new Promise<void>(r => setTimeout(r, 80));
+    const element = offScreen.querySelector<HTMLElement>('.invoice-outer-wrapper') ?? offScreen;
+    const opt = {
+      margin: 0,
+      filename: `Invoice_${viewingInvoice.invoice_number}.pdf`,
+      image: { type: 'png' as const },
+      html2canvas: { scale: 3, useCORS: true, backgroundColor: '#ffffff', logging: false, allowTaint: false },
+      jsPDF: { unit: 'mm' as const, format: 'a4' as const, orientation: 'portrait' as const },
+      pagebreak: { mode: 'css', before: '.invoice-page:not(:first-child)' },
+    };
+    try {
+      await html2pdf().set(opt).from(element).save();
+    } finally {
+      document.body.removeChild(offScreen);
+      document.head.removeChild(tempStyle);
+      setDownloading(false);
+    }
+  };
 
   const getShareUrl = () =>
     viewingInvoice ? `${window.location.origin}/invoices/${viewingInvoice.id}` : '';
@@ -648,12 +716,17 @@ const Invoices: React.FC = () => {
       {/* ── Create Invoice Modal ── */}
       {showCreateModal && (
         <div
-          className={`fixed inset-0 z-50 flex items-center justify-center p-4 transition-all duration-200 ${createModalVisible ? 'bg-black/40' : 'bg-black/0'}`}
+          ref={createBackdropRef}
+          className={`fixed inset-x-0 z-50 flex items-center justify-center p-4 transition-colors duration-200 ${createModalVisible ? 'bg-black/40' : 'bg-black/0'}`}
+          style={{ top: 0, height: '100vh' }}
           onClick={(e) => { if (e.target === e.currentTarget) closeCreateModal(); }}
         >
-          <div className={`bg-white rounded-xl shadow-2xl w-full max-w-4xl w-[95vw] h-[95vh] flex flex-col transition-all duration-200 ${createModalVisible ? 'opacity-100 scale-100' : 'opacity-0 scale-95'}`}>
+          <div
+            className={`bg-white rounded-xl shadow-2xl w-full max-w-4xl flex flex-col transition-all duration-200 ${createModalVisible ? 'opacity-100 scale-100' : 'opacity-0 scale-95'}`}
+            style={{ maxHeight: 'calc(var(--viewport-height, 100vh) - 32px)' }}
+          >
             {/* Header */}
-            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+            <div className="shrink-0 flex items-center justify-between px-6 py-4 border-b border-gray-100">
               <div>
                 <h2 className="text-base font-bold text-gray-900">Generate Invoice</h2>
                 {/* Step progress */}
@@ -685,7 +758,7 @@ const Invoices: React.FC = () => {
             </div>
 
             {/* Body */}
-            <div className="flex-1 overflow-auto p-6">
+            <div className="flex-1 overflow-auto min-h-0 p-6">
 
               {/* Step 1 */}
               {currentStep === 1 && (
@@ -899,7 +972,7 @@ const Invoices: React.FC = () => {
             </div>
 
             {/* Footer */}
-            <div className="flex items-center justify-between px-6 py-4 border-t border-gray-100 bg-gray-50/50 rounded-b-xl">
+            <div className="shrink-0 flex items-center justify-between px-6 py-4 border-t border-gray-100 bg-gray-50/50 rounded-b-xl">
               <button
                 onClick={() => currentStep > 1 ? setCurrentStep(currentStep - 1) : closeCreateModal()}
                 className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
@@ -936,18 +1009,23 @@ const Invoices: React.FC = () => {
       {/* ── View Invoice Modal ── */}
       {viewingInvoice && (
         <div
-          className={`fixed inset-0 z-50 flex items-center justify-center p-4 transition-all duration-200 ${viewModalVisible ? 'bg-black/40' : 'bg-black/0'}`}
+          ref={viewBackdropRef}
+          className={`fixed inset-x-0 z-50 flex items-center justify-center p-4 transition-colors duration-200 ${viewModalVisible ? 'bg-black/40' : 'bg-black/0'}`}
+          style={{ top: 0, height: '100vh' }}
           onClick={(e) => { if (e.target === e.currentTarget) closeViewModal(); }}
         >
-          <div className={`bg-white rounded-xl shadow-2xl w-fullw-[95vw] h-[95vh] max-w-none flex flex-col transition-all duration-200 ${viewModalVisible ? 'opacity-100 scale-100' : 'opacity-0 scale-95'}`}>
-            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+          <div
+            className={`bg-white rounded-xl shadow-2xl w-full max-w-4xl flex flex-col transition-all duration-200 ${viewModalVisible ? 'opacity-100 scale-100' : 'opacity-0 scale-95'}`}
+            style={{ maxHeight: 'calc(var(--viewport-height, 100vh) - 32px)' }}
+          >
+            <div className="shrink-0 flex items-center justify-between px-5 py-4 border-b border-gray-100">
               <div>
                 <p className="font-bold text-gray-900 font-mono">{viewingInvoice.invoice_number}</p>
                 <p className="text-sm text-gray-500 mt-0.5">{format(new Date(viewingInvoice.invoice_date), 'dd MMMM yyyy')} · {viewingInvoice.customer_name}</p>
               </div>
               <div className="flex items-center gap-2">
                 {/* Download PDF */}
-                {/* <button
+                <button
                   onClick={handleDownloadPDF}
                   disabled={downloading}
                   className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-gray-700 border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-50 transition-colors"
@@ -956,11 +1034,11 @@ const Invoices: React.FC = () => {
                     ? <div className="w-3.5 h-3.5 border-2 border-gray-400 border-t-gray-700 rounded-full animate-spin" />
                     : <Download className="w-3.5 h-3.5" />}
                   <span className="hidden sm:inline">PDF</span>
-                </button> */}
+                </button>
 
                 {/* Print */}
                 <button
-                  onClick={() => handlePrint()}
+                  onClick={handlePrint}
                   className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-gray-700 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
                 >
                   <Printer className="w-3.5 h-3.5" />
@@ -1004,12 +1082,13 @@ const Invoices: React.FC = () => {
               </div>
             </div>
 
-            <div className="flex-1 overflow-auto p-4 bg-gray-50">
+            <div className="flex-1 overflow-auto min-h-0 p-4 bg-gray-50">
               <div ref={invoiceRef}>
                 <InvoiceTemplate
                   saleOrder={viewingInvoice.sale_order_data}
                   invoiceNumber={viewingInvoice.invoice_number}
                   invoiceDate={viewingInvoice.invoice_date}
+                  invoiceUrl={getShareUrl()}
                   customerDetails={{
                     name: viewingInvoice.customer_name,
                     gstin: viewingInvoice.customer_gstin,
@@ -1023,7 +1102,7 @@ const Invoices: React.FC = () => {
               </div>
             </div>
 
-            <div className="px-5 py-3 border-t border-gray-100 bg-gray-50/50 flex justify-end rounded-b-xl">
+            <div className="shrink-0 px-5 py-3 border-t border-gray-100 bg-gray-50/50 flex justify-end rounded-b-xl">
               <button onClick={closeViewModal}
                 className="px-4 py-1.5 text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors">
                 Close
