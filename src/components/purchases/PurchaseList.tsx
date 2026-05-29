@@ -40,9 +40,15 @@ const PurchaseList: React.FC<PurchaseListProps> = ({
     switch (status) {
       case 'received': return 'badge-success';
       case 'ordered': return 'badge-info';
+      case 'partially_received': return 'badge-warning';
       case 'cancelled': return 'badge-danger';
       default: return 'badge-secondary';
     }
+  };
+
+  const getStatusLabel = (status: string) => {
+    if (status === 'partially_received') return 'Partial';
+    return status.charAt(0).toUpperCase() + status.slice(1);
   };
 
   return (
@@ -69,8 +75,8 @@ const PurchaseList: React.FC<PurchaseListProps> = ({
               <td>{new Date(purchase.order_date).toLocaleDateString()}</td>
               <td>{purchase.supplier_name || `Supplier #${purchase.supplier}`}</td>
               <td>
-                <span className={`badge ${getStatusBadgeClass(purchase.status)} capitalize`}>
-                  {purchase.status}
+                <span className={`badge ${getStatusBadgeClass(purchase.status)}`}>
+                  {getStatusLabel(purchase.status)}
                 </span>
               </td>
               <td>{purchase.items.length} items</td>
@@ -98,11 +104,11 @@ const PurchaseList: React.FC<PurchaseListProps> = ({
                     </button>
                   )}
 
-                  {purchase.status === 'ordered' && (
+                  {(purchase.status === 'ordered' || purchase.status === 'partially_received') && (
                      <button
                        className="btn btn-outline-success text-sm"
                        onClick={() => onReceive(purchase)}
-                       title="Receive Order"
+                       title={purchase.status === 'partially_received' ? 'Receive Remaining' : 'Receive Order'}
                      >
                        <CheckCircle className="w-4 h-4" />
                      </button>

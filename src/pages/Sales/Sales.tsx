@@ -1,12 +1,16 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAppDispatch, useAppSelector } from '@hooks/useRedux';
 import { saleService } from '@api/services/sale.service';
+import { documentService } from '@api/services/document.service';
 import { addNotification } from '@store/slices/uiSlice';
 import {
   Calendar, Eye, Download, X, Printer, ShoppingCart, DollarSign,
   Ban, GitBranch, ClipboardList, AlertTriangle, CheckCircle, Clock, CheckSquare,
-  Pencil, Trash2, Plus,
+  Pencil, Trash2, Plus, FileSpreadsheet, Receipt,
 } from 'lucide-react';
+import api from '@api/axios';
+import { API_ENDPOINTS } from '@api/endpoints';
+import type { CreditNote } from '../../types/credit-note.types';
 import { format, subMonths } from 'date-fns';
 import { UserRole } from '../../types/auth.types';
 import type { POSAuditLog, SaleOrderStatus } from '../../types/sale.types';
@@ -139,6 +143,11 @@ const Sales: React.FC = () => {
   const [completeTarget,  setCompleteTarget]  = useState<Sale | null>(null);
   const [completeLoading, setCompleteLoading] = useState(false);
 
+  // Credit note modal
+  const [creditNoteTarget, setCreditNoteTarget] = useState<Sale | null>(null);
+  const [creditNote,       setCreditNote]       = useState<CreditNote | null>(null);
+  const [creditNoteLoading, setCreditNoteLoading] = useState(false);
+
   // Edit draft modal
   const [editTarget,   setEditTarget]   = useState<Sale | null>(null);
   const [editItems,    setEditItems]    = useState<EditableItem[]>([]);
@@ -192,6 +201,22 @@ const Sales: React.FC = () => {
   const openVoidModal = (sale: Sale) => {
     setVoidTarget(sale);
     setVoidReason('');
+  };
+
+  const openCreditNoteModal = async (sale: Sale) => {
+    setCreditNoteTarget(sale);
+    setCreditNote(null);
+    setCreditNoteLoading(true);
+    try {
+      const res = await api.get(API_ENDPOINTS.SALES.CREDIT_NOTES, { params: { original_sale: sale.id } });
+      const list: CreditNote[] = res.data;
+      const cn = list.find(c => c.original_sale === sale.id) || null;
+      setCreditNote(cn);
+    } catch {
+      // credit note may not exist yet
+    } finally {
+      setCreditNoteLoading(false);
+    }
   };
 
   const handleVoidConfirm = async () => {
@@ -429,6 +454,20 @@ const Sales: React.FC = () => {
             <p>View and manage all sales transactions</p>
           </div>
         </div>
+        <div className="flex items-center gap-2">
+          <ExportDropdown
+            onExport={async (fmt) => {
+              try {
+                const resp = await documentService.exportData('sales', { start_date: startDate, end_date: endDate, format: fmt });
+                const url = window.URL.createObjectURL(new Blob([resp.data]));
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `sales_export.${fmt === 'excel' ? 'xlsx' : 'csv'}`;
+                document.body.appendChild(a); a.click(); document.body.removeChild(a);
+              } catch { dispatch(addNotification({ message: 'Export failed', type: 'error' })); }
+            }}
+          />
+        </div>
       </div>
 
       {/* Stats */}
@@ -623,6 +662,17 @@ const Sales: React.FC = () => {
                                 title="Correct Bill"
                               >
                                 <GitBranch className="w-4 h-4" />
+                              </button>
+                            )}
+
+                            {/* Credit Note — voided sales */}
+                            {sale.status === 'voided' && (
+                              <button
+                                onClick={() => openCreditNoteModal(sale)}
+                                className="action-btn text-teal-600 hover:bg-teal-50"
+                                title="View Credit Note"
+                              >
+                                <Receipt className="w-4 h-4" />
                               </button>
                             )}
 
@@ -1086,6 +1136,112 @@ const Sales: React.FC = () => {
         </div>
       )}
 
+      {/* ── CREDIT NOTE MODAL ──────────────────────────────────────────────────── */}
+      {creditNoteTarget && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-y-auto">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl my-4">
+            <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Receipt className="w-5 h-5 text-teal-600" />
+                <h3 className="text-lg font-semibold text-gray-900">Credit Note</h3>
+              </div>
+              <div className="flex items-center gap-2">
+                {creditNote && (
+                  <button onClick={() => window.print()} className="btn btn-secondary text-sm flex items-center gap-1.5">
+                    <Printer className="w-4 h-4" /> Print
+                  </button>
+                )}
+                <button onClick={() => { setCreditNoteTarget(null); setCreditNote(null); }} className="p-1 hover:bg-gray-100 rounded">
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+            <div className="p-6">
+              {creditNoteLoading ? (
+                <div className="text-center py-8 text-gray-400">Loading credit note...</div>
+              ) : !creditNote ? (
+                <div className="text-center py-8 text-gray-400">
+                  <Receipt className="w-10 h-10 mx-auto mb-2 text-gray-200" />
+                  <p>No credit note found for this bill.</p>
+                  <p className="text-xs mt-1">Credit notes are generated automatically when a bill is voided.</p>
+                </div>
+              ) : (
+                <div className="space-y-4 print:text-sm" id="credit-note-print">
+                  {/* Header */}
+                  <div className="flex justify-between items-start border-b pb-4">
+                    <div>
+                      <h2 className="text-xl font-bold text-gray-900">CREDIT NOTE</h2>
+                      <p className="text-sm text-gray-500 font-mono">{creditNote.credit_note_number}</p>
+                    </div>
+                    <div className="text-right text-sm text-gray-600">
+                      <div><span className="font-medium">Date:</span> {new Date(creditNote.created_at).toLocaleDateString()}</div>
+                      <div><span className="font-medium">Against:</span> <span className="font-mono">{creditNote.original_order_number}</span></div>
+                      {creditNote.original_sale_date && (
+                        <div><span className="font-medium">Original Date:</span> {new Date(creditNote.original_sale_date).toLocaleDateString()}</div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Customer & Reason */}
+                  <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div>
+                      <div className="text-xs font-semibold uppercase tracking-wide text-gray-400 mb-1">Customer</div>
+                      <div className="font-medium">{creditNote.customer_name || 'Walk-in Customer'}</div>
+                    </div>
+                    <div>
+                      <div className="text-xs font-semibold uppercase tracking-wide text-gray-400 mb-1">Reason</div>
+                      <div className="text-gray-700">{creditNote.reason}</div>
+                    </div>
+                  </div>
+
+                  {/* Items */}
+                  <div className="border rounded-lg overflow-hidden">
+                    <table className="w-full text-sm">
+                      <thead className="bg-gray-50 border-b">
+                        <tr>
+                          <th className="px-4 py-2 text-left font-medium text-gray-700">Product</th>
+                          <th className="px-4 py-2 text-right font-medium text-gray-700">Qty</th>
+                          <th className="px-4 py-2 text-right font-medium text-gray-700">Rate</th>
+                          <th className="px-4 py-2 text-right font-medium text-gray-700">GST %</th>
+                          <th className="px-4 py-2 text-right font-medium text-gray-700">Amount</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y">
+                        {creditNote.items.map((item, i) => (
+                          <tr key={i}>
+                            <td className="px-4 py-2">{item.product_name}</td>
+                            <td className="px-4 py-2 text-right">{item.quantity}</td>
+                            <td className="px-4 py-2 text-right">₹{Number(item.unit_price).toFixed(2)}</td>
+                            <td className="px-4 py-2 text-right">{item.gst_rate}%</td>
+                            <td className="px-4 py-2 text-right font-medium">₹{Number(item.total_with_gst ?? item.line_total).toFixed(2)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {/* Totals */}
+                  <div className="flex justify-end">
+                    <div className="w-56 space-y-1 text-sm">
+                      <div className="flex justify-between"><span className="text-gray-500">Subtotal</span><span>₹{Number(creditNote.subtotal).toFixed(2)}</span></div>
+                      <div className="flex justify-between"><span className="text-gray-500">GST</span><span>₹{Number(creditNote.gst_amount).toFixed(2)}</span></div>
+                      <div className="flex justify-between font-bold text-base border-t pt-1">
+                        <span>Credit Amount</span>
+                        <span className="text-teal-700">₹{Number(creditNote.total_amount).toFixed(2)}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <p className="text-xs text-gray-400 text-center border-t pt-3">
+                    This is a computer-generated credit note. No signature required.
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ── VOID MODAL ───────────────────────────────────────────────────────── */}
       {voidTarget && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
@@ -1259,6 +1415,27 @@ const Sales: React.FC = () => {
         </div>
       )}
 
+    </div>
+  );
+};
+
+const ExportDropdown = ({ onExport }: { onExport: (fmt: 'csv' | 'excel') => void }) => {
+  const [open, setOpen] = React.useState(false);
+  return (
+    <div className="relative">
+      <button
+        onClick={() => setOpen(v => !v)}
+        className="btn btn-secondary flex items-center gap-2 text-sm"
+      >
+        <FileSpreadsheet className="w-4 h-4" />
+        Export
+      </button>
+      {open && (
+        <div className="absolute right-0 top-full mt-1 bg-white rounded-lg shadow-lg border border-gray-100 z-10 w-36 py-1">
+          <button onClick={() => { onExport('csv'); setOpen(false); }} className="w-full text-left px-4 py-2 text-sm hover:bg-gray-50">CSV</button>
+          <button onClick={() => { onExport('excel'); setOpen(false); }} className="w-full text-left px-4 py-2 text-sm hover:bg-gray-50">Excel (.xlsx)</button>
+        </div>
+      )}
     </div>
   );
 };

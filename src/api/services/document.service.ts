@@ -24,8 +24,26 @@ export const documentService = {
   getTallyExport: async (params: { start_date: string; end_date: string }) => {
     const response = await api.get('/api/documents/tally-export/', {
       params,
-      responseType: 'blob' // Important for file download
+      responseType: 'blob',
     });
     return response.data;
+  },
+
+  getReconciliation: async (params: { date?: string; start_date?: string; end_date?: string; branch_id?: number | null }) => {
+    const response = await api.get('/api/documents/reconciliation/', { params });
+    return response.data;
+  },
+
+  getProductProfit: async (params: { start_date?: string; end_date?: string; group_by?: 'product' | 'category'; branch_id?: number | null }) => {
+    const response = await api.get('/api/documents/product-profit/', { params });
+    return response.data;
+  },
+
+  exportData: async (type: 'sales' | 'inventory' | 'customers', params: Record<string, string | undefined>) => {
+    const response = await api.get(`/api/documents/export/${type}/`, {
+      params,
+      responseType: 'blob',
+    });
+    return response;
   },
 };

@@ -15,12 +15,23 @@ export interface StockItem {
   product_attributes?: Array<{ name: string; value: string }>;
 }
 
+export type StockReasonCode =
+  | 'damage'
+  | 'theft'
+  | 'internal_use'
+  | 'opening_stock'
+  | 'correction'
+  | 'expiry'
+  | 'return_supplier';
+
 export interface StockMovement {
   id: number;
   product: number;
   product_name: string;
   movement_type: 'purchase' | 'sale' | 'adjustment' | 'return' | 'damage';
   quantity: number;
+  reason_code?: StockReasonCode;
+  reason_code_display?: string;
   reference_number?: string;
   notes?: string;
   created_by?: number;
@@ -33,6 +44,7 @@ export interface StockAdjustmentFormData {
   product: number;
   movement_type: 'purchase' | 'sale' | 'adjustment' | 'return' | 'damage';
   quantity: number;
+  reason_code?: StockReasonCode;
   reference_number?: string;
   notes?: string;
 }

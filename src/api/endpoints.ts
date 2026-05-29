@@ -78,6 +78,8 @@ export const API_ENDPOINTS = {
     COMPLETE: (id: number) => `/api/sales/${id}/complete/`,
     BILL_AUDIT_LOGS: (id: number) => `/api/sales/${id}/audit-logs/`,
     AUDIT_LOGS: '/api/sales/audit-logs/',
+    CREDIT_NOTES: '/api/sales/credit-notes/',
+    CREDIT_NOTE_DETAIL: (id: number) => `/api/sales/credit-notes/${id}/`,
   },
 
   // Sessions
@@ -110,6 +112,9 @@ export const API_ENDPOINTS = {
     MOVEMENTS: '/api/inventory/movements/',
     LOW_STOCK: '/api/inventory/low-stock/',
     TRANSFER: '/api/inventory/transfer/',
+    BATCHES: '/api/inventory/batches/',
+    BATCH_DETAIL: (id: number) => `/api/inventory/batches/${id}/`,
+    EXPIRY_ALERTS: '/api/inventory/batches/expiry-alerts/',
   },
 
   // Payments
@@ -124,6 +129,16 @@ export const API_ENDPOINTS = {
     INVOICE_DETAIL: (id: number) => `/api/documents/invoices/${id}/`,
     RECEIPTS: '/api/documents/receipts/',
     RECEIPT_DETAIL: (id: number) => `/api/documents/receipts/${id}/`,
+  },
+
+  // Reports
+  REPORTS: {
+    PROFIT_LOSS: '/api/documents/profit-loss/',
+    RECONCILIATION: '/api/documents/reconciliation/',
+    PRODUCT_PROFIT: '/api/documents/product-profit/',
+    EXPORT_SALES: '/api/documents/export/sales/',
+    EXPORT_INVENTORY: '/api/documents/export/inventory/',
+    EXPORT_CUSTOMERS: '/api/documents/export/customers/',
   },
 
   // Chat (ShopBot)

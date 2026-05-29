@@ -1,10 +1,14 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { inventoryService } from '@api/services/inventory.service';
+import { documentService } from '@api/services/document.service';
 import { StockItem, StockMovement, StockAdjustmentFormData } from '../../types/inventory.types';
+import type { ProductBatch, ProductBatchFormData } from '../../types/credit-note.types';
 import StockAdjustmentModal from '@components/features/inventory/StockAdjustmentModal';
 import { useAppDispatch } from '@hooks/useRedux';
 import { addNotification } from '@store/slices/uiSlice';
-import { Package, AlertTriangle, TrendingUp, TrendingDown, Plus, Inbox, Search } from 'lucide-react';
+import { Package, AlertTriangle, TrendingUp, TrendingDown, Plus, Inbox, Search, FileSpreadsheet, CalendarClock } from 'lucide-react';
+import api from '@api/axios';
+import { API_ENDPOINTS } from '@api/endpoints';
 
 const Inventory: React.FC = () => {
   const dispatch = useAppDispatch();
@@ -14,6 +18,12 @@ const Inventory: React.FC = () => {
   const [movements, setMovements] = useState<StockMovement[]>([]);
   const [loading, setLoading] = useState(true);
   const [showMovements, setShowMovements] = useState(false);
+  const [showBatches, setShowBatches] = useState(false);
+  const [batches, setBatches] = useState<ProductBatch[]>([]);
+  const [batchLoading, setBatchLoading] = useState(false);
+  const [showBatchForm, setShowBatchForm] = useState(false);
+  const [batchForm, setBatchForm] = useState<ProductBatchFormData>({ product: 0, batch_number: '', quantity: 0 });
+  const [batchSaving, setBatchSaving] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
 
   // Pagination State
@@ -87,6 +97,42 @@ const Inventory: React.FC = () => {
   useEffect(() => {
     setCurrentPage(1);
   }, [searchTerm, showMovements, pageSize]);
+
+  const [allStockForBatch, setAllStockForBatch] = useState<StockItem[]>([]);
+
+  const loadBatches = useCallback(async () => {
+    setBatchLoading(true);
+    try {
+      const [batchRes, stockRes] = await Promise.all([
+        api.get(API_ENDPOINTS.INVENTORY.BATCHES),
+        inventoryService.getStock({ page: 1, page_size: 1000 }),
+      ]);
+      setBatches(batchRes.data);
+      const items = stockRes.results ?? stockRes;
+      setAllStockForBatch(Array.isArray(items) ? items : []);
+    } catch { /* ignore */ }
+    finally { setBatchLoading(false); }
+  }, []);
+
+  useEffect(() => {
+    if (showBatches) loadBatches();
+  }, [showBatches, loadBatches]);
+
+  const handleSaveBatch = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setBatchSaving(true);
+    try {
+      await api.post(API_ENDPOINTS.INVENTORY.BATCHES, batchForm);
+      dispatch(addNotification({ message: 'Batch added successfully', type: 'success' }));
+      setShowBatchForm(false);
+      setBatchForm({ product: 0, batch_number: '', quantity: 0 });
+      loadBatches();
+    } catch (err: any) {
+      dispatch(addNotification({ message: err?.response?.data?.batch_number?.[0] || 'Failed to save batch', type: 'error' }));
+    } finally {
+      setBatchSaving(false);
+    }
+  };
 
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
@@ -182,18 +228,33 @@ const Inventory: React.FC = () => {
         </div>
         <div className="flex items-center gap-2 self-start">
           <div className="tab-nav">
-            <button className={`tab-btn ${!showMovements ? 'active' : ''}`} onClick={() => setShowMovements(false)}>
+            <button className={`tab-btn ${!showMovements && !showBatches ? 'active' : ''}`} onClick={() => { setShowMovements(false); setShowBatches(false); }}>
               Stock Levels
             </button>
-            <button className={`tab-btn ${showMovements ? 'active' : ''}`} onClick={() => setShowMovements(true)}>
+            <button className={`tab-btn ${showMovements ? 'active' : ''}`} onClick={() => { setShowMovements(true); setShowBatches(false); }}>
               Movements
             </button>
+            <button className={`tab-btn ${showBatches ? 'active' : ''}`} onClick={() => { setShowBatches(true); setShowMovements(false); }}>
+              <CalendarClock className="w-3.5 h-3.5 inline mr-1" />Batches
+            </button>
           </div>
+          <ExportDropdown
+            onExport={async (fmt) => {
+              try {
+                const resp = await documentService.exportData('inventory', { format: fmt });
+                const url = window.URL.createObjectURL(new Blob([resp.data]));
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `inventory_export.${fmt === 'excel' ? 'xlsx' : 'csv'}`;
+                document.body.appendChild(a); a.click(); document.body.removeChild(a);
+              } catch { dispatch(addNotification({ message: 'Export failed', type: 'error' })); }
+            }}
+          />
         </div>
       </div>
 
       {/* Search Bar - Only show for Stock Levels view */}
-      {!showMovements && (
+      {!showMovements && !showBatches && (
         <div className="filter-bar">
           <div className="search-wrap flex-1 max-w-md">
             <Search className="search-icon" />
@@ -209,7 +270,7 @@ const Inventory: React.FC = () => {
       )}
 
       {/* Low Stock Alerts */}
-      {lowStockItems.length > 0 && (
+      {!showBatches && lowStockItems.length > 0 && (
         <div className="card bg-warning-50 border border-warning-200">
           <div className="flex items-start gap-3">
             <AlertTriangle className="w-5 h-5 text-warning-600 mt-0.5 flex-shrink-0" />
@@ -235,7 +296,7 @@ const Inventory: React.FC = () => {
         </div>
       )}
 
-      {showMovements ? (
+      {!showBatches && showMovements ? (
         /* Stock Movements Table */
         <div className="section-card flex flex-col" style={{ height: 'calc(var(--viewport-height) - 220px)', minHeight: '400px' }}>
           {loading ? (
@@ -254,6 +315,7 @@ const Inventory: React.FC = () => {
                       <th>Date</th>
                       <th>Product</th>
                       <th>Type</th>
+                      <th className="hidden sm:table-cell">Reason</th>
                       <th className="th-right">Quantity</th>
                       <th className="hidden md:table-cell">Reference</th>
                       <th className="hidden lg:table-cell">Notes</th>
@@ -280,6 +342,9 @@ const Inventory: React.FC = () => {
                             {getMovementIcon(movement.movement_type)}
                             {getMovementLabel(movement.movement_type)}
                           </span>
+                        </td>
+                        <td className="hidden sm:table-cell text-gray-500 text-sm">
+                          {movement.reason_code_display || (movement.reason_code ? movement.reason_code.replace(/_/g, ' ') : '—')}
                         </td>
                         <td className="td-right font-semibold">{getQuantityDisplay(movement)}</td>
                         <td className="text-gray-500 hidden md:table-cell">{movement.reference_number || '—'}</td>
@@ -317,7 +382,7 @@ const Inventory: React.FC = () => {
           </>
           )}
         </div>
-      ) : (
+      ) : !showBatches ? (
         /* Stock Levels Table */
         <div className="section-card flex flex-col" style={{ height: 'calc(var(--viewport-height) - 320px)', minHeight: '400px' }}>
           {loading ? (
@@ -417,6 +482,109 @@ const Inventory: React.FC = () => {
             </>
           )}
         </div>
+      ) : null}
+
+      {/* ── BATCHES TAB ─────────────────────────────────────────────────────── */}
+      {showBatches && (
+        <div className="section-card space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="font-semibold text-gray-800 flex items-center gap-2">
+              <CalendarClock className="w-4 h-4 text-primary-600" /> Product Batches & Expiry
+            </h3>
+            <button onClick={() => setShowBatchForm(v => !v)} className="btn btn-primary text-sm flex items-center gap-1.5">
+              <Plus className="w-4 h-4" /> Add Batch
+            </button>
+          </div>
+
+          {showBatchForm && (
+            <form onSubmit={handleSaveBatch} className="border rounded-lg p-4 bg-gray-50 space-y-3 text-sm">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="sm:col-span-2">
+                  <label className="label">Product *</label>
+                  <select
+                    required
+                    className="input-field bg-white"
+                    value={batchForm.product || ''}
+                    onChange={e => setBatchForm(p => ({ ...p, product: Number(e.target.value) }))}
+                  >
+                    <option value="">Select a product…</option>
+                    {allStockForBatch.map(s => (
+                      <option key={s.id} value={s.product}>{s.product_name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="label">Batch / Lot Number *</label>
+                  <input type="text" required className="input-field" value={batchForm.batch_number} onChange={e => setBatchForm(p => ({ ...p, batch_number: e.target.value }))} placeholder="e.g. BATCH-2026-001" />
+                </div>
+                <div>
+                  <label className="label">Quantity *</label>
+                  <input type="number" required min="0" step="0.01" className="input-field" value={batchForm.quantity || ''} onChange={e => setBatchForm(p => ({ ...p, quantity: Number(e.target.value) }))} placeholder="0" />
+                </div>
+                <div>
+                  <label className="label">Manufacture Date</label>
+                  <input type="date" className="input-field" value={batchForm.manufacture_date || ''} onChange={e => setBatchForm(p => ({ ...p, manufacture_date: e.target.value || undefined }))} />
+                </div>
+                <div>
+                  <label className="label">Expiry Date</label>
+                  <input type="date" className="input-field" value={batchForm.expiry_date || ''} onChange={e => setBatchForm(p => ({ ...p, expiry_date: e.target.value || undefined }))} />
+                </div>
+              </div>
+              <div className="flex gap-2 justify-end pt-1">
+                <button type="button" className="btn btn-secondary" onClick={() => setShowBatchForm(false)}>Cancel</button>
+                <button type="submit" className="btn btn-primary" disabled={batchSaving}>{batchSaving ? 'Saving...' : 'Save Batch'}</button>
+              </div>
+            </form>
+          )}
+
+          {batchLoading ? (
+            <div className="text-center py-10"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600 mx-auto"></div></div>
+          ) : batches.length === 0 ? (
+            <div className="text-center py-12 text-gray-400">
+              <CalendarClock className="w-12 h-12 mx-auto mb-2 text-gray-200" />
+              <p>No batches recorded. Add a batch to start tracking expiry dates.</p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-gray-50 border-y border-gray-200">
+                  <tr>
+                    <th className="px-4 py-3 text-left font-medium text-gray-700">Product</th>
+                    <th className="px-4 py-3 text-left font-medium text-gray-700">Batch #</th>
+                    <th className="px-4 py-3 text-right font-medium text-gray-700">Qty</th>
+                    <th className="px-4 py-3 text-center font-medium text-gray-700">Mfg Date</th>
+                    <th className="px-4 py-3 text-center font-medium text-gray-700">Expiry Date</th>
+                    <th className="px-4 py-3 text-center font-medium text-gray-700">Status</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y">
+                  {batches.map(b => {
+                    const statusConfig = {
+                      expired:       { cls: 'bg-red-100 text-red-700 border-red-200',     label: 'Expired' },
+                      expiring_soon: { cls: 'bg-amber-100 text-amber-700 border-amber-200', label: b.days_to_expiry != null ? `Expires in ${b.days_to_expiry}d` : 'Expiring Soon' },
+                      ok:            { cls: 'bg-green-100 text-green-700 border-green-200', label: 'OK' },
+                      no_expiry:     { cls: 'bg-gray-100 text-gray-500 border-gray-200',   label: 'No Expiry' },
+                    }[b.expiry_status];
+                    return (
+                      <tr key={b.id} className={b.expiry_status === 'expired' ? 'bg-red-50/40' : b.expiry_status === 'expiring_soon' ? 'bg-amber-50/30' : ''}>
+                        <td className="px-4 py-3 font-medium">{b.product_name}</td>
+                        <td className="px-4 py-3 font-mono text-gray-600">{b.batch_number}</td>
+                        <td className="px-4 py-3 text-right">{b.quantity}</td>
+                        <td className="px-4 py-3 text-center text-gray-500">{b.manufacture_date || '—'}</td>
+                        <td className="px-4 py-3 text-center text-gray-500">{b.expiry_date || '—'}</td>
+                        <td className="px-4 py-3 text-center">
+                          <span className={`px-2 py-1 rounded-full text-xs font-semibold border ${statusConfig.cls}`}>
+                            {statusConfig.label}
+                          </span>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
       )}
 
       {/* Stock Adjustment Modal */}
@@ -430,6 +598,23 @@ const Inventory: React.FC = () => {
         product={selectedProduct}
         loading={formLoading}
       />
+    </div>
+  );
+};
+
+const ExportDropdown = ({ onExport }: { onExport: (fmt: 'csv' | 'excel') => void }) => {
+  const [open, setOpen] = React.useState(false);
+  return (
+    <div className="relative">
+      <button onClick={() => setOpen(v => !v)} className="btn btn-secondary flex items-center gap-1.5 text-sm">
+        <FileSpreadsheet className="w-4 h-4" /> Export
+      </button>
+      {open && (
+        <div className="absolute right-0 top-full mt-1 bg-white rounded-lg shadow-lg border border-gray-100 z-10 w-36 py-1">
+          <button onClick={() => { onExport('csv'); setOpen(false); }} className="w-full text-left px-4 py-2 text-sm hover:bg-gray-50">CSV</button>
+          <button onClick={() => { onExport('excel'); setOpen(false); }} className="w-full text-left px-4 py-2 text-sm hover:bg-gray-50">Excel (.xlsx)</button>
+        </div>
+      )}
     </div>
   );
 };

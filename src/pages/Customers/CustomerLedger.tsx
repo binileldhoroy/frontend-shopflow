@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Receipt, Wallet, Ban, GitBranch } from 'lucide-react';
+import { ArrowLeft, Receipt, Wallet, Ban, GitBranch, Download } from 'lucide-react';
 import { customerService } from '@api/services/customer.service';
 import { useAppDispatch } from '@hooks/useRedux';
 import { addNotification } from '@store/slices/uiSlice';
@@ -103,6 +103,27 @@ const CustomerLedger: React.FC = () => {
     } finally {
       setIsProcessing(false);
     }
+  };
+
+  const handleDownloadLedger = () => {
+    if (!customer || ledgerEntries.length === 0) return;
+    const rows = [
+      ['Date', 'Type', 'Notes', 'Amount', 'Balance After'],
+      ...ledgerEntries.map(e => [
+        new Date(e.created_at).toLocaleString(),
+        e.transaction_type.replace(/_/g, ' '),
+        e.notes || '',
+        Number(e.amount).toFixed(2),
+        e.balance_after != null ? Number(e.balance_after).toFixed(2) : '',
+      ])
+    ];
+    const csv = rows.map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `ledger_${customer.name.replace(/\s+/g, '_')}.csv`;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
   };
 
   if (loading && !customer) {
@@ -307,6 +328,15 @@ const CustomerLedger: React.FC = () => {
         <div className="flex-1 card flex flex-col overflow-hidden">
           <div className="flex items-center justify-between mb-4 pb-2 border-b border-gray-200">
             <h3 className="font-semibold text-gray-800">Transaction History</h3>
+            {ledgerEntries.length > 0 && (
+              <button
+                onClick={handleDownloadLedger}
+                className="btn btn-secondary text-sm flex items-center gap-1.5 py-1.5"
+                title="Download as CSV"
+              >
+                <Download className="w-3.5 h-3.5" /> Download
+              </button>
+            )}
           </div>
 
           <div className="flex-1 overflow-x-auto min-h-[300px]">
@@ -354,12 +384,16 @@ const CustomerLedger: React.FC = () => {
                         </span>
                       </td>
                       <td className="py-4 px-4 text-right">
-                        <span className={`text-sm font-semibold ${Number(entry.balance_after) > 0 ? 'text-danger-600' : 'text-gray-500'}`}>
-                          ₹{Math.abs(Number(entry.balance_after)).toFixed(2)}
-                          {Number(entry.balance_after) > 0 && (
-                            <span className="text-xs text-danger-400 ml-1">owed</span>
-                          )}
-                        </span>
+                        {entry.balance_after != null ? (
+                          <span className={`text-sm font-semibold ${Number(entry.balance_after) > 0 ? 'text-danger-600' : 'text-gray-500'}`}>
+                            ₹{Math.abs(Number(entry.balance_after)).toFixed(2)}
+                            {Number(entry.balance_after) > 0 && (
+                              <span className="text-xs text-danger-400 ml-1">owed</span>
+                            )}
+                          </span>
+                        ) : (
+                          <span className="text-gray-300 text-sm">—</span>
+                        )}
                       </td>
                     </tr>
                   ))}

@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAppDispatch } from '@hooks/useRedux';
 import { customerService } from '@api/services/customer.service';
+import { documentService } from '@api/services/document.service';
 import { addNotification } from '@store/slices/uiSlice';
-import { Plus, Search, Edit, Trash2, Users, UserCheck, Mail, Phone, Receipt } from 'lucide-react';
+import { Plus, Search, Edit, Trash2, Users, UserCheck, Mail, Phone, Receipt, FileSpreadsheet } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import CustomerFormModal from '../../components/features/customers/CustomerFormModal';
 import DeleteConfirmModal from '../../components/common/DeleteConfirmModal/DeleteConfirmModal';
@@ -179,13 +180,27 @@ const Customers: React.FC = () => {
             <p>Manage customer information and accounts</p>
           </div>
         </div>
-        <button
-          onClick={() => { setSelectedCustomer(null); setShowFormModal(true); }}
-          className="btn btn-primary self-start"
-        >
-          <Plus className="w-4 h-4 inline mr-1.5" />
-          Add Customer
-        </button>
+        <div className="flex items-center gap-2">
+          <ExportDropdown
+            onExport={async (fmt) => {
+              try {
+                const resp = await documentService.exportData('customers', { format: fmt });
+                const url = window.URL.createObjectURL(new Blob([resp.data]));
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `customers_export.${fmt === 'excel' ? 'xlsx' : 'csv'}`;
+                document.body.appendChild(a); a.click(); document.body.removeChild(a);
+              } catch { dispatch(addNotification({ message: 'Export failed', type: 'error' })); }
+            }}
+          />
+          <button
+            onClick={() => { setSelectedCustomer(null); setShowFormModal(true); }}
+            className="btn btn-primary self-start"
+          >
+            <Plus className="w-4 h-4 inline mr-1.5" />
+            Add Customer
+          </button>
+        </div>
       </div>
 
       {/* Stats Cards */}
@@ -281,6 +296,7 @@ const Customers: React.FC = () => {
                     <th>Contact</th>
                     <th className="hidden md:table-cell">Location</th>
                     <th className="hidden lg:table-cell">GSTIN</th>
+                    <th className="hidden xl:table-cell th-right">Outstanding</th>
                     <th className="th-center">Type</th>
                     <th className="th-right">Actions</th>
                   </tr>
@@ -311,6 +327,15 @@ const Customers: React.FC = () => {
                       </td>
                       <td className="text-xs font-mono text-gray-500 hidden lg:table-cell">
                         {customer.gstin || <span className="text-gray-300">—</span>}
+                      </td>
+                      <td className="hidden xl:table-cell td-right text-sm">
+                        {parseFloat(customer.outstanding_balance || '0') > 0 ? (
+                          <span className="text-red-600 font-semibold">
+                            ₹{parseFloat(customer.outstanding_balance || '0').toFixed(2)}
+                          </span>
+                        ) : (
+                          <span className="text-gray-300">—</span>
+                        )}
                       </td>
                       <td className="td-center">
                         <span className={`badge ${customer.is_guest ? 'badge-warning' : 'badge-success'}`}>
@@ -389,6 +414,23 @@ const Customers: React.FC = () => {
           setSelectedCustomer(null);
         }}
       />
+    </div>
+  );
+};
+
+const ExportDropdown = ({ onExport }: { onExport: (fmt: 'csv' | 'excel') => void }) => {
+  const [open, setOpen] = React.useState(false);
+  return (
+    <div className="relative">
+      <button onClick={() => setOpen(v => !v)} className="btn btn-secondary flex items-center gap-2 text-sm">
+        <FileSpreadsheet className="w-4 h-4" /> Export
+      </button>
+      {open && (
+        <div className="absolute right-0 top-full mt-1 bg-white rounded-lg shadow-lg border border-gray-100 z-10 w-36 py-1">
+          <button onClick={() => { onExport('csv'); setOpen(false); }} className="w-full text-left px-4 py-2 text-sm hover:bg-gray-50">CSV</button>
+          <button onClick={() => { onExport('excel'); setOpen(false); }} className="w-full text-left px-4 py-2 text-sm hover:bg-gray-50">Excel (.xlsx)</button>
+        </div>
+      )}
     </div>
   );
 };

@@ -1,61 +1,120 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import Modal from '../common/Modal/Modal';
 import { PurchaseOrder } from '../../types/purchase.types';
 
 interface ReceivePurchaseModalProps {
   show: boolean;
   onHide: () => void;
-  onConfirm: () => void;
+  onConfirm: (items: { id: number; received_quantity: number }[]) => void;
   purchase: PurchaseOrder | null;
   loading?: boolean;
 }
 
 const ReceivePurchaseModal: React.FC<ReceivePurchaseModalProps> = ({
-  show,
-  onHide,
-  onConfirm,
-  purchase,
-  loading = false,
+  show, onHide, onConfirm, purchase, loading = false,
 }) => {
+  const [quantities, setQuantities] = useState<Record<number, string>>({});
+
+  useEffect(() => {
+    if (purchase) {
+      const defaults: Record<number, string> = {};
+      purchase.items.forEach(item => {
+        const pending = item.pending_quantity ?? (item.quantity - (item.received_quantity ?? 0));
+        defaults[item.id!] = String(Math.max(0, pending));
+      });
+      setQuantities(defaults);
+    }
+  }, [purchase]);
+
   if (!purchase) return null;
+
+  const handleQtyChange = (itemId: number, value: string) => {
+    setQuantities(prev => ({ ...prev, [itemId]: value }));
+  };
+
+  const handleConfirm = () => {
+    const items = purchase.items
+      .filter(item => item.id != null)
+      .map(item => ({
+        id: item.id!,
+        received_quantity: Math.max(0, parseFloat(quantities[item.id!] || '0') || 0),
+      }))
+      .filter(entry => entry.received_quantity > 0);
+    onConfirm(items);
+  };
 
   return (
     <Modal
       show={show}
       onHide={onHide}
-      title="Receive Purchase Order"
+      title={purchase.status === 'partially_received' ? 'Receive Remaining Items' : 'Receive Purchase Order'}
       footer={
         <>
-          <button className="btn btn-secondary" onClick={onHide} disabled={loading}>
-            Cancel
-          </button>
-          <button
-            className="btn btn-success text-white"
-            onClick={onConfirm}
-            disabled={loading}
-          >
+          <button className="btn btn-secondary" onClick={onHide} disabled={loading}>Cancel</button>
+          <button className="btn btn-success text-white" onClick={handleConfirm} disabled={loading}>
             {loading ? 'Processing...' : 'Confirm Receipt'}
           </button>
         </>
       }
     >
-      <div className="text-gray-700">
-        <p className="mb-4">
-          Are you sure you want to mark Purchase Order <strong>{purchase.order_number}</strong> as received?
+      <div className="space-y-4">
+        <p className="text-sm text-gray-600">
+          Enter the quantities received for each item. Leave 0 to skip an item for now.
         </p>
-        <p className="mb-4 text-sm bg-blue-50 p-3 rounded border border-blue-100 text-blue-800">
-          This action will automatically update the stock quantities for all items in this order.
-        </p>
-        <div className="border rounded p-3 bg-gray-50 text-sm">
-          <p className="font-semibold mb-2">Order Summary:</p>
-          <ul className="list-disc pl-5 space-y-1">
-            {purchase.items.map((item, idx) => (
-               <li key={idx}>
-                 {item.product_name}: <strong>{item.quantity}</strong> units
-               </li>
-            ))}
-          </ul>
+
+        {purchase.status === 'partially_received' && (
+          <div className="text-sm bg-amber-50 border border-amber-200 rounded-lg p-3 text-amber-800">
+            This order was partially received. Only remaining pending quantities are shown.
+          </div>
+        )}
+
+        <div className="border rounded-lg overflow-hidden">
+          <table className="w-full text-sm">
+            <thead className="bg-gray-50 border-b">
+              <tr>
+                <th className="px-4 py-2 text-left font-medium text-gray-700">Product</th>
+                <th className="px-4 py-2 text-right font-medium text-gray-700">Ordered</th>
+                <th className="px-4 py-2 text-right font-medium text-gray-700">Already Recd</th>
+                <th className="px-4 py-2 text-right font-medium text-gray-700">Receiving Now</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y">
+              {purchase.items.map(item => {
+                const alreadyReceived = item.received_quantity ?? 0;
+                const pending = item.pending_quantity ?? (item.quantity - alreadyReceived);
+                const isFullyReceived = pending <= 0;
+                return (
+                  <tr key={item.id} className={isFullyReceived ? 'bg-gray-50 opacity-60' : ''}>
+                    <td className="px-4 py-2 font-medium">{item.product_name}</td>
+                    <td className="px-4 py-2 text-right text-gray-600">{item.quantity}</td>
+                    <td className="px-4 py-2 text-right text-green-600 font-medium">
+                      {alreadyReceived > 0 ? alreadyReceived : '—'}
+                    </td>
+                    <td className="px-4 py-2 text-right">
+                      {isFullyReceived ? (
+                        <span className="text-xs text-green-600 font-semibold">Fully received</span>
+                      ) : (
+                        <input
+                          type="number"
+                          min="0"
+                          max={String(pending)}
+                          step="1"
+                          value={quantities[item.id!] ?? String(pending)}
+                          onChange={e => handleQtyChange(item.id!, e.target.value)}
+                          className="input-field w-24 text-right py-1"
+                        />
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
         </div>
+
+        <p className="text-xs text-gray-400">
+          If you receive fewer than ordered, the order status becomes <strong>Partially Received</strong>.
+        </p>
       </div>
     </Modal>
   );

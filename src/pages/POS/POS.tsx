@@ -35,6 +35,7 @@ interface CartItem {
   hsn_code: string;
   tax_included: boolean;
   stock_quantity?: number;
+  reorder_level?: number;
   original_selling_price: number;
 }
 
@@ -480,6 +481,7 @@ const POS: React.FC = () => {
         hsn_code: product.hsn_code,
         tax_included: product.tax_included,
         stock_quantity: product.stock_quantity,
+        reorder_level: product.reorder_level,
         original_selling_price: parseFloat(product.selling_price),
       };
       updateActiveSession((s) => ({
@@ -1249,6 +1251,20 @@ const POS: React.FC = () => {
                                 <span className="ml-1.5 text-orange-500">GST {item.gst_rate}%</span>
                               )}
                             </div>
+                            {item.stock_quantity != null && (() => {
+                              const remaining = item.stock_quantity - item.quantity;
+                              const isLow = item.reorder_level != null ? remaining <= item.reorder_level : remaining <= 10;
+                              const colorClass = remaining > 10 && !isLow
+                                ? 'bg-green-50 text-green-600 border-green-100'
+                                : remaining > 0
+                                ? 'bg-yellow-50 text-yellow-600 border-yellow-100'
+                                : 'bg-red-50 text-red-500 border-red-100';
+                              return (
+                                <span className={`inline-block mt-0.5 text-[9px] font-semibold px-1.5 py-0.5 rounded-full border ${colorClass}`}>
+                                  {remaining > 0 ? `${remaining} left` : 'Out of stock'}
+                                </span>
+                              );
+                            })()}
                           </div>
 
                           {/* Qty stepper */}

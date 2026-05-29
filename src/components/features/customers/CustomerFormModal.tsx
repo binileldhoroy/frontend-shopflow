@@ -22,6 +22,7 @@ const CustomerFormModal: React.FC<CustomerFormModalProps> = ({ customer, onClose
     state: '',
     pincode: '',
     gstin: '',
+    credit_limit: '',
     is_guest: false,
   });
 
@@ -50,6 +51,7 @@ const CustomerFormModal: React.FC<CustomerFormModalProps> = ({ customer, onClose
         state: customer.state || '',
         pincode: customer.pincode || '',
         gstin: customer.gstin || '',
+        credit_limit: customer.credit_limit ? String(customer.credit_limit) : '',
         is_guest: customer.is_guest || false,
       });
     }
@@ -70,6 +72,7 @@ const CustomerFormModal: React.FC<CustomerFormModalProps> = ({ customer, onClose
       const submitData = {
         ...formData,
         state: formData.state || null,
+        credit_limit: formData.credit_limit !== '' ? parseFloat(formData.credit_limit) : null,
       };
       await onSave(submitData);
     } finally {
@@ -182,6 +185,21 @@ const CustomerFormModal: React.FC<CustomerFormModalProps> = ({ customer, onClose
               className="input-field"
               maxLength={6}
             />
+          </div>
+
+          <div>
+            <label className="label">Credit Limit (₹)</label>
+            <input
+              type="number"
+              name="credit_limit"
+              value={formData.credit_limit}
+              onChange={handleChange}
+              className="input-field"
+              min="0"
+              step="0.01"
+              placeholder="Leave blank for no limit"
+            />
+            <p className="text-xs text-gray-400 mt-1">Maximum credit allowed for buy-now-pay-later purchases</p>
           </div>
 
           <div className="flex items-center">

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FileText, BarChart2, PieChart, Shield, Download, GitBranch } from 'lucide-react';
+import { FileText, BarChart2, PieChart, Shield, Download, GitBranch, CreditCard, TrendingUp } from 'lucide-react';
 import { documentService } from '../../api/services/document.service';
 import { useBranch } from '../../hooks/useBranch';
 
@@ -16,6 +16,9 @@ const Reports: React.FC = () => {
   const [selectedBranchId, setSelectedBranchId] = useState<number | null>(null);
   const [reportData, setReportData] = useState<any>(null);
   const [accountStatementData, setAccountStatementData] = useState<any>(null);
+  const [reconciliationData, setReconciliationData] = useState<any>(null);
+  const [productProfitData, setProductProfitData] = useState<any>(null);
+  const [productProfitGroupBy, setProductProfitGroupBy] = useState<'product' | 'category'>('product');
   const [loading, setLoading] = useState(false);
 
   // In branch mode, always use the current branch; in overview mode use the filter selection
@@ -51,11 +54,10 @@ const Reports: React.FC = () => {
   };
 
   useEffect(() => {
-    // Only fetch main reports automatically. Account statement needs ID.
     if (!['account-statement', 'tally-export'].includes(activeTab)) {
         fetchReport();
     }
-  }, [activeTab, dateRange, effectiveBranchId]);
+  }, [activeTab, dateRange, effectiveBranchId, productProfitGroupBy]);
 
   const fetchReport = async () => {
     setLoading(true);
@@ -73,6 +75,12 @@ const Reports: React.FC = () => {
            documentService.getGSTRReport({ ...dateRange, type: 'GSTR2', ...branchParam })
         ]);
         setReportData({ ...gstr1Data, ...gstr2Data });
+      } else if (activeTab === 'reconciliation') {
+        const data = await documentService.getReconciliation({ ...dateRange, ...branchParam });
+        setReconciliationData(data);
+      } else if (activeTab === 'product-profit') {
+        const data = await documentService.getProductProfit({ ...dateRange, group_by: productProfitGroupBy, ...branchParam });
+        setProductProfitData(data);
       }
     } catch (error) {
       console.error('Error fetching report:', error);
@@ -115,6 +123,8 @@ const Reports: React.FC = () => {
 
   const tabs = [
     { id: 'profit-loss', label: 'Profit & Loss', icon: BarChart2 },
+    { id: 'product-profit', label: 'Product Profit', icon: TrendingUp },
+    { id: 'reconciliation', label: 'Reconciliation', icon: CreditCard },
     { id: 'balance-sheet', label: 'Balance Sheet', icon: PieChart },
     { id: 'gstr', label: 'GSTR Reports', icon: Shield },
     { id: 'account-statement', label: 'Account Statement', icon: FileText },
@@ -274,6 +284,16 @@ const Reports: React.FC = () => {
               )}
               {activeTab === 'account-statement' && accountStatementData && (
                  <AccountStatementDisplay data={accountStatementData} />
+              )}
+              {activeTab === 'reconciliation' && reconciliationData && (
+                <ReconciliationDisplay data={reconciliationData} />
+              )}
+              {activeTab === 'product-profit' && (
+                <ProductProfitDisplay
+                  data={productProfitData}
+                  groupBy={productProfitGroupBy}
+                  onGroupByChange={setProductProfitGroupBy}
+                />
               )}
             </>
           )}
@@ -518,6 +538,135 @@ const AccountStatementDisplay = ({ data }: { data: any }) => (
             </table>
         </div>
     </div>
+);
+
+const ReconciliationDisplay = ({ data }: { data: any }) => {
+  const modeLabels: Record<string, string> = { cash: 'Cash', card: 'Card', upi: 'UPI / GPay', net_banking: 'Net Banking', bank_transfer: 'Bank Transfer', other: 'Other' };
+  return (
+    <div className="space-y-6">
+      <div>
+        <h3 className="font-bold text-lg mb-3 border-b pb-2">Payment Mode Breakdown</h3>
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+          {Object.entries(data.breakdown || {}).map(([mode, info]: [string, any]) => (
+            info.count > 0 && (
+              <div key={mode} className="p-4 bg-gray-50 rounded-lg border">
+                <div className="text-xs text-gray-500 font-medium uppercase tracking-wide">{modeLabels[mode] || mode}</div>
+                <div className="text-2xl font-bold text-gray-800 mt-1">₹{info.total?.toLocaleString()}</div>
+                <div className="text-xs text-gray-400 mt-0.5">{info.count} transaction{info.count !== 1 ? 's' : ''}</div>
+              </div>
+            )
+          ))}
+          <div className="p-4 bg-green-50 rounded-lg border border-green-200">
+            <div className="text-xs text-green-600 font-medium uppercase tracking-wide">Grand Total</div>
+            <div className="text-2xl font-bold text-green-700 mt-1">₹{data.grand_total?.toLocaleString()}</div>
+          </div>
+        </div>
+      </div>
+
+      {data.sessions && data.sessions.length > 0 && (
+        <div>
+          <h3 className="font-bold text-lg mb-3 border-b pb-2">Register Sessions</h3>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm border rounded-lg overflow-hidden">
+              <thead className="bg-gray-50 border-b">
+                <tr>
+                  <th className="px-4 py-3 text-left">Cashier</th>
+                  <th className="px-4 py-3 text-left">Opened</th>
+                  <th className="px-4 py-3 text-left">Status</th>
+                  <th className="px-4 py-3 text-right">Opening Bal</th>
+                  <th className="px-4 py-3 text-right">Total Cash</th>
+                  <th className="px-4 py-3 text-right">Closing Bal</th>
+                  <th className="px-4 py-3 text-right">Discrepancy</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y">
+                {data.sessions.map((s: any) => (
+                  <tr key={s.id} className="hover:bg-gray-50">
+                    <td className="px-4 py-2 font-medium">{s.cashier}</td>
+                    <td className="px-4 py-2 text-gray-500 text-xs">{s.opened_at ? new Date(s.opened_at).toLocaleString() : '—'}</td>
+                    <td className="px-4 py-2">
+                      <span className={`px-2 py-0.5 rounded text-xs font-semibold ${s.status === 'closed' ? 'bg-gray-100 text-gray-600' : 'bg-green-100 text-green-700'}`}>
+                        {s.status}
+                      </span>
+                    </td>
+                    <td className="px-4 py-2 text-right">₹{s.opening_balance?.toLocaleString()}</td>
+                    <td className="px-4 py-2 text-right">₹{s.total_cash?.toLocaleString()}</td>
+                    <td className="px-4 py-2 text-right">₹{s.closing_balance?.toLocaleString()}</td>
+                    <td className={`px-4 py-2 text-right font-semibold ${s.cash_discrepancy < 0 ? 'text-red-600' : s.cash_discrepancy > 0 ? 'text-green-600' : 'text-gray-500'}`}>
+                      {s.cash_discrepancy > 0 ? '+' : ''}₹{s.cash_discrepancy?.toFixed(2)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+const ProductProfitDisplay = ({ data, groupBy, onGroupByChange }: { data: any; groupBy: 'product' | 'category'; onGroupByChange: (v: 'product' | 'category') => void }) => (
+  <div className="space-y-4">
+    <div className="flex items-center justify-between">
+      <h3 className="font-bold text-lg">Gross Profit by {groupBy === 'category' ? 'Category' : 'Product'}</h3>
+      <div className="flex border border-gray-200 rounded-lg overflow-hidden text-sm">
+        <button
+          onClick={() => onGroupByChange('product')}
+          className={`px-4 py-2 font-medium transition-colors ${groupBy === 'product' ? 'bg-primary-600 text-white' : 'text-gray-600 hover:bg-gray-50'}`}
+        >
+          By Product
+        </button>
+        <button
+          onClick={() => onGroupByChange('category')}
+          className={`px-4 py-2 font-medium transition-colors ${groupBy === 'category' ? 'bg-primary-600 text-white' : 'text-gray-600 hover:bg-gray-50'}`}
+        >
+          By Category
+        </button>
+      </div>
+    </div>
+
+    {data?.data && data.data.length > 0 ? (
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm border rounded-lg overflow-hidden">
+          <thead className="bg-gray-50 border-b">
+            <tr>
+              <th className="px-4 py-3 text-left">{groupBy === 'category' ? 'Category' : 'Product'}</th>
+              {groupBy === 'product' && <th className="px-4 py-3 text-left text-gray-400">SKU</th>}
+              <th className="px-4 py-3 text-right">Units Sold</th>
+              <th className="px-4 py-3 text-right">Revenue</th>
+              <th className="px-4 py-3 text-right">COGS</th>
+              <th className="px-4 py-3 text-right">Gross Profit</th>
+              <th className="px-4 py-3 text-right">Margin %</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y">
+            {data.data.map((row: any, i: number) => (
+              <tr key={i} className="hover:bg-gray-50">
+                <td className="px-4 py-2 font-medium">{row.name}</td>
+                {groupBy === 'product' && <td className="px-4 py-2 text-gray-400 font-mono text-xs">{row.sku}</td>}
+                <td className="px-4 py-2 text-right">{row.units_sold?.toLocaleString()}</td>
+                <td className="px-4 py-2 text-right">₹{row.revenue?.toLocaleString()}</td>
+                <td className="px-4 py-2 text-right text-red-600">₹{row.cogs?.toLocaleString()}</td>
+                <td className={`px-4 py-2 text-right font-bold ${row.gross_profit >= 0 ? 'text-green-700' : 'text-red-600'}`}>
+                  ₹{row.gross_profit?.toLocaleString()}
+                </td>
+                <td className={`px-4 py-2 text-right font-semibold ${row.margin_pct >= 20 ? 'text-green-600' : row.margin_pct >= 0 ? 'text-yellow-600' : 'text-red-600'}`}>
+                  {row.margin_pct?.toFixed(1)}%
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    ) : (
+      <div className="text-center py-12 text-gray-400">
+        <TrendingUp className="w-10 h-10 mx-auto mb-2 text-gray-200" />
+        <p>No sales data found for the selected period.</p>
+        <p className="text-xs mt-1">Make sure products have cost prices set.</p>
+      </div>
+    )}
+  </div>
 );
 
 export default Reports;

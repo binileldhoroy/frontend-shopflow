@@ -26,8 +26,15 @@ const deletePurchase = async (id: number): Promise<void> => {
   await axios.delete(API_ENDPOINTS.PURCHASES.DETAIL(id));
 };
 
-const receivePurchase = async (id: number): Promise<void> => {
-  await axios.post(API_ENDPOINTS.PURCHASES.RECEIVE(id));
+const receivePurchase = async (
+  id: number,
+  items?: { id: number; received_quantity: number }[]
+): Promise<PurchaseOrder> => {
+  const response = await axios.post<PurchaseOrder>(
+    API_ENDPOINTS.PURCHASES.RECEIVE(id),
+    items ? { items } : {}
+  );
+  return response.data;
 };
 
 export const purchaseService = {

@@ -127,17 +127,20 @@ const Purchases: React.FC = () => {
     }
   };
 
-  const onReceiveConfirm = async () => {
+  const onReceiveConfirm = async (items: { id: number; received_quantity: number }[]) => {
     if (!selectedPurchase) return;
     try {
       setActionLoading(true);
-      await purchaseService.receivePurchase(selectedPurchase.id);
-      dispatch(addNotification({ message: 'Purchase received and stock updated', type: 'success' }));
+      const updated = await purchaseService.receivePurchase(selectedPurchase.id, items);
+      const msg = updated.status === 'received'
+        ? 'Purchase fully received — stock updated'
+        : 'Partial receipt recorded — stock updated';
+      dispatch(addNotification({ message: msg, type: 'success' }));
       setShowReceiveModal(false);
       loadData();
     } catch (error: any) {
       dispatch(addNotification({
-        message: error.response?.data?.message || 'Failed to receive purchase',
+        message: error.response?.data?.error || 'Failed to receive purchase',
         type: 'error',
       }));
     } finally {
@@ -193,6 +196,7 @@ const Purchases: React.FC = () => {
             { value: '', label: 'All' },
             { value: 'draft', label: 'Draft' },
             { value: 'ordered', label: 'Ordered' },
+            { value: 'partially_received', label: 'Partial' },
             { value: 'received', label: 'Received' },
             { value: 'cancelled', label: 'Cancelled' },
           ]).map(({ value, label }) => (

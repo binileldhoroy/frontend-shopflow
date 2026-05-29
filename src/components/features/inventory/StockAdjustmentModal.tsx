@@ -1,6 +1,16 @@
 import React, { useState } from 'react';
 import Modal from '../../common/Modal/Modal';
-import { StockItem, StockAdjustmentFormData } from '../../../types/inventory.types';
+import { StockItem, StockAdjustmentFormData, StockReasonCode } from '../../../types/inventory.types';
+
+const REASON_CODE_OPTIONS: { value: StockReasonCode; label: string }[] = [
+  { value: 'damage', label: 'Damage' },
+  { value: 'theft', label: 'Theft / Loss' },
+  { value: 'internal_use', label: 'Internal Use' },
+  { value: 'opening_stock', label: 'Opening Stock Entry' },
+  { value: 'correction', label: 'Stock Count Correction' },
+  { value: 'expiry', label: 'Expired Goods' },
+  { value: 'return_supplier', label: 'Return to Supplier' },
+];
 
 interface StockAdjustmentModalProps {
   show: boolean;
@@ -20,7 +30,8 @@ const StockAdjustmentModal: React.FC<StockAdjustmentModalProps> = ({
   const [formData, setFormData] = useState<StockAdjustmentFormData>({
     product: product?.product || 0,
     movement_type: 'purchase',
-    quantity: '' as any, // Empty string for placeholder
+    quantity: '' as any,
+    reason_code: undefined,
     reference_number: '',
     notes: '',
   });
@@ -29,7 +40,7 @@ const StockAdjustmentModal: React.FC<StockAdjustmentModalProps> = ({
     const { name, value } = e.target;
     setFormData(prev => ({
       ...prev,
-      [name]: name === 'quantity' ? (value === '' ? '' : Number(value)) : value,
+      [name]: name === 'quantity' ? (value === '' ? '' : Number(value)) : value || undefined,
     }));
   };
 
@@ -41,6 +52,8 @@ const StockAdjustmentModal: React.FC<StockAdjustmentModalProps> = ({
       quantity: String(formData.quantity) === '' ? 0 : Number(formData.quantity),
     });
   };
+
+  const isAdjustment = formData.movement_type === 'adjustment';
 
   if (!product) return null;
 
@@ -119,6 +132,25 @@ const StockAdjustmentModal: React.FC<StockAdjustmentModalProps> = ({
           </select>
         </div>
 
+        {/* Reason Code — required only for Adjustment */}
+        {isAdjustment && (
+          <div>
+            <label className="label">Reason *</label>
+            <select
+              name="reason_code"
+              className="input-field"
+              value={formData.reason_code || ''}
+              onChange={handleChange}
+              required={isAdjustment}
+            >
+              <option value="">Select a reason...</option>
+              {REASON_CODE_OPTIONS.map(opt => (
+                <option key={opt.value} value={opt.value}>{opt.label}</option>
+              ))}
+            </select>
+          </div>
+        )}
+
         {/* Quantity */}
         <div>
           <label className="label">Quantity *</label>
@@ -156,7 +188,7 @@ const StockAdjustmentModal: React.FC<StockAdjustmentModalProps> = ({
             rows={3}
             value={formData.notes}
             onChange={handleChange}
-            placeholder="Reason for adjustment..."
+            placeholder="Additional details..."
           />
         </div>
       </form>
