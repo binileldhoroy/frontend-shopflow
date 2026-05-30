@@ -1,17 +1,19 @@
 import React from 'react';
 import { Supplier } from '../../types/supplier.types';
-import { Edit2, Inbox, CheckCircle, XCircle } from 'lucide-react';
+import { Edit2, Trash2, Inbox, CheckCircle, XCircle } from 'lucide-react';
 
 interface SupplierListProps {
   suppliers: Supplier[];
   loading: boolean;
   onEdit: (supplier: Supplier) => void;
+  onDelete?: (supplier: Supplier) => void;
 }
 
 const SupplierList: React.FC<SupplierListProps> = ({
   suppliers,
   loading,
   onEdit,
+  onDelete,
 }) => {
   if (loading) {
     return (
@@ -77,6 +79,15 @@ const SupplierList: React.FC<SupplierListProps> = ({
                   >
                     <Edit2 className="w-4 h-4" />
                   </button>
+                  {onDelete && (
+                    <button
+                      className="btn btn-outline-danger text-sm"
+                      onClick={() => onDelete(supplier)}
+                      title="Delete"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  )}
                 </div>
               </td>
             </tr>

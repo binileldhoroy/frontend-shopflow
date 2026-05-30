@@ -23,12 +23,17 @@ export const branchService = {
     return response.data;
   },
 
-  deactivate: async (id: number): Promise<void> => {
-    await axiosInstance.delete(API_ENDPOINTS.BRANCHES.DETAIL(id));
+  deactivate: async (id: number): Promise<Branch> => {
+    const response = await axiosInstance.patch(API_ENDPOINTS.BRANCHES.DETAIL(id), { is_active: false });
+    return response.data;
   },
 
   activate: async (id: number): Promise<Branch> => {
     const response = await axiosInstance.patch(API_ENDPOINTS.BRANCHES.DETAIL(id), { is_active: true });
     return response.data;
+  },
+
+  delete: async (id: number): Promise<void> => {
+    await axiosInstance.delete(API_ENDPOINTS.BRANCHES.DETAIL(id));
   },
 };

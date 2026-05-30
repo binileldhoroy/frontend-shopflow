@@ -3,6 +3,7 @@ import { priceTierService, PriceTier } from '@api/services/priceTier.service';
 import { Plus, Trash2, Edit2, Check, X, Tag } from 'lucide-react';
 import { addNotification } from '@store/slices/uiSlice';
 import { useAppDispatch } from '@hooks/useRedux';
+import DeleteConfirmModal from '@components/common/DeleteConfirmModal/DeleteConfirmModal';
 
 const PriceTiersSettings: React.FC = () => {
   const dispatch = useAppDispatch();
@@ -18,6 +19,11 @@ const PriceTiersSettings: React.FC = () => {
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editName, setEditName] = useState('');
   const [editPercentage, setEditPercentage] = useState('');
+
+  // Delete State
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deletingTierId, setDeletingTierId] = useState<number | null>(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
 
   const fetchTiers = async () => {
     try {
@@ -86,15 +92,25 @@ const PriceTiersSettings: React.FC = () => {
     }
   };
 
-  const handleDelete = async (id: number) => {
-    if (!window.confirm('Are you sure? This will delete all product rules associated with this tier.')) return;
+  const openDeleteConfirm = (id: number) => {
+    setDeletingTierId(id);
+    setShowDeleteModal(true);
+  };
 
+  const handleConfirmDelete = async () => {
+    if (!deletingTierId) return;
     try {
-      await priceTierService.deleteTier(id);
+      setDeleteLoading(true);
+      await priceTierService.deleteTier(deletingTierId);
       dispatch(addNotification({ message: 'Price tier deleted', type: 'success' }));
-      setTiers(prev => prev.filter(t => t.id !== id));
-    } catch (error) {
-      dispatch(addNotification({ message: 'Failed to delete tier', type: 'error' }));
+      setTiers(prev => prev.filter(t => t.id !== deletingTierId));
+      setShowDeleteModal(false);
+    } catch (error: any) {
+      const msg = error.response?.data?.error || 'Failed to delete tier';
+      dispatch(addNotification({ message: msg, type: 'error' }));
+    } finally {
+      setDeleteLoading(false);
+      setDeletingTierId(null);
     }
   };
 
@@ -221,7 +237,7 @@ const PriceTiersSettings: React.FC = () => {
                              <button onClick={() => startEdit(tier)} className="text-primary-600 hover:bg-primary-50 p-1 rounded">
                                 <Edit2 className="w-4 h-4" />
                              </button>
-                             <button onClick={() => handleDelete(tier.id)} className="text-danger-600 hover:bg-danger-50 p-1 rounded">
+                             <button onClick={() => openDeleteConfirm(tier.id)} className="text-danger-600 hover:bg-danger-50 p-1 rounded">
                                 <Trash2 className="w-4 h-4" />
                              </button>
                           </div>
@@ -241,6 +257,15 @@ const PriceTiersSettings: React.FC = () => {
           </table>
         </div>
       )}
+
+      <DeleteConfirmModal
+        show={showDeleteModal}
+        title="Delete Price Tier"
+        message="Are you sure? This will also remove all product pricing rules for this tier."
+        onConfirm={handleConfirmDelete}
+        onHide={() => { setShowDeleteModal(false); setDeletingTierId(null); }}
+        loading={deleteLoading}
+      />
     </div>
   );
 };

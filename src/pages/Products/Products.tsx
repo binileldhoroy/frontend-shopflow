@@ -573,7 +573,7 @@ const Products: React.FC = () => {
         onHide={() => setShowDeleteModal(false)}
         onConfirm={handleConfirmDelete}
         title="Delete Product"
-        message={`Are you sure you want to delete "${selectedProduct?.name}"? This action cannot be undone.`}
+        message={`Are you sure you want to delete "${selectedProduct?.name}"? This will also remove all pricing rules, attributes, stock records, and batch records for this product.`}
         loading={formLoading}
       />
 

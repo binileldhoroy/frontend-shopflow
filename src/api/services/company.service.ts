@@ -51,8 +51,14 @@ export const companyService = {
     return response.data;
   },
 
-  // Deactivate company (super user only)
-  deactivate: async (id: number): Promise<void> => {
+  // Deactivate company (super user only) — sets is_active=false (availability toggle)
+  deactivate: async (id: number): Promise<Company> => {
+    const response = await axiosInstance.patch<Company>(API_ENDPOINTS.COMPANY.DETAIL(id), { is_active: false });
+    return response.data;
+  },
+
+  // Delete company (super user only) — soft delete
+  delete: async (id: number): Promise<void> => {
     await axiosInstance.delete(API_ENDPOINTS.COMPANY.DETAIL(id));
   },
 };

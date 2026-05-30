@@ -76,8 +76,8 @@ const Branches: React.FC = () => {
   const handleDeactivate = async (branch: Branch) => {
     if (!window.confirm(`Deactivate branch "${branch.name}"?`)) return;
     try {
-      await branchService.deactivate(branch.id);
-      dispatch(updateBranchInList({ ...branch, is_active: false }));
+      const updated = await branchService.deactivate(branch.id);
+      dispatch(updateBranchInList(updated));
     } catch {
       alert('Failed to deactivate branch.');
     }

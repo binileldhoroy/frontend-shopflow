@@ -7,6 +7,7 @@ import { Truck, Plus, Search } from 'lucide-react';
 
 import SupplierList from '../../components/suppliers/SupplierList';
 import SupplierFormModal from '../../components/suppliers/SupplierFormModal';
+import DeleteConfirmModal from '../../components/common/DeleteConfirmModal/DeleteConfirmModal';
 
 const Suppliers: React.FC = () => {
   const dispatch = useAppDispatch();
@@ -21,7 +22,9 @@ const Suppliers: React.FC = () => {
 
   // Modal States
   const [showFormModal, setShowFormModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [selectedSupplier, setSelectedSupplier] = useState<Supplier | null>(null);
+  const [deletingSupplier, setDeletingSupplier] = useState<Supplier | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
 
   const loadData = useCallback(async () => {
@@ -67,6 +70,28 @@ const Suppliers: React.FC = () => {
   const handleEdit = (supplier: Supplier) => {
     setSelectedSupplier(supplier);
     setShowFormModal(true);
+  };
+
+  const handleDeleteSupplier = (supplier: Supplier) => {
+    setDeletingSupplier(supplier);
+    setShowDeleteModal(true);
+  };
+
+  const onDeleteConfirm = async () => {
+    if (!deletingSupplier) return;
+    try {
+      setActionLoading(true);
+      await supplierService.deleteSupplier(deletingSupplier.id);
+      dispatch(addNotification({ message: 'Supplier deleted successfully', type: 'success' }));
+      setShowDeleteModal(false);
+      setDeletingSupplier(null);
+      loadData();
+    } catch (error: any) {
+      const msg = error.response?.data?.error || error.response?.data?.message || 'Failed to delete supplier';
+      dispatch(addNotification({ message: msg, type: 'error' }));
+    } finally {
+      setActionLoading(false);
+    }
   };
 
   const onFormSubmit = async (data: SupplierFormData) => {
@@ -131,6 +156,7 @@ const Suppliers: React.FC = () => {
           suppliers={filteredSuppliers}
           loading={loading}
           onEdit={handleEdit}
+          onDelete={handleDeleteSupplier}
         />
       </div>
 
@@ -140,6 +166,15 @@ const Suppliers: React.FC = () => {
         onHide={() => setShowFormModal(false)}
         onSubmit={onFormSubmit}
         supplier={selectedSupplier}
+        loading={actionLoading}
+      />
+
+      <DeleteConfirmModal
+        show={showDeleteModal}
+        title="Delete Supplier"
+        message={`Are you sure you want to delete "${deletingSupplier?.name}"? This action cannot be undone.`}
+        onConfirm={onDeleteConfirm}
+        onHide={() => { setShowDeleteModal(false); setDeletingSupplier(null); }}
         loading={actionLoading}
       />
     </div>

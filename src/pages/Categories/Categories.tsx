@@ -107,10 +107,12 @@ const Categories: React.FC = () => {
       setSelectedCategory(null);
       fetchCategories();
     } catch (error: any) {
-      dispatch(addNotification({
-        message: error.response?.data?.message || 'Failed to delete category',
-        type: 'error',
-      }));
+      const msg = error.response?.data?.error || error.response?.data?.message || 'Failed to delete category';
+      dispatch(addNotification({ message: msg, type: 'error' }));
+      if (error.response?.status !== 409) {
+        setShowDeleteModal(false);
+        setSelectedCategory(null);
+      }
     }
   };
 

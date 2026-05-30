@@ -77,8 +77,12 @@ const Brands: React.FC = () => {
       dispatch(addNotification({ message: 'Brand deleted', type: 'success' }));
       setShowDeleteModal(false);
       fetchBrands();
-    } catch {
-      dispatch(addNotification({ message: 'Failed to delete brand', type: 'error' }));
+    } catch (error: any) {
+      const msg = error.response?.data?.error || error.response?.data?.message || 'Failed to delete brand';
+      dispatch(addNotification({ message: msg, type: 'error' }));
+      if (error.response?.status !== 409) {
+        setShowDeleteModal(false);
+      }
     } finally {
       setFormLoading(false);
     }

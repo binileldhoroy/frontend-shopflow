@@ -247,7 +247,7 @@ const Purchases: React.FC = () => {
         onHide={() => setShowDeleteModal(false)}
         onConfirm={onDeleteConfirm}
         title="Delete Purchase Order"
-        message={`Are you sure you want to delete order ${selectedPurchase?.order_number}?`}
+        message={`Are you sure you want to delete order ${selectedPurchase?.order_number}? This will also remove all purchase line items.`}
         loading={actionLoading}
       />
     </div>

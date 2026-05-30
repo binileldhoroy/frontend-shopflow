@@ -407,7 +407,7 @@ const Customers: React.FC = () => {
       <DeleteConfirmModal
         show={showDeleteModal}
         title="Delete Customer"
-        message={selectedCustomer ? `Are you sure you want to delete "${selectedCustomer.name}"? This action cannot be undone.` : ''}
+        message={selectedCustomer ? `Are you sure you want to delete "${selectedCustomer.name}"? This will also remove their ledger history.` : ''}
         onConfirm={handleDelete}
         onHide={() => {
           setShowDeleteModal(false);
