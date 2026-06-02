@@ -20,6 +20,7 @@ import OpeningBalanceModal from '../../components/pos/OpeningBalanceModal';
 import CloseRegisterModal from '../../components/pos/CloseRegisterModal';
 import Modal from '../../components/common/Modal/Modal';
 import PaymentConfirmModal from '../../components/pos/PaymentConfirmModal';
+import { isContinuousUnit, getUnitLabel } from '@utils/units';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -31,6 +32,7 @@ interface CartItem {
   unit_price: number;
   selling_price: number;
   quantity: number;
+  unit?: string;
   gst_rate: number;
   hsn_code: string;
   tax_included: boolean;
@@ -142,6 +144,10 @@ const POS: React.FC = () => {
   const [priceTiers, setPriceTiers] = useState<PriceTier[]>([]);
   const [productRules, setProductRules] = useState<ProductTierPrice[]>([]);
   const [selectedTierId, setSelectedTierId] = useState<number | null>(null);
+
+  // ── Quantity inline editing ───────────────────────────────────────────────
+  const [editingQtyId, setEditingQtyId] = useState<number | null>(null);
+  const [editingQtyValue, setEditingQtyValue] = useState<string>('');
 
   // ─── Session helpers ─────────────────────────────────────────────────────
 
@@ -477,6 +483,7 @@ const POS: React.FC = () => {
         unit_price: parseFloat(basePrice.toFixed(2)),
         selling_price: parseFloat(effectivePrice.toFixed(2)),
         quantity: 1,
+        unit: product.unit,
         gst_rate: parseFloat(product.gst_rate),
         hsn_code: product.hsn_code,
         tax_included: product.tax_included,
@@ -498,13 +505,41 @@ const POS: React.FC = () => {
         ...s.cart,
         items: s.cart.items.map((item) => {
           if (item.id !== id) return item;
-          const newQty = item.quantity + delta;
-          if (newQty < 1) return item;
-          if (item.stock_quantity && newQty > item.stock_quantity) {
+          const continuous = isContinuousUnit(item.unit);
+          const step = continuous ? 0.5 : 1;
+          const minQty = continuous ? 0.001 : 1;
+          const newQty = parseFloat((item.quantity + delta * step).toFixed(3));
+          if (newQty < minQty) return item;
+          if (item.stock_quantity != null && newQty > item.stock_quantity) {
             dispatch(addNotification({ message: `Only ${item.stock_quantity} available`, type: 'error' }));
             return item;
           }
           return { ...item, quantity: newQty };
+        }),
+      },
+    }));
+  };
+
+  const setQuantityDirect = (id: number, rawValue: string) => {
+    const parsed = parseFloat(rawValue);
+    updateActiveSession((s) => ({
+      ...s,
+      cart: {
+        ...s.cart,
+        items: s.cart.items.map((item) => {
+          if (item.id !== id) return item;
+          const continuous = isContinuousUnit(item.unit);
+          const minQty = continuous ? 0.001 : 1;
+          if (isNaN(parsed) || parsed < minQty) {
+            dispatch(addNotification({ message: `Minimum quantity is ${minQty}`, type: 'error' }));
+            return { ...item, quantity: minQty };
+          }
+          const finalQty = continuous ? parseFloat(parsed.toFixed(3)) : Math.round(parsed);
+          if (item.stock_quantity != null && finalQty > item.stock_quantity) {
+            dispatch(addNotification({ message: `Only ${item.stock_quantity} available`, type: 'error' }));
+            return { ...item, quantity: item.stock_quantity };
+          }
+          return { ...item, quantity: finalQty };
         }),
       },
     }));
@@ -849,7 +884,7 @@ const POS: React.FC = () => {
 
               {totalItems > 0 && (
                 <span className="text-xs text-gray-500 bg-gray-100 rounded-full px-3 py-1 font-medium shrink-0">
-                  {totalItems} item{totalItems !== 1 ? 's' : ''} in cart
+                  {cart.items.length} item{cart.items.length !== 1 ? 's' : ''} in cart
                 </span>
               )}
             </div>
@@ -1213,7 +1248,7 @@ const POS: React.FC = () => {
                 </h3>
                 {cart.items.length > 0 && (
                   <span className="text-[10px] font-bold bg-white/20 text-white px-2 py-0.5 rounded-full border border-white/30">
-                    {totalItems} items
+                    {cart.items.length} items
                   </span>
                 )}
               </div>
@@ -1246,7 +1281,7 @@ const POS: React.FC = () => {
                               {item.name}
                             </div>
                             <div className="text-[10px] text-gray-400 mt-0.5">
-                              ₹{item.unit_price.toFixed(2)} / unit
+                              ₹{item.unit_price.toFixed(2)} / {getUnitLabel(item.unit) || 'unit'}
                               {item.gst_rate > 0 && (
                                 <span className="ml-1.5 text-orange-500">GST {item.gst_rate}%</span>
                               )}
@@ -1275,9 +1310,18 @@ const POS: React.FC = () => {
                             >
                               <Minus className="w-3 h-3" />
                             </button>
-                            <span className="w-8 text-center text-sm font-bold text-gray-800 border-x border-gray-200">
-                              {item.quantity}
-                            </span>
+                            <input
+                              type="number"
+                              inputMode={isContinuousUnit(item.unit) ? 'decimal' : 'numeric'}
+                              min={isContinuousUnit(item.unit) ? '0.001' : '1'}
+                              step={isContinuousUnit(item.unit) ? '0.5' : '1'}
+                              value={editingQtyId === item.id ? editingQtyValue : item.quantity}
+                              className="w-8 h-9 text-center text-sm font-bold text-gray-800 border-x border-gray-200 bg-white outline-none focus:bg-blue-50 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                              onFocus={() => { setEditingQtyId(item.id); setEditingQtyValue(String(item.quantity)); }}
+                              onChange={(e) => setEditingQtyValue(e.target.value)}
+                              onBlur={() => { setQuantityDirect(item.id, editingQtyValue); setEditingQtyId(null); setEditingQtyValue(''); }}
+                              onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
+                            />
                             <button
                               onClick={() => updateQuantity(item.id, 1)}
                               className="w-8 h-9 flex items-center justify-center hover:bg-gray-100 active:bg-gray-200 text-gray-500 transition-colors"
