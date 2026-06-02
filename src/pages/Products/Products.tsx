@@ -241,10 +241,26 @@ const Products: React.FC = () => {
       setShowFormModal(false);
       loadData();
     } catch (error: any) {
-      dispatch(addNotification({
-        message: error.response?.data?.message || 'Operation failed',
-        type: 'error',
-      }));
+      const data = error.response?.data;
+      let message = 'Operation failed';
+      if (data) {
+        if (typeof data === 'string') {
+          message = data;
+        } else if (data.message) {
+          message = data.message;
+        } else if (data.detail) {
+          message = data.detail;
+        } else {
+          const firstKey = Object.keys(data)[0];
+          if (firstKey) {
+            const val = data[firstKey];
+            const fieldMsg = Array.isArray(val) ? val[0] : val;
+            const label = firstKey === 'non_field_errors' ? '' : `${firstKey}: `;
+            message = `${label}${fieldMsg}`;
+          }
+        }
+      }
+      dispatch(addNotification({ message, type: 'error' }));
     } finally {
       setFormLoading(false);
     }
