@@ -11,6 +11,25 @@ import { useAppDispatch } from '@hooks/useRedux';
 import { addNotification } from '@store/slices/uiSlice';
 import { Package, Plus, Search, Edit2, Trash2, Inbox, AlertTriangle, Upload, X } from 'lucide-react';
 
+function extractErrorMessage(error: any): string {
+  const data = error?.response?.data;
+  if (data && typeof data === 'object' && !Array.isArray(data)) {
+    if (data.message) return String(data.message);
+    if (data.detail) return String(data.detail);
+    if (data.error) return String(data.error);
+    const firstKey = Object.keys(data)[0];
+    if (firstKey) {
+      const val = data[firstKey];
+      const fieldMsg = Array.isArray(val) ? val[0] : val;
+      const label = firstKey === 'non_field_errors' ? '' : `${firstKey}: `;
+      return `${label}${fieldMsg}`;
+    }
+  }
+  if (typeof data === 'string' && data && !data.trimStart().startsWith('<')) return data;
+  if (error?.message) return error.message;
+  return 'Operation failed';
+}
+
 const Products: React.FC = () => {
   const dispatch = useAppDispatch();
 
@@ -241,26 +260,7 @@ const Products: React.FC = () => {
       setShowFormModal(false);
       loadData();
     } catch (error: any) {
-      const data = error.response?.data;
-      let message = 'Operation failed';
-      if (data) {
-        if (typeof data === 'string') {
-          message = data;
-        } else if (data.message) {
-          message = data.message;
-        } else if (data.detail) {
-          message = data.detail;
-        } else {
-          const firstKey = Object.keys(data)[0];
-          if (firstKey) {
-            const val = data[firstKey];
-            const fieldMsg = Array.isArray(val) ? val[0] : val;
-            const label = firstKey === 'non_field_errors' ? '' : `${firstKey}: `;
-            message = `${label}${fieldMsg}`;
-          }
-        }
-      }
-      dispatch(addNotification({ message, type: 'error' }));
+      dispatch(addNotification({ message: extractErrorMessage(error), type: 'error' }));
     } finally {
       setFormLoading(false);
     }
