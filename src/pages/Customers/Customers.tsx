@@ -3,7 +3,7 @@ import { useAppDispatch } from '@hooks/useRedux';
 import { customerService } from '@api/services/customer.service';
 import { documentService } from '@api/services/document.service';
 import { addNotification } from '@store/slices/uiSlice';
-import { Plus, Search, Edit, Trash2, Users, UserCheck, Mail, Phone, Receipt, FileSpreadsheet } from 'lucide-react';
+import { Plus, Search, Edit, Trash2, Users, UserCheck, Mail, Phone, Receipt, FileSpreadsheet, MessageCircle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import CustomerFormModal from '../../components/features/customers/CustomerFormModal';
 import DeleteConfirmModal from '../../components/common/DeleteConfirmModal/DeleteConfirmModal';
@@ -344,6 +344,18 @@ const Customers: React.FC = () => {
                       </td>
                       <td>
                         <div className="flex items-center justify-end gap-1">
+                          {customer.phone && (
+                            <a
+                              href={`https://wa.me/91${customer.phone.replace(/\D/g, '').slice(-10)}?text=${encodeURIComponent(`Hi ${customer.name},`)}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="action-btn"
+                              title="WhatsApp"
+                              style={{ color: '#25D366' }}
+                            >
+                              <MessageCircle className="w-4 h-4" />
+                            </a>
+                          )}
                           {!customer.is_guest && (
                             <button className="action-btn action-btn-success" onClick={() => navigate(`/customers/${customer.id}/ledger`)} title="Ledger">
                               <Receipt className="w-4 h-4" />

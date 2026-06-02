@@ -68,4 +68,6 @@ export interface CompanyFormData {
   terms_and_conditions?: string;
   authorized_signatory_name?: string;
   is_active?: boolean;
+  is_composition_scheme?: boolean;
+  composition_rate?: string;
 }

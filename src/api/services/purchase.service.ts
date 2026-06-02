@@ -37,6 +37,21 @@ const receivePurchase = async (
   return response.data;
 };
 
+const returnPurchase = async (id: number, data: { items: any[]; reason: string }) => {
+  const response = await axios.post(`/api/purchases/${id}/return/`, data);
+  return response.data;
+};
+
+const getPurchaseReturns = async () => {
+  const response = await axios.get('/api/purchases/returns/');
+  return response.data;
+};
+
+const getDebitNotes = async () => {
+  const response = await axios.get('/api/purchases/debit-notes/');
+  return response.data;
+};
+
 export const purchaseService = {
   getAllPurchases,
   getPurchaseById,
@@ -44,4 +59,7 @@ export const purchaseService = {
   updatePurchase,
   deletePurchase,
   receivePurchase,
+  returnPurchase,
+  getPurchaseReturns,
+  getDebitNotes,
 };

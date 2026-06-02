@@ -29,6 +29,9 @@ import {
   Store,
   MessageSquare,
   GitBranch,
+  ClipboardList,
+  Truck as TruckDelivery,
+  BookOpen,
 } from 'lucide-react';
 
 interface NavItem {
@@ -154,6 +157,25 @@ const navGroups: NavGroup[] = [
     ],
   },
   {
+    label: 'Sales Docs',
+    items: [
+      {
+        path: '/quotations',
+        icon: ClipboardList,
+        label: 'Quotations',
+        roles: [UserRole.SUPER_USER, UserRole.ADMIN, UserRole.MANAGER, UserRole.CASHIER],
+        feature: 'sales_enabled',
+      },
+      {
+        path: '/delivery-challans',
+        icon: TruckDelivery,
+        label: 'Delivery Challans',
+        roles: [UserRole.SUPER_USER, UserRole.ADMIN, UserRole.MANAGER],
+        feature: 'sales_enabled',
+      },
+    ],
+  },
+  {
     label: 'Finance',
     items: [
       {
@@ -176,6 +198,25 @@ const navGroups: NavGroup[] = [
         label: 'Advance Invoices',
         roles: [UserRole.SUPER_USER, UserRole.ADMIN, UserRole.MANAGER, UserRole.CASHIER],
         feature: 'advance_invoice_enabled',
+      },
+    ],
+  },
+  {
+    label: 'Accounting',
+    items: [
+      {
+        path: '/chart-of-accounts',
+        icon: BookOpen,
+        label: 'Chart of Accounts',
+        roles: [UserRole.SUPER_USER, UserRole.ADMIN],
+        feature: 'finance_enabled',
+      },
+      {
+        path: '/journal-entries',
+        icon: FileText,
+        label: 'Journal Entries',
+        roles: [UserRole.SUPER_USER, UserRole.ADMIN],
+        feature: 'finance_enabled',
       },
     ],
   },

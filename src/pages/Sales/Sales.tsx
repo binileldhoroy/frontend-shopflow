@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useAppDispatch, useAppSelector } from '@hooks/useRedux';
 import { saleService } from '@api/services/sale.service';
 import { documentService } from '@api/services/document.service';
+import { eWayBillService } from '@api/services/invoice.service';
 import { addNotification } from '@store/slices/uiSlice';
 import {
   Calendar, Eye, Download, X, Printer, ShoppingCart, DollarSign,
@@ -122,6 +123,10 @@ const Sales: React.FC = () => {
   // Detail modal
   const [selectedSaleId, setSelectedSaleId] = useState<number | null>(null);
   const [selectedSale,   setSelectedSale]   = useState<Sale | null>(null);
+  const [ewbData,        setEwbData]         = useState<any>(null);
+  const [ewbLoading,     setEwbLoading]      = useState(false);
+  const [showEwbForm,    setShowEwbForm]     = useState(false);
+  const [ewbForm, setEwbForm] = useState({ vehicle_no: '', transporter_id: '', transport_mode: '1', distance: '' });
   const [loadingDetail,  setLoadingDetail]  = useState(false);
 
   // Void modal
@@ -737,7 +742,7 @@ const Sales: React.FC = () => {
                 <h2 className="text-xl font-bold text-gray-900">Sale Details</h2>
                 {selectedSale && <StatusBadge status={selectedSale.status} />}
               </div>
-              <button onClick={() => { setSelectedSaleId(null); setSelectedSale(null); }} className="p-2 hover:bg-gray-100 rounded-lg">
+              <button onClick={() => { setSelectedSaleId(null); setSelectedSale(null); setEwbData(null); setShowEwbForm(false); }} className="p-2 hover:bg-gray-100 rounded-lg">
                 <X className="w-5 h-5" />
               </button>
             </div>
@@ -920,7 +925,78 @@ const Sales: React.FC = () => {
                   <button onClick={handleDownloadInvoice} className="btn btn-primary flex items-center gap-2">
                     <Download className="w-4 h-4" />Download Bill
                   </button>
+                  {/* E-Way Bill */}
+                  {!ewbData ? (
+                    <button
+                      onClick={() => setShowEwbForm(v => !v)}
+                      disabled={ewbLoading}
+                      className="btn flex items-center gap-2 bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100"
+                    >
+                      <ClipboardList className="w-4 h-4" />E-Way Bill
+                    </button>
+                  ) : (
+                    <div className="flex items-center gap-2 px-3 py-2 bg-green-50 border border-green-200 rounded-lg text-sm text-green-700 font-medium">
+                      <CheckCircle className="w-4 h-4" />EWB: {ewbData.ewb_no}
+                      {ewbData.is_stub && <span className="text-xs text-gray-400">(sandbox)</span>}
+                    </div>
+                  )}
                 </div>
+
+                {/* E-Way Bill Form */}
+                {showEwbForm && !ewbData && (
+                  <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg space-y-3">
+                    <p className="text-sm font-semibold text-amber-800">Generate E-Way Bill</p>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="text-xs text-gray-600 mb-1 block">Vehicle No.</label>
+                        <input className="input-field py-1.5 text-sm w-full" placeholder="KL12AB1234" value={ewbForm.vehicle_no} onChange={e => setEwbForm(p => ({ ...p, vehicle_no: e.target.value }))} />
+                      </div>
+                      <div>
+                        <label className="text-xs text-gray-600 mb-1 block">Transporter GSTIN</label>
+                        <input className="input-field py-1.5 text-sm w-full" placeholder="Optional" value={ewbForm.transporter_id} onChange={e => setEwbForm(p => ({ ...p, transporter_id: e.target.value }))} />
+                      </div>
+                      <div>
+                        <label className="text-xs text-gray-600 mb-1 block">Transport Mode</label>
+                        <select className="input-field py-1.5 text-sm w-full" value={ewbForm.transport_mode} onChange={e => setEwbForm(p => ({ ...p, transport_mode: e.target.value }))}>
+                          <option value="1">Road</option>
+                          <option value="2">Rail</option>
+                          <option value="3">Air</option>
+                          <option value="4">Ship</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="text-xs text-gray-600 mb-1 block">Distance (km)</label>
+                        <input type="number" className="input-field py-1.5 text-sm w-full" placeholder="0" value={ewbForm.distance} onChange={e => setEwbForm(p => ({ ...p, distance: e.target.value }))} />
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
+                      <button
+                        disabled={ewbLoading}
+                        onClick={async () => {
+                          if (!selectedSale) return;
+                          setEwbLoading(true);
+                          try {
+                            const result = await eWayBillService.generate({
+                              sale_order_id: selectedSale.id,
+                              vehicle_no: ewbForm.vehicle_no,
+                              transporter_id: ewbForm.transporter_id,
+                              transport_mode: ewbForm.transport_mode,
+                              distance: Number(ewbForm.distance) || 0,
+                            });
+                            setEwbData(result);
+                            setShowEwbForm(false);
+                          } catch (e: any) {
+                            dispatch(addNotification({ message: e?.response?.data?.error || 'E-Way Bill generation failed', type: 'error' }));
+                          } finally { setEwbLoading(false); }
+                        }}
+                        className="btn btn-primary text-sm py-1.5"
+                      >
+                        {ewbLoading ? 'Generating…' : 'Generate EWB'}
+                      </button>
+                      <button onClick={() => setShowEwbForm(false)} className="btn btn-outline-secondary text-sm py-1.5">Cancel</button>
+                    </div>
+                  </div>
+                )}
               </div>
             ) : null}
           </div>

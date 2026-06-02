@@ -38,6 +38,10 @@ import Users from './pages/Users/Users';
 import Settings from './pages/Settings/Settings';
 import Chat from './pages/Chat/Chat';
 import Branches from './pages/Branches/Branches';
+import Quotations from './pages/Quotations/Quotations';
+import DeliveryChallans from './pages/DeliveryChallans/DeliveryChallans';
+import ChartOfAccounts from './pages/Accounting/ChartOfAccounts';
+import JournalEntries from './pages/Accounting/JournalEntries';
 
 // Routes
 import ProtectedRoute from './routes/ProtectedRoute';
@@ -306,6 +310,50 @@ function App() {
               <RoleBasedRoute allowedRoles={[UserRole.ADMIN, UserRole.MANAGER]} requiredFeature="reports_enabled">
                 <Layout>
                   <Reports />
+                </Layout>
+              </RoleBasedRoute>
+            }
+          />
+
+          <Route
+            path="/quotations"
+            element={
+              <RoleBasedRoute allowedRoles={[UserRole.ADMIN, UserRole.MANAGER, UserRole.CASHIER]} requiredFeature="sales_enabled">
+                <Layout>
+                  <Quotations />
+                </Layout>
+              </RoleBasedRoute>
+            }
+          />
+
+          <Route
+            path="/delivery-challans"
+            element={
+              <RoleBasedRoute allowedRoles={[UserRole.ADMIN, UserRole.MANAGER]} requiredFeature="sales_enabled">
+                <Layout>
+                  <DeliveryChallans />
+                </Layout>
+              </RoleBasedRoute>
+            }
+          />
+
+          <Route
+            path="/chart-of-accounts"
+            element={
+              <RoleBasedRoute allowedRoles={[UserRole.ADMIN]} requiredFeature="finance_enabled">
+                <Layout>
+                  <ChartOfAccounts />
+                </Layout>
+              </RoleBasedRoute>
+            }
+          />
+
+          <Route
+            path="/journal-entries"
+            element={
+              <RoleBasedRoute allowedRoles={[UserRole.ADMIN]} requiredFeature="finance_enabled">
+                <Layout>
+                  <JournalEntries />
                 </Layout>
               </RoleBasedRoute>
             }

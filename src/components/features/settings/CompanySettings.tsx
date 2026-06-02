@@ -34,6 +34,8 @@ const CompanySettings: React.FC = () => {
     invoice_prefix: 'INV',
     terms_and_conditions: '',
     authorized_signatory_name: '',
+    is_composition_scheme: false,
+    composition_rate: '1.00',
     logo: undefined,
   });
 
@@ -74,6 +76,8 @@ const CompanySettings: React.FC = () => {
         invoice_prefix: currentCompany.invoice_prefix || 'INV',
         terms_and_conditions: currentCompany.terms_and_conditions || '',
         authorized_signatory_name: currentCompany.authorized_signatory_name || '',
+        is_composition_scheme: (currentCompany as any).is_composition_scheme ?? false,
+        composition_rate: String((currentCompany as any).composition_rate ?? '1.00'),
         logo: undefined, // Don't prefill file inputs
       });
     }
@@ -262,6 +266,37 @@ const CompanySettings: React.FC = () => {
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Terms & Conditions</label>
               <textarea name="terms_and_conditions" value={formData.terms_and_conditions} onChange={handleChange} className="input-field w-full px-4 py-2 rounded-lg border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition-all" rows={4} />
+            </div>
+            <div className="col-span-2 border-t pt-4">
+              <label className="block text-sm font-semibold text-gray-700 mb-3">GST Scheme</label>
+              <div className="flex items-center gap-4">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    name="is_composition_scheme"
+                    checked={!!formData.is_composition_scheme}
+                    onChange={e => setFormData(prev => ({ ...prev, is_composition_scheme: e.target.checked }))}
+                    className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                  />
+                  <span className="text-sm text-gray-700">Composition Scheme Taxpayer</span>
+                </label>
+                {formData.is_composition_scheme && (
+                  <div className="flex items-center gap-2">
+                    <label className="text-sm text-gray-600">Rate:</label>
+                    <select
+                      name="composition_rate"
+                      value={formData.composition_rate || '1.00'}
+                      onChange={e => setFormData(prev => ({ ...prev, composition_rate: e.target.value }))}
+                      className="px-3 py-1.5 text-sm border border-gray-200 rounded-lg bg-white outline-none focus:ring-2 focus:ring-blue-200"
+                    >
+                      <option value="1.00">1% (Traders)</option>
+                      <option value="2.00">2% (Manufacturers)</option>
+                      <option value="5.00">5% (Restaurants)</option>
+                    </select>
+                  </div>
+                )}
+              </div>
+              <p className="text-xs text-gray-400 mt-1">Composition dealers pay a flat rate on turnover instead of item-level GST</p>
             </div>
           </div>
         </div>

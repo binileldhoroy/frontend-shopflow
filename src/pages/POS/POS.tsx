@@ -37,6 +37,7 @@ interface CartItem {
   stock_quantity?: number;
   reorder_level?: number;
   original_selling_price: number;
+  cost_price: number;
 }
 
 interface CartState {
@@ -483,6 +484,7 @@ const POS: React.FC = () => {
         stock_quantity: product.stock_quantity,
         reorder_level: product.reorder_level,
         original_selling_price: parseFloat(product.selling_price),
+        cost_price: parseFloat(product.cost_price) || 0,
       };
       updateActiveSession((s) => ({
         ...s,
@@ -1250,6 +1252,11 @@ const POS: React.FC = () => {
                               {item.gst_rate > 0 && (
                                 <span className="ml-1.5 text-orange-500">GST {item.gst_rate}%</span>
                               )}
+                              {/* {item.cost_price > 0 && (() => {
+                                const margin = ((item.unit_price - item.cost_price) / item.unit_price) * 100;
+                                const color = margin < 0 ? 'text-red-500' : margin < 10 ? 'text-yellow-600' : 'text-emerald-600';
+                                return <span className={`ml-1.5 font-semibold ${color}`}>{margin.toFixed(0)}% margin</span>;
+                              })()} */}
                             </div>
                             {item.stock_quantity != null && (() => {
                               const remaining = item.stock_quantity - item.quantity;
@@ -1309,6 +1316,21 @@ const POS: React.FC = () => {
                         <span className="text-gray-500">Subtotal</span>
                         <span className="font-semibold text-gray-700">₹{totals.subtotal.toFixed(2)}</span>
                       </div>
+
+                      {/* Cart-level margin indicator */}
+                      {/* {(() => {
+                        const totalRevenue = cart.items.reduce((s, i) => s + i.unit_price * i.quantity, 0);
+                        const totalCost = cart.items.reduce((s, i) => s + i.cost_price * i.quantity, 0);
+                        if (totalCost === 0) return null;
+                        const cartMargin = ((totalRevenue - totalCost) / totalRevenue) * 100;
+                        const color = cartMargin < 0 ? 'text-red-600 bg-red-50' : cartMargin < 10 ? 'text-yellow-700 bg-yellow-50' : 'text-emerald-700 bg-emerald-50';
+                        return (
+                          <div className={`flex justify-between items-center text-xs px-2 py-1 rounded-lg ${color}`}>
+                            <span className="font-medium">Gross Margin</span>
+                            <span className="font-bold">{cartMargin.toFixed(1)}%</span>
+                          </div>
+                        );
+                      })()} */}
 
                       {/* Discount */}
                       <div className="flex items-center gap-2">

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Receipt, Wallet, Ban, GitBranch, Download } from 'lucide-react';
+import { ArrowLeft, Receipt, Wallet, Ban, GitBranch, Download, MessageCircle } from 'lucide-react';
 import { customerService } from '@api/services/customer.service';
 import { useAppDispatch } from '@hooks/useRedux';
 import { addNotification } from '@store/slices/uiSlice';
@@ -198,13 +198,25 @@ const CustomerLedger: React.FC = () => {
         >
           <ArrowLeft className="w-5 h-5" />
         </button>
-        <div>
+        <div className="flex-1">
           <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
             <Receipt className="w-6 h-6 text-primary-600" />
             Customer Ledger
           </h1>
           <p className="text-gray-600 mt-1">Account details for <span className="font-semibold text-gray-900">{customer.name}</span></p>
         </div>
+        {customer.phone && (
+          <a
+            href={`https://wa.me/91${customer.phone.replace(/\D/g, '').slice(-10)}?text=${encodeURIComponent(`Dear ${customer.name}, you have an outstanding of ₹${(parseFloat(customer.outstanding_balance) || 0).toFixed(2)}. Kindly settle at your earliest convenience.`)}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-2 px-3 py-2 text-sm font-semibold text-white bg-[#25D366] hover:bg-[#1ebe5d] rounded-lg transition-colors"
+            title="Send WhatsApp reminder"
+          >
+            <MessageCircle className="w-4 h-4" />
+            WhatsApp Reminder
+          </a>
+        )}
       </div>
 
       {/* Content */}

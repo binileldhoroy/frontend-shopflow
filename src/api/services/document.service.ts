@@ -39,6 +39,41 @@ export const documentService = {
     return response.data;
   },
 
+  getGSTR4: async (params: { period?: string; start_date?: string; end_date?: string; branch_id?: number | null }) => {
+    const response = await api.get('/api/documents/gstr4/', { params });
+    return response.data;
+  },
+
+  getGSTR9: async (params: { fy?: string; branch_id?: number | null }) => {
+    const response = await api.get('/api/documents/gstr9/', { params });
+    return response.data;
+  },
+
+  getGSTR3B: async (params: { period?: string; start_date?: string; end_date?: string; branch_id?: number | null }) => {
+    const response = await api.get('/api/documents/gstr3b/', { params });
+    return response.data;
+  },
+
+  downloadGSTRJson: async (params: { type: 'gstr1' | 'gstr3b'; period?: string; start_date?: string; end_date?: string }) => {
+    const response = await api.get('/api/documents/gstr-json/', { params, responseType: 'blob' });
+    return response;
+  },
+
+  getAgingReport: async (params: { type: 'receivables' | 'payables'; as_of_date?: string; branch_id?: number | null }) => {
+    const response = await api.get('/api/documents/aging/', { params });
+    return response.data;
+  },
+
+  getStockValuation: async (params: { branch_id?: number | null }) => {
+    const response = await api.get('/api/documents/stock-valuation/', { params });
+    return response.data;
+  },
+
+  getCashFlow: async (params: { start_date?: string; end_date?: string; branch_id?: number | null }) => {
+    const response = await api.get('/api/documents/cash-flow/', { params });
+    return response.data;
+  },
+
   exportData: async (type: 'sales' | 'inventory' | 'customers', params: Record<string, string | undefined>) => {
     const response = await api.get(`/api/documents/export/${type}/`, {
       params,

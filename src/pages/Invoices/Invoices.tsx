@@ -1,10 +1,10 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FileText, Plus, Eye, X, Printer, Download, ChevronRight, ChevronLeft, Search, User, Share2, Mail, Copy, Check, MessageCircle } from 'lucide-react';
+import { FileText, Plus, Eye, X, Printer, Download, ChevronRight, ChevronLeft, Search, User, Share2, Mail, Copy, Check, MessageCircle, Shield, AlertTriangle } from 'lucide-react';
 import PhoneInput from '../../components/common/PhoneInput/PhoneInput';
 import { format } from 'date-fns';
 import html2pdf from 'html2pdf.js';
-import { invoiceService } from '../../api/services/invoice.service';
+import { invoiceService, eInvoiceService } from '../../api/services/invoice.service';
 import { saleService } from '../../api/services/sale.service';
 import { customerService } from '../../api/services/customer.service';
 import { stateService } from '../../api/services/state.service';
@@ -73,6 +73,10 @@ const Invoices: React.FC = () => {
   const [showShareMenu, setShowShareMenu] = useState(false);
   const [copied, setCopied] = useState(false);
   const [downloading, setDownloading] = useState(false);
+  const [eInvoiceData, setEInvoiceData] = useState<any>(null);
+  const [eInvoiceLoading, setEInvoiceLoading] = useState(false);
+  const [showEInvoiceCancel, setShowEInvoiceCancel] = useState(false);
+  const [cancelReason, setCancelReason] = useState('');
 
   // Close share menu on outside click
   useEffect(() => {
@@ -273,6 +277,31 @@ const Invoices: React.FC = () => {
     }
   };
 
+  const handleGenerateEInvoice = async () => {
+    if (!viewingInvoice) return;
+    setEInvoiceLoading(true);
+    try {
+      const data = await eInvoiceService.generate(viewingInvoice.id);
+      setEInvoiceData(data);
+    } catch (e: any) {
+      alert(e?.response?.data?.error || 'Failed to generate E-Invoice');
+    } finally {
+      setEInvoiceLoading(false);
+    }
+  };
+
+  const handleCancelEInvoice = async () => {
+    if (!viewingInvoice || !cancelReason.trim()) return;
+    try {
+      await eInvoiceService.cancel(viewingInvoice.id, cancelReason);
+      setEInvoiceData(null);
+      setShowEInvoiceCancel(false);
+      setCancelReason('');
+    } catch (e: any) {
+      alert(e?.response?.data?.error || 'Cancellation failed');
+    }
+  };
+
   const handlePrint = () => {
     if (!invoiceRef.current || !viewingInvoice) return;
     const styleContent = invoiceRef.current.querySelector('style')?.textContent ?? '';
@@ -340,7 +369,9 @@ const Invoices: React.FC = () => {
     const text = encodeURIComponent(
       `Invoice ${viewingInvoice.invoice_number} — ${viewingInvoice.customer_name}\n${getShareUrl()}`
     );
-    window.open(`https://wa.me/?text=${text}`, '_blank');
+    const digits = (viewingInvoice.customer_phone || '').replace(/\D/g, '');
+    const phone = digits.length >= 10 ? `91${digits.slice(-10)}` : '';
+    window.open(`https://wa.me/${phone}?text=${text}`, '_blank');
     setShowShareMenu(false);
   };
 
@@ -535,6 +566,9 @@ const Invoices: React.FC = () => {
 
   const openViewModal = useCallback((invoice: TaxInvoice) => {
     setViewingInvoice(invoice);
+    setEInvoiceData(null);
+    setShowEInvoiceCancel(false);
+    setCancelReason('');
     requestAnimationFrame(() => setViewModalVisible(true));
   }, []);
 
@@ -1065,6 +1099,33 @@ const Invoices: React.FC = () => {
                   <span className="hidden sm:inline">Print</span>
                 </button>
 
+                {/* E-Invoice */}
+                {!eInvoiceData ? (
+                  <button
+                    onClick={handleGenerateEInvoice}
+                    disabled={eInvoiceLoading}
+                    className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-indigo-700 border border-indigo-200 bg-indigo-50 rounded-lg hover:bg-indigo-100 disabled:opacity-50 transition-colors"
+                    title="Generate E-Invoice (IRN)"
+                  >
+                    {eInvoiceLoading
+                      ? <div className="w-3.5 h-3.5 border-2 border-indigo-400 border-t-indigo-700 rounded-full animate-spin" />
+                      : <Shield className="w-3.5 h-3.5" />}
+                    <span className="hidden sm:inline">E-Invoice</span>
+                  </button>
+                ) : (
+                  <div className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-green-700 border border-green-200 bg-green-50 rounded-lg">
+                    <Shield className="w-3.5 h-3.5" />
+                    <span className="hidden sm:inline font-mono text-xs">{eInvoiceData.irn?.slice(0, 16)}…</span>
+                    <button
+                      onClick={() => setShowEInvoiceCancel(v => !v)}
+                      className="ml-1 text-red-500 hover:text-red-700"
+                      title="Cancel E-Invoice"
+                    >
+                      <AlertTriangle className="w-3 h-3" />
+                    </button>
+                  </div>
+                )}
+
                 {/* Copy feedback */}
                 {copied && (
                   <span className="flex items-center gap-1 text-xs text-green-600 font-medium">
@@ -1101,6 +1162,40 @@ const Invoices: React.FC = () => {
                 </button>
               </div>
             </div>
+
+            {/* E-Invoice IRN Panel */}
+            {eInvoiceData && (
+              <div className="mx-4 mt-3 p-3 bg-green-50 border border-green-200 rounded-lg text-sm">
+                <div className="flex items-center gap-2 mb-1">
+                  <Shield className="w-4 h-4 text-green-600 flex-shrink-0" />
+                  <span className="font-semibold text-green-800">E-Invoice Generated{eInvoiceData.is_stub ? ' (Sandbox)' : ''}</span>
+                </div>
+                <div className="grid grid-cols-2 gap-x-4 gap-y-0.5 text-xs text-green-700 font-mono">
+                  <span>IRN: {eInvoiceData.irn}</span>
+                  <span>Ack No: {eInvoiceData.ack_no}</span>
+                </div>
+              </div>
+            )}
+            {showEInvoiceCancel && (
+              <div className="mx-4 mt-2 p-3 bg-red-50 border border-red-200 rounded-lg text-sm">
+                <p className="font-medium text-red-700 mb-2">Cancel E-Invoice — provide reason:</p>
+                <div className="flex gap-2">
+                  <input
+                    className="flex-1 px-3 py-1.5 text-sm border border-red-200 rounded-lg outline-none focus:ring-2 focus:ring-red-300"
+                    placeholder="Reason for cancellation"
+                    value={cancelReason}
+                    onChange={e => setCancelReason(e.target.value)}
+                  />
+                  <button
+                    onClick={handleCancelEInvoice}
+                    disabled={!cancelReason.trim()}
+                    className="px-3 py-1.5 text-sm font-medium bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50"
+                  >
+                    Cancel IRN
+                  </button>
+                </div>
+              </div>
+            )}
 
             <div className="flex-1 overflow-auto min-h-0 p-4 bg-gray-50">
               <div ref={invoiceRef}>
