@@ -20,6 +20,7 @@ interface PurchaseItemFormData {
   product: number | string;
   product_name: string;
   quantity: number | string;
+  unit: string;
   unit_price: number | string;
   tax_rate: number | string;
 }
@@ -87,6 +88,7 @@ const PurchaseFormModal: React.FC<PurchaseFormModalProps> = ({
         product: item.product || '',
         product_name: item.product_name,
         quantity: item.quantity,
+        unit: '',
         unit_price: item.unit_price,
         tax_rate: item.tax_rate,
       }));
@@ -109,7 +111,7 @@ const PurchaseFormModal: React.FC<PurchaseFormModalProps> = ({
       payment_method: 'cash',
       notes: '',
     });
-    setItems([{ product: '', product_name: '', quantity: 1, unit_price: 0, tax_rate: 0 }]);
+    setItems([{ product: '', product_name: '', quantity: 1, unit: '', unit_price: 0, tax_rate: 0 }]);
     setProductSearches(['']);
     setDropdownStates([{ ...EMPTY_DROPDOWN }]);
   };
@@ -183,7 +185,7 @@ const PurchaseFormModal: React.FC<PurchaseFormModalProps> = ({
   };
 
   const handleAddItem = () => {
-    setItems(prev => [...prev, { product: '', product_name: '', quantity: 1, unit_price: 0, tax_rate: 0 }]);
+    setItems(prev => [...prev, { product: '', product_name: '', quantity: 1, unit: '', unit_price: 0, tax_rate: 0 }]);
     setProductSearches(prev => [...prev, '']);
     setDropdownStates(prev => [...prev, { ...EMPTY_DROPDOWN }]);
   };
@@ -204,11 +206,13 @@ const PurchaseFormModal: React.FC<PurchaseFormModalProps> = ({
       if (selectedProduct) {
         item.product = selectedProduct.id;
         item.product_name = selectedProduct.name;
+        item.unit = selectedProduct.unit || '';
         item.unit_price = selectedProduct.cost_price || 0;
         item.tax_rate = selectedProduct.gst_rate || 0;
       } else {
         item.product = '';
         item.product_name = '';
+        item.unit = '';
         item.unit_price = 0;
         item.tax_rate = 0;
       }
@@ -443,14 +447,19 @@ const PurchaseFormModal: React.FC<PurchaseFormModalProps> = ({
                         )}
                       </td>
                       <td className="px-4 py-2">
-                        <input
-                          type="number"
-                          className="input-field text-sm"
-                          value={item.quantity}
-                          onChange={(e) => handleItemChange(index, 'quantity', e.target.value)}
-                          min="0.01"
-                          step="0.01"
-                        />
+                        <div className="flex items-center gap-1.5">
+                          <input
+                            type="number"
+                            className="input-field text-sm !w-16"
+                            value={item.quantity}
+                            onChange={(e) => handleItemChange(index, 'quantity', e.target.value)}
+                            min="0.01"
+                            step="0.01"
+                          />
+                          {item.unit && (
+                            <span className="text-xs text-gray-500 whitespace-nowrap font-medium">{item.unit}</span>
+                          )}
+                        </div>
                       </td>
                       <td className="px-4 py-2">
                         <input

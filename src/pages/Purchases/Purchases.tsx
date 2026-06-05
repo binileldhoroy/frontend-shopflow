@@ -127,14 +127,15 @@ const Purchases: React.FC = () => {
     }
   };
 
-  const onReceiveConfirm = async (items: { id: number; received_quantity: number }[]) => {
+  const onReceiveConfirm = async (items: { id: number; received_quantity: number }[], updateStock: boolean) => {
     if (!selectedPurchase) return;
     try {
       setActionLoading(true);
-      const updated = await purchaseService.receivePurchase(selectedPurchase.id, items);
+      const updated = await purchaseService.receivePurchase(selectedPurchase.id, items, updateStock);
+      const stockNote = updateStock ? ' — stock updated' : '';
       const msg = updated.status === 'received'
-        ? 'Purchase fully received — stock updated'
-        : 'Partial receipt recorded — stock updated';
+        ? `Purchase fully received${stockNote}`
+        : `Partial receipt recorded${stockNote}`;
       dispatch(addNotification({ message: msg, type: 'success' }));
       setShowReceiveModal(false);
       loadData();

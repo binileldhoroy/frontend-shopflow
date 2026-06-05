@@ -168,6 +168,9 @@ select.input-field {
   appearance: none;
 }
 input[type="date"].input-field { color: rgb(30 41 59); }
+input[type="number"].input-field::-webkit-outer-spin-button,
+input[type="number"].input-field::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+input[type="number"].input-field { -moz-appearance: textfield; }
 
 /* ── Label ── */
 .label {

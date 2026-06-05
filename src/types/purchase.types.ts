@@ -5,6 +5,7 @@ export interface PurchaseItem {
   product: number | null;
   product_name: string;
   quantity: number;
+  unit?: string;
   received_quantity?: number;
   pending_quantity?: number;
   unit_price: number;

@@ -28,11 +28,12 @@ const deletePurchase = async (id: number): Promise<void> => {
 
 const receivePurchase = async (
   id: number,
-  items?: { id: number; received_quantity: number }[]
+  items?: { id: number; received_quantity: number }[],
+  updateStock = true
 ): Promise<PurchaseOrder> => {
   const response = await axios.post<PurchaseOrder>(
     API_ENDPOINTS.PURCHASES.RECEIVE(id),
-    items ? { items } : {}
+    { ...(items ? { items } : {}), update_stock: updateStock }
   );
   return response.data;
 };

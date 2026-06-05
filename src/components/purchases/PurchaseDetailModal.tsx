@@ -83,7 +83,9 @@ const PurchaseDetailModal: React.FC<PurchaseDetailModalProps> = ({
                   <td className="px-4 py-2">
                     <div className="font-medium">{item.product_name}</div>
                   </td>
-                  <td className="px-4 py-2 text-right">{item.quantity}</td>
+                  <td className="px-4 py-2 text-right">
+                    {item.quantity}{item.unit ? <span className="text-xs text-gray-400 ml-1">{item.unit}</span> : null}
+                  </td>
                   <td className="px-4 py-2 text-right">₹{item.unit_price}</td>
                   <td className="px-4 py-2 text-right">{item.tax_rate}%</td>
                   <td className="px-4 py-2 text-right font-medium">
