@@ -681,7 +681,7 @@ const Invoices: React.FC = () => {
                       <td className="py-3.5 px-4 text-right">
                         <button
                           onClick={() => openViewModal(invoice)}
-                          className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
+                          className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-sm font-medium text-gray-600 bg-gray-100 rounded-lg transition-colors"
                         >
                           <Eye className="w-3.5 h-3.5" /> View
                         </button>

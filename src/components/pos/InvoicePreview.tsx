@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useRef } from 'react';
 import { X, Printer, FileText } from 'lucide-react';
+import InvoiceTemplate from '../invoices/InvoiceTemplate';
 
 interface InvoicePreviewProps {
   sale: any;
@@ -8,173 +9,74 @@ interface InvoicePreviewProps {
 }
 
 const InvoicePreview: React.FC<InvoicePreviewProps> = ({ sale, onClose, onGenerateInvoice }) => {
-  const handlePrint = () => {
-    const isInterstate = Number(sale.igst_amount) > 0;
+  const invoiceRef = useRef<HTMLDivElement>(null);
 
-    // Build tax breakdown
-    const taxBreakdown: Record<number, { taxableAmount: number; cgst: number; sgst: number; igst: number }> = {};
-    let exemptedAmount = 0;
-    let totalGST = 0;
-    (sale.items || []).forEach((item: any) => {
+  // Map POS sale response to SaleOrder shape expected by InvoiceTemplate
+  const saleOrder = {
+    ...sale,
+    sale_date: sale.sale_date || sale.created_at,
+    customer_name: sale.customer?.name || 'Walk-in Customer',
+    items: (sale.items || []).map((item: any) => {
       const qty = Number(item.quantity) || 0;
       const unitPrice = Number(item.unit_price) || 0;
-      const lineTotal = qty * unitPrice;
-      const rate = Number(item.gst_rate) || 0;
-      if (rate === 0) {
-        exemptedAmount += lineTotal;
-      } else {
-        if (!taxBreakdown[rate]) taxBreakdown[rate] = { taxableAmount: 0, cgst: 0, sgst: 0, igst: 0 };
-        const taxAmt = (lineTotal * rate) / 100;
-        taxBreakdown[rate].taxableAmount += lineTotal;
-        if (isInterstate) taxBreakdown[rate].igst += taxAmt;
-        else { taxBreakdown[rate].cgst += taxAmt / 2; taxBreakdown[rate].sgst += taxAmt / 2; }
-        totalGST += taxAmt;
-      }
-    });
+      const gstRate = Number(item.gst_rate) || 0;
+      const lineTotal = item.line_total ?? qty * unitPrice;
+      const gstAmount = item.gst_amount ?? (lineTotal * gstRate) / 100;
+      return {
+        ...item,
+        product_name: item.product_name || `Product ${item.product}`,
+        line_total: lineTotal,
+        gst_amount: gstAmount,
+        total_with_gst: item.total_with_gst ?? lineTotal + gstAmount,
+      };
+    }),
+  };
 
-    const itemRows = (sale.items || []).map((item: any) => {
-      const qty = Number(item.quantity) || 0;
-      const unitPrice = parseFloat(item.unit_price) || 0;
-      const taxableValue = qty * unitPrice;
-      const gstRate = parseFloat(item.gst_rate) || 0;
-      const totalTax = (taxableValue * gstRate) / 100;
-      const cgst = isInterstate ? 0 : totalTax / 2;
-      const sgst = isInterstate ? 0 : totalTax / 2;
-      const lineTotal = taxableValue + totalTax;
-      return `
-        <tr>
-          <td style="padding:5px 4px;border-bottom:1px solid #e5e7eb;">
-            <div style="font-weight:600">${item.product_name || item.product}</div>
-            ${(item.product_attributes && item.product_attributes.length > 0)
-              ? `<div style="font-size:9px;color:#6b7280;margin-top:1px">${item.product_attributes.map((a: any) => `${a.name}: ${a.value}`).join(' | ')}</div>`
-              : ''}
-            <div style="font-size:9px;color:#6b7280">HSN: ${item.hsn_code || '—'} | GST ${gstRate}%</div>
-          </td>
-          <td style="text-align:center;padding:5px 4px;border-bottom:1px solid #e5e7eb;">${qty}</td>
-          <td style="text-align:right;padding:5px 4px;border-bottom:1px solid #e5e7eb;">₹${unitPrice.toFixed(2)}</td>
-          <td style="text-align:right;padding:5px 4px;border-bottom:1px solid #e5e7eb;">₹${taxableValue.toFixed(2)}</td>
-          <td style="text-align:right;padding:5px 4px;border-bottom:1px solid #e5e7eb;">
-            ${gstRate > 0 ? `₹${cgst.toFixed(2)}<div style="font-size:9px;color:#9ca3af">@${gstRate / 2}%</div>` : '—'}
-          </td>
-          <td style="text-align:right;padding:5px 4px;border-bottom:1px solid #e5e7eb;">
-            ${gstRate > 0 ? `₹${sgst.toFixed(2)}<div style="font-size:9px;color:#9ca3af">@${gstRate / 2}%</div>` : '—'}
-          </td>
-          <td style="text-align:right;padding:5px 4px;border-bottom:1px solid #e5e7eb;font-weight:700;">₹${lineTotal.toFixed(2)}</td>
-        </tr>`;
-    }).join('');
-
-    const taxRows = Object.entries(taxBreakdown)
-      .sort(([a], [b]) => Number(b) - Number(a))
-      .map(([rate, b]) => `
-        <tr><td colspan="2" style="border-top:1px dashed #d1d5db;padding:3px 0;font-weight:600">Taxable (${rate}%)</td><td style="text-align:right;border-top:1px dashed #d1d5db;font-weight:600">₹${b.taxableAmount.toFixed(2)}</td></tr>
-        ${isInterstate
-          ? `<tr><td colspan="2" style="padding:2px 0 2px 12px;font-size:10px;color:#4b5563">IGST @${rate}%</td><td style="text-align:right;font-size:10px;color:#4b5563">₹${b.igst.toFixed(2)}</td></tr>`
-          : `<tr><td colspan="2" style="padding:2px 0 2px 12px;font-size:10px;color:#4b5563">CGST @${Number(rate)/2}%</td><td style="text-align:right;font-size:10px;color:#4b5563">₹${b.cgst.toFixed(2)}</td></tr>
-             <tr><td colspan="2" style="padding:2px 0 2px 12px;font-size:10px;color:#4b5563">SGST @${Number(rate)/2}%</td><td style="text-align:right;font-size:10px;color:#4b5563">₹${b.sgst.toFixed(2)}</td></tr>`
-        }`).join('');
-
+  const handlePrint = () => {
+    if (!invoiceRef.current) return;
+    const styleContent = invoiceRef.current.querySelector('style')?.textContent ?? '';
+    const outerWrapper = invoiceRef.current.querySelector('.invoice-outer-wrapper');
+    const invoiceHTML = outerWrapper ? outerWrapper.outerHTML : invoiceRef.current.innerHTML;
     const html = `<!DOCTYPE html>
 <html>
 <head>
   <meta charset="utf-8"/>
-  <title>Invoice #${sale.order_number}</title>
+  <title>Invoice ${sale.order_number}</title>
   <style>
-    @page { size: A4; margin: 0; }
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: 'Courier New', monospace; font-size: 11px; color: #111; padding: 15mm; }
-    h1 { font-size: 18px; font-weight: 700; margin-bottom: 4px; }
-    .center { text-align: center; }
-    .divider { border-top: 2px dashed #9ca3af; margin: 10px 0; }
-    table { width: 100%; border-collapse: collapse; }
-    th { background: #f3f4f6; padding: 6px 4px; font-weight: 700; border-bottom: 2px solid #d1d5db; }
-    .summary-table td { padding: 3px 0; }
-    .total-row td { border-top: 2px solid #374151; padding-top: 6px; font-size: 14px; font-weight: 700; }
-    .footer { text-align: center; margin-top: 16px; padding-top: 10px; border-top: 2px dashed #9ca3af; font-size: 10px; color: #6b7280; }
+    body { margin: 0; padding: 0; background: white; }
+    ${styleContent}
   </style>
 </head>
-<body>
-  <div class="center" style="padding-bottom:10px;border-bottom:2px dashed #9ca3af;margin-bottom:10px">
-    <h1>${sale.company?.company_name || 'COMPANY NAME'}</h1>
-    <div>${sale.company?.address_line1 || ''}</div>
-    <div>${[sale.company?.city, sale.company?.state].filter(Boolean).join(', ')}</div>
-    ${sale.company?.phone ? `<div>Ph: ${sale.company.phone}</div>` : ''}
-    ${sale.company?.gstin ? `<div>GSTIN: ${sale.company.gstin}</div>` : ''}
-  </div>
-
-  <table class="summary-table" style="margin-bottom:10px">
-    <tr><td style="width:40%">Invoice:</td><td style="text-align:right;font-weight:700">#${sale.order_number}</td></tr>
-    <tr><td>Date:</td><td style="text-align:right">${new Date(sale.created_at).toLocaleString()}</td></tr>
-    <tr><td>Customer:</td><td style="text-align:right">${sale.customer?.name || 'Walk-in Customer'}</td></tr>
-    ${sale.customer?.phone ? `<tr><td>Phone:</td><td style="text-align:right">+${sale.customer.country_code || '91'} ${sale.customer.phone}</td></tr>` : ''}
-    <tr><td>Payment:</td><td style="text-align:right;text-transform:uppercase">${sale.payment_method}</td></tr>
-  </table>
-
-  <div class="divider"></div>
-
-  <table style="margin-bottom:10px">
-    <thead>
-      <tr>
-        <th style="text-align:left">Item / HSN</th>
-        <th style="text-align:center">Qty</th>
-        <th style="text-align:right">Rate</th>
-        <th style="text-align:right">Taxable</th>
-        <th style="text-align:right">CGST</th>
-        <th style="text-align:right">SGST</th>
-        <th style="text-align:right">Amount</th>
-      </tr>
-    </thead>
-    <tbody>${itemRows}</tbody>
-  </table>
-
-  <div class="divider"></div>
-
-  <table class="summary-table">
-    <tr><td colspan="2">Subtotal:</td><td style="text-align:right">₹${parseFloat(sale.subtotal || 0).toFixed(2)}</td></tr>
-    ${taxRows}
-    ${exemptedAmount > 0 ? `<tr><td colspan="2" style="border-top:1px dashed #d1d5db;padding-top:4px">Exempted (0%)</td><td style="text-align:right;border-top:1px dashed #d1d5db;padding-top:4px">₹${exemptedAmount.toFixed(2)}</td></tr>` : ''}
-    <tr><td colspan="2" style="border-top:1px solid #9ca3af;padding-top:4px;font-weight:600">Total GST:</td><td style="text-align:right;border-top:1px solid #9ca3af;padding-top:4px;font-weight:600">₹${totalGST.toFixed(2)}</td></tr>
-    ${Number(sale.discount_amount) > 0 ? `<tr><td colspan="2" style="color:#16a34a">Discount:</td><td style="text-align:right;color:#16a34a">-₹${parseFloat(sale.discount_amount).toFixed(2)}</td></tr>` : ''}
-    ${sale.round_off && sale.round_off !== 0 ? `<tr><td colspan="2">Round Off:</td><td style="text-align:right">${Number(sale.round_off) > 0 ? '+' : ''}₹${parseFloat(sale.round_off).toFixed(2)}</td></tr>` : ''}
-    <tr class="total-row"><td colspan="2">TOTAL:</td><td style="text-align:right">₹${parseFloat(sale.total_amount || 0).toFixed(2)}</td></tr>
-  </table>
-
-  <div class="footer">
-    <p style="font-weight:700;font-size:12px;margin-bottom:4px">Thank You! Visit Again</p>
-    ${sale.company?.terms_and_conditions ? `<p>${sale.company.terms_and_conditions}</p>` : ''}
-    <p>Powered by ShopFlow POS</p>
-  </div>
-</body>
+<body>${invoiceHTML}</body>
 </html>`;
-
     const blob = new Blob([html], { type: 'text/html' });
-    const blobUrl = URL.createObjectURL(blob);
-
-    const printWindow = window.open(blobUrl, '_blank');
-    if (printWindow) {
-      printWindow.focus();
-      printWindow.onload = () => {
-        printWindow.print();
-        setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
+    const url = URL.createObjectURL(blob);
+    const win = window.open(url, '_blank');
+    if (win) {
+      win.onload = () => {
+        win.focus();
+        win.print();
+        setTimeout(() => URL.revokeObjectURL(url), 2000);
       };
-    } else {
-      // Fallback if popup is blocked — hidden iframe approach
-      const iframe = document.createElement('iframe');
-      iframe.style.cssText =
-        'position:fixed;right:0;bottom:0;width:0;height:0;border:none;visibility:hidden;';
-      document.body.appendChild(iframe);
-      iframe.onload = () => {
-        iframe.contentWindow?.focus();
-        iframe.contentWindow?.print();
-        setTimeout(() => {
-          URL.revokeObjectURL(blobUrl);
-          if (document.body.contains(iframe)) document.body.removeChild(iframe);
-        }, 1000);
-      };
-      iframe.src = blobUrl;
     }
   };
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+      {/* Hidden InvoiceTemplate — used only for print capture */}
+      <div style={{ position: 'fixed', top: -9999, left: -9999, width: '210mm', background: 'white', zIndex: -1, visibility: 'hidden', pointerEvents: 'none' }}>
+        <div ref={invoiceRef}>
+          <InvoiceTemplate
+            saleOrder={saleOrder}
+            customerDetails={{
+              name: sale.customer?.name || 'Walk-in Customer',
+              phone: sale.customer?.phone,
+              country_code: sale.customer?.country_code || '91',
+            }}
+          />
+        </div>
+      </div>
+
       <div
         className="bg-white rounded-lg shadow-xl w-full max-w-2xl flex flex-col"
         style={{ maxHeight: 'calc(var(--viewport-height, 100vh) - 32px)' }}
