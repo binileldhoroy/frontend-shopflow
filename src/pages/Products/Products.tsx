@@ -9,7 +9,7 @@ import ProductCSVImportModal from '@components/features/products/ProductCSVImpor
 import DeleteConfirmModal from '@components/common/DeleteConfirmModal/DeleteConfirmModal';
 import { useAppDispatch } from '@hooks/useRedux';
 import { addNotification } from '@store/slices/uiSlice';
-import { Package, Plus, Search, Edit2, Trash2, Inbox, AlertTriangle, Upload, X } from 'lucide-react';
+import { Package, Plus, Search, Edit2, Trash2, Inbox, AlertTriangle, Upload, X, List } from 'lucide-react';
 
 function extractErrorMessage(error: any): string {
   const data = error?.response?.data;
@@ -286,6 +286,10 @@ const Products: React.FC = () => {
           <button className="btn btn-secondary" onClick={() => setShowImportModal(true)}>
             <Upload className="w-4 h-4 inline mr-1.5" />
             Import CSV
+          </button>
+          <button className="btn btn-secondary" onClick={() => navigate('/products/bulk-add')}>
+            <List className="w-4 h-4 inline mr-1.5" />
+            Bulk Add
           </button>
           <button className="btn btn-primary" onClick={handleAddProduct}>
             <Plus className="w-4 h-4 inline mr-1.5" />
