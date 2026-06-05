@@ -37,6 +37,7 @@ export interface SaleItem {
   product: number;
   product_name: string;
   quantity: number;
+  unit?: string;
   unit_price: number;
   gst_rate: number;
   hsn_code?: string;
