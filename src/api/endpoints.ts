@@ -97,6 +97,7 @@ export const API_ENDPOINTS = {
     LIST: '/api/purchases/',
     DETAIL: (id: number) => `/api/purchases/${id}/`,
     RECEIVE: (id: number) => `/api/purchases/${id}/receive/`,
+    PARSE_INVOICE: '/api/purchases/parse-invoice/',
   },
 
   // Branches

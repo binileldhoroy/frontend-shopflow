@@ -53,3 +53,32 @@ export interface PurchaseOrderCreate {
     tax_rate: number;
   }[];
 }
+
+export interface ParsedInvoiceProductMatch {
+  id: number;
+  name: string;
+  sku: string;
+  cost_price: number;
+}
+
+export interface ParsedInvoiceItem {
+  name: string;
+  quantity: number;
+  unit: string;
+  unit_price: number;
+  tax_rate: number;
+  total: number;
+  matches: ParsedInvoiceProductMatch[];
+}
+
+export interface ParsedInvoice {
+  document_type: 'invoice' | 'delivery_note' | 'other';
+  supplier_name: string | null;
+  invoice_number: string | null;
+  invoice_date: string | null;
+  items: ParsedInvoiceItem[];
+  subtotal: number;
+  tax_total: number;
+  grand_total: number;
+  from_cache?: boolean;
+}

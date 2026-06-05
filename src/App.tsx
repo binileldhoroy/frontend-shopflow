@@ -31,6 +31,7 @@ import Customers from './pages/Customers/Customers';
 import CustomerLedger from './pages/Customers/CustomerLedger';
 import Inventory from './pages/Inventory/Inventory';
 import Purchases from './pages/Purchases/Purchases';
+import ImportInvoicePage from './pages/Purchases/ImportInvoicePage';
 import Suppliers from './pages/Suppliers/Suppliers';
 import Payments from './pages/Payments/Payments';
 import Invoices from './pages/Invoices/Invoices';
@@ -296,6 +297,17 @@ function App() {
               <RoleBasedRoute allowedRoles={[UserRole.ADMIN, UserRole.MANAGER, UserRole.INVENTORY_STAFF]} requiredFeature="purchases_enabled">
                 <Layout>
                   <Purchases />
+                </Layout>
+              </RoleBasedRoute>
+            }
+          />
+
+          <Route
+            path="/purchases/import-invoice"
+            element={
+              <RoleBasedRoute allowedRoles={[UserRole.ADMIN, UserRole.MANAGER, UserRole.INVENTORY_STAFF]} requiredFeature="purchases_enabled">
+                <Layout>
+                  <ImportInvoicePage />
                 </Layout>
               </RoleBasedRoute>
             }
