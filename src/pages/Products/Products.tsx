@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { productService, categoryService } from '@api/services/product.service';
-import { priceTierService } from '@api/services/priceTier.service';
 import { categoryService as catSearchService } from '@api/services/category.service';
 import { brandService } from '@api/services/brand.service';
-import { Product, Category, Brand, ProductFormData } from '../../types/product.types';
+import { Product, Category, Brand } from '../../types/product.types';
 import ProductFormModal from '@components/features/products/ProductFormModal';
 import ProductCSVImportModal from '@components/features/products/ProductCSVImportModal';
 import DeleteConfirmModal from '@components/common/DeleteConfirmModal/DeleteConfirmModal';
@@ -32,6 +32,7 @@ function extractErrorMessage(error: any): string {
 
 const Products: React.FC = () => {
   const dispatch = useAppDispatch();
+  const navigate = useNavigate();
 
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -200,8 +201,7 @@ const Products: React.FC = () => {
 
 
   const handleAddProduct = () => {
-    setSelectedProduct(null);
-    setShowFormModal(true);
+    navigate('/products/add');
   };
 
   const handleEditProduct = (product: Product) => {
@@ -214,49 +214,25 @@ const Products: React.FC = () => {
     setShowDeleteModal(true);
   };
 
-  const handleFormSubmit = async (data: ProductFormData) => {
+  const handleFormSubmit = async (data: any) => {
+    if (!selectedProduct) return;
     try {
       setFormLoading(true);
 
       const formData = new FormData();
-
       Object.keys(data).forEach((key) => {
-        const value = (data as any)[key];
-
-        if (key === "image") {
-          if (value instanceof File) formData.append("image", value);
-          // Skip string URLs — backend keeps existing image
-        } else if (key === "attributes") {
-          // Serialize as JSON string for the backend
-          if (Array.isArray(value)) {
-            formData.append("attributes", JSON.stringify(value));
-          }
-        } else if (key === "priceTierRules") {
-          // handled separately after product creation
-        } else if (value !== null && value !== undefined) {
+        const value = data[key];
+        if (key === 'image') {
+          if (value instanceof File) formData.append('image', value);
+        } else if (key === 'attributes') {
+          if (Array.isArray(value)) formData.append('attributes', JSON.stringify(value));
+        } else if (key !== 'priceTierRules' && value !== null && value !== undefined) {
           formData.append(key, value);
         }
       });
 
-      if (selectedProduct) {
-        await productService.update(selectedProduct.id, formData);
-        dispatch(addNotification({
-          message: 'Product updated successfully',
-          type: 'success',
-        }));
-      } else {
-        const newProduct = await productService.create(formData);
-        if (data.priceTierRules && data.priceTierRules.length > 0) {
-          await Promise.all(data.priceTierRules.map(rule =>
-            priceTierService.createProductRule({ product: newProduct.id, tier: rule.tier, type: rule.type, value: rule.value })
-          ));
-        }
-        dispatch(addNotification({
-          message: 'Product created successfully',
-          type: 'success',
-        }));
-      }
-
+      await productService.update(selectedProduct.id, formData);
+      dispatch(addNotification({ message: 'Product updated successfully', type: 'success' }));
       setShowFormModal(false);
       loadData();
     } catch (error: any) {

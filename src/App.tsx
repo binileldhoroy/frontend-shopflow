@@ -16,6 +16,7 @@ import Dashboard from './pages/Dashboard/Dashboard';
 import Companies from './pages/Companies/Companies';
 import CompanyDetails from './pages/Companies/CompanyDetails';
 import Products from './pages/Products/Products';
+import AddProduct from './pages/Products/AddProduct';
 import Categories from './pages/Categories/Categories';
 import Brands from './pages/Brands/Brands';
 import POS from './pages/POS/POS';
@@ -121,6 +122,17 @@ function App() {
           />
 
           {/* Products & Inventory routes */}
+          <Route
+            path="/products/add"
+            element={
+              <RoleBasedRoute allowedRoles={[UserRole.ADMIN, UserRole.MANAGER, UserRole.INVENTORY_STAFF]} requiredFeature="inventory_enabled">
+                <Layout>
+                  <AddProduct />
+                </Layout>
+              </RoleBasedRoute>
+            }
+          />
+
           <Route
             path="/products"
             element={
