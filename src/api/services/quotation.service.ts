@@ -24,4 +24,8 @@ export const quotationService = {
     const r = await api.post(`/api/quotations/${id}/convert/`);
     return r.data;
   },
+  updateStatus: async (id: number, status: string) => {
+    const r = await api.put(`/api/quotations/${id}/`, { status });
+    return r.data;
+  },
 };

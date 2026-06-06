@@ -4,8 +4,9 @@ import { addNotification } from '@store/slices/uiSlice';
 import { challanService } from '@api/services/challan.service';
 import { customerService } from '@api/services/customer.service';
 import { productService } from '@api/services/product.service';
-import { Truck, Plus, CheckCircle, Package, X } from 'lucide-react';
+import { Truck, Plus, CheckCircle, Package, X, Eye } from 'lucide-react';
 import Modal from '../../components/common/Modal/Modal';
+import ChallanPrintModal from '../../components/challans/ChallanPrintModal';
 
 const STATUS_COLORS: Record<string, string> = {
   draft: 'badge-warning', dispatched: 'badge-info', delivered: 'badge-success',
@@ -31,8 +32,12 @@ const DeliveryChallans: React.FC = () => {
   const [items, setItems] = useState<ChallanItem[]>([emptyItem()]);
   const [productSearch, setProductSearch] = useState<string[]>(['']);
   const [productResults, setProductResults] = useState<any[][]>([[]]);
-  const [activeRow, setActiveRow] = useState<number | null>(null);
-  const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [productHasMore, setProductHasMore] = useState<boolean[]>([false]);
+  const [productPage, setProductPage] = useState<number[]>([1]);
+  const [productLoading, setProductLoading] = useState<boolean[]>([false]);
+  const [openDropdownIndex, setOpenDropdownIndex] = useState<number | null>(null);
+  const [dropdownPos, setDropdownPos] = useState({ top: 0, left: 0, width: 0 });
+  const searchTimerRef = useRef<Record<number, ReturnType<typeof setTimeout>>>({});
 
   const fetchList = useCallback(async () => {
     try { setLoading(true); const d = await challanService.getAll({ page_size: 50 }); setChallans(d.results || d); }
@@ -45,39 +50,78 @@ const DeliveryChallans: React.FC = () => {
     customerService.getAll({ page_size: 200 }).then(d => setCustomers(d.results || d)).catch(() => {});
   }, []);
 
+  const fetchProducts = async (rowIdx: number, term: string, page: number, append: boolean) => {
+    setProductLoading(prev => { const n = [...prev]; n[rowIdx] = true; return n; });
+    try {
+      const d = await productService.getAll({ search: term, page_size: 10, page });
+      const results = d.results || [];
+      setProductResults(prev => { const n = [...prev]; n[rowIdx] = append ? [...(n[rowIdx] || []), ...results] : results; return n; });
+      setProductHasMore(prev => { const n = [...prev]; n[rowIdx] = !!d.next; return n; });
+      setProductPage(prev => { const n = [...prev]; n[rowIdx] = page; return n; });
+    } catch {} finally {
+      setProductLoading(prev => { const n = [...prev]; n[rowIdx] = false; return n; });
+    }
+  };
+
   const searchProduct = (rowIdx: number, term: string) => {
-    if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
-    if (!term || term.length < 2) { setProductResults(prev => { const n = [...prev]; n[rowIdx] = []; return n; }); return; }
-    searchTimerRef.current = setTimeout(async () => {
-      try {
-        const d = await productService.getAll({ search: term, page_size: 8 });
-        setProductResults(prev => { const n = [...prev]; n[rowIdx] = d.results || d; return n; });
-      } catch {}
-    }, 350);
+    clearTimeout(searchTimerRef.current[rowIdx]);
+    if (!term || term.length < 2) {
+      setProductResults(prev => { const n = [...prev]; n[rowIdx] = []; return n; });
+      setProductHasMore(prev => { const n = [...prev]; n[rowIdx] = false; return n; });
+      return;
+    }
+    searchTimerRef.current[rowIdx] = setTimeout(() => fetchProducts(rowIdx, term, 1, false), 300);
+  };
+
+  const handleSearchFocus = (rowIdx: number, e: React.FocusEvent<HTMLInputElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    setDropdownPos({ top: rect.bottom + 4, left: rect.left, width: Math.max(rect.width, 260) });
+    setOpenDropdownIndex(rowIdx);
+    if (!productResults[rowIdx]?.length) fetchProducts(rowIdx, productSearch[rowIdx] || '', 1, false);
+  };
+
+  const handleDropdownScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    const el = e.currentTarget;
+    if (openDropdownIndex === null) return;
+    if (el.scrollTop + el.clientHeight >= el.scrollHeight - 30) {
+      if (productHasMore[openDropdownIndex] && !productLoading[openDropdownIndex]) {
+        fetchProducts(openDropdownIndex, productSearch[openDropdownIndex] || '', (productPage[openDropdownIndex] || 1) + 1, true);
+      }
+    }
   };
 
   const selectProduct = (rowIdx: number, product: any) => {
     setItems(p => { const n = [...p]; n[rowIdx] = { ...n[rowIdx], product_id: product.id, product_name: product.name, unit: product.unit || 'pcs' }; return n; });
     setProductSearch(p => { const n = [...p]; n[rowIdx] = product.name; return n; });
-    setProductResults(p => { const n = [...p]; n[rowIdx] = []; return n; });
-    setActiveRow(null);
+    setOpenDropdownIndex(null);
   };
 
   const updateItem = (i: number, field: keyof ChallanItem, val: string) => {
     setItems(p => { const n = [...p]; (n[i] as any)[field] = val; return n; });
   };
 
-  const addRow = () => { setItems(p => [...p, emptyItem()]); setProductSearch(p => [...p, '']); setProductResults(p => [...p, []]); };
+  const addRow = () => {
+    setItems(p => [...p, emptyItem()]);
+    setProductSearch(p => [...p, '']);
+    setProductResults(p => [...p, []]);
+    setProductHasMore(p => [...p, false]);
+    setProductPage(p => [...p, 1]);
+    setProductLoading(p => [...p, false]);
+  };
   const removeRow = (i: number) => {
     setItems(p => p.filter((_, idx) => idx !== i));
     setProductSearch(p => p.filter((_, idx) => idx !== i));
     setProductResults(p => p.filter((_, idx) => idx !== i));
+    setProductHasMore(p => p.filter((_, idx) => idx !== i));
+    setProductPage(p => p.filter((_, idx) => idx !== i));
+    setProductLoading(p => p.filter((_, idx) => idx !== i));
+    if (openDropdownIndex === i) setOpenDropdownIndex(null);
   };
 
   const resetForm = () => {
     setCustomerId(''); setVehicleNo(''); setDriverName(''); setFormNotes('');
     setDate(new Date().toISOString().split('T')[0]);
-    setItems([emptyItem()]); setProductSearch(['']); setProductResults([[]]);
+    setItems([emptyItem()]); setProductSearch(['']); setProductResults([[]]); setProductHasMore([false]); setProductPage([1]); setProductLoading([false]);
   };
 
   const handleSave = async () => {
@@ -105,6 +149,21 @@ const DeliveryChallans: React.FC = () => {
   const handleDeliver = async (id: number) => {
     try { await challanService.deliver(id); dispatch(addNotification({ message: 'Marked as delivered', type: 'success' })); fetchList(); }
     catch { dispatch(addNotification({ message: 'Action failed', type: 'error' })); }
+  };
+
+  const [viewTarget, setViewTarget] = useState<any>(null);
+  const [viewLoading, setViewLoading] = useState<number | null>(null);
+
+  const handleViewChallan = async (c: any) => {
+    setViewLoading(c.id);
+    try {
+      const detail = await challanService.getById(c.id);
+      setViewTarget(detail);
+    } catch {
+      dispatch(addNotification({ message: 'Failed to load challan detail', type: 'error' }));
+    } finally {
+      setViewLoading(null);
+    }
   };
 
   return (
@@ -146,6 +205,9 @@ const DeliveryChallans: React.FC = () => {
                     <td className="text-gray-500 text-sm">{c.items?.length || 0} items</td>
                     <td className="td-center"><span className={`badge ${STATUS_COLORS[c.status] || 'badge-secondary'}`}>{c.status}</span></td>
                     <td><div className="flex items-center justify-end gap-1">
+                      <button className="action-btn action-btn-secondary" title="View / Print" onClick={() => handleViewChallan(c)} disabled={viewLoading === c.id}>
+                        {viewLoading === c.id ? <span className="w-4 h-4 border-2 border-gray-400 border-t-transparent rounded-full animate-spin inline-block" /> : <Eye className="w-4 h-4" />}
+                      </button>
                       {c.status === 'draft' && <button className="action-btn action-btn-primary" title="Dispatch" onClick={() => handleDispatch(c.id)}><Truck className="w-4 h-4" /></button>}
                       {c.status === 'dispatched' && <button className="action-btn action-btn-success" title="Delivered" onClick={() => handleDeliver(c.id)}><CheckCircle className="w-4 h-4" /></button>}
                     </div></td>
@@ -191,9 +253,9 @@ const DeliveryChallans: React.FC = () => {
               <label className="text-sm font-medium text-gray-700">Items *</label>
               <button onClick={addRow} className="text-xs text-primary-600 font-medium flex items-center gap-1"><Plus className="w-3 h-3" />Add Row</button>
             </div>
-            <div className="border rounded-lg overflow-hidden">
+            <div className="border rounded-lg overflow-visible">
               <table className="w-full text-sm">
-                <thead className="bg-gray-50 border-b">
+                <thead className="bg-gray-50 border-b rounded-t-lg">
                   <tr>
                     <th className="px-3 py-2 text-left">Product</th>
                     <th className="px-3 py-2 text-right w-20">Qty</th>
@@ -205,24 +267,16 @@ const DeliveryChallans: React.FC = () => {
                 <tbody className="divide-y">
                   {items.map((item, i) => (
                     <tr key={i}>
-                      <td className="px-3 py-2 relative">
+                      <td className="px-3 py-2">
                         <input
                           className="input-field w-full text-sm py-1"
                           placeholder="Search product…"
                           value={productSearch[i] || ''}
-                          onChange={e => { const v = e.target.value; setProductSearch(p => { const n=[...p]; n[i]=v; return n; }); updateItem(i, 'product_name', v); searchProduct(i, v); setActiveRow(i); }}
-                          onFocus={() => setActiveRow(i)}
+                          autoComplete="off"
+                          onChange={e => { const v = e.target.value; setProductSearch(p => { const n=[...p]; n[i]=v; return n; }); updateItem(i, 'product_name', v); searchProduct(i, v); }}
+                          onFocus={e => handleSearchFocus(i, e)}
+                          onBlur={() => setTimeout(() => setOpenDropdownIndex(null), 150)}
                         />
-                        {activeRow === i && productResults[i]?.length > 0 && (
-                          <div className="absolute left-3 top-full z-30 w-64 bg-white shadow-xl border rounded-lg overflow-hidden mt-0.5">
-                            {productResults[i].map(p => (
-                              <button key={p.id} className="w-full text-left px-3 py-2 text-sm hover:bg-primary-50 border-b last:border-b-0" onClick={() => selectProduct(i, p)}>
-                                <div className="font-medium">{p.name}</div>
-                                <div className="text-xs text-gray-400">{p.sku} · {p.unit}</div>
-                              </button>
-                            ))}
-                          </div>
-                        )}
                       </td>
                       <td className="px-3 py-2"><input type="number" min="0.01" className="input-field w-full text-sm py-1 text-right" value={item.quantity} onChange={e => updateItem(i, 'quantity', e.target.value)} /></td>
                       <td className="px-3 py-2"><input className="input-field w-full text-sm py-1" value={item.unit} onChange={e => updateItem(i, 'unit', e.target.value)} /></td>
@@ -241,6 +295,43 @@ const DeliveryChallans: React.FC = () => {
           </div>
         </div>
       </Modal>
+
+      <ChallanPrintModal
+        show={!!viewTarget}
+        onHide={() => setViewTarget(null)}
+        challan={viewTarget}
+      />
+
+      {/* Fixed-position product dropdown — renders outside modal overflow */}
+      {openDropdownIndex !== null && (
+        <div
+          className="fixed z-[9999] bg-white border border-gray-200 rounded-xl shadow-lg max-h-52 overflow-y-auto"
+          style={{ top: dropdownPos.top, left: dropdownPos.left, width: dropdownPos.width }}
+          onScroll={handleDropdownScroll}
+        >
+          {productResults[openDropdownIndex]?.length === 0 && !productLoading[openDropdownIndex] ? (
+            <div className="px-3 py-3 text-sm text-gray-400 text-center">No products found</div>
+          ) : (
+            <>
+              {productResults[openDropdownIndex]?.map((p: any) => (
+                <button
+                  key={p.id}
+                  type="button"
+                  className="w-full text-left px-3 py-2.5 hover:bg-primary-50 border-b border-gray-50 last:border-0 transition-colors"
+                  onMouseDown={e => e.preventDefault()}
+                  onClick={() => selectProduct(openDropdownIndex, p)}
+                >
+                  <div className="font-medium text-sm text-gray-800">{p.name}</div>
+                  <div className="text-xs text-gray-400">{p.sku} · {p.unit}</div>
+                </button>
+              ))}
+              {productLoading[openDropdownIndex] && (
+                <div className="px-3 py-2 text-xs text-gray-400 text-center">Loading…</div>
+              )}
+            </>
+          )}
+        </div>
+      )}
     </div>
   );
 };

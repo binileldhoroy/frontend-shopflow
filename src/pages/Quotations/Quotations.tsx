@@ -4,13 +4,22 @@ import { addNotification } from '@store/slices/uiSlice';
 import { quotationService } from '@api/services/quotation.service';
 import { customerService } from '@api/services/customer.service';
 import { productService } from '@api/services/product.service';
-import { ClipboardList, Plus, Trash2, CheckCircle, X } from 'lucide-react';
+import { ClipboardList, Plus, Trash2, CheckCircle, X, ChevronDown, Loader2, Eye } from 'lucide-react';
 import DeleteConfirmModal from '../../components/common/DeleteConfirmModal/DeleteConfirmModal';
 import Modal from '../../components/common/Modal/Modal';
+import QuotationPrintModal from '../../components/quotations/QuotationPrintModal';
 
 const STATUS_COLORS: Record<string, string> = {
   draft: 'badge-warning', sent: 'badge-info', accepted: 'badge-success',
   expired: 'badge-danger', converted: 'badge-primary',
+};
+
+const STATUS_TRANSITIONS: Record<string, string[]> = {
+  draft: ['sent'],
+  sent: ['accepted', 'draft'],
+  accepted: ['sent'],
+  expired: [],
+  converted: [],
 };
 
 interface QuoteItem { product_id: number | null; product_name: string; hsn_code: string; quantity: string; unit_price: string; gst_rate: string; }
@@ -37,8 +46,31 @@ const Quotations: React.FC = () => {
   // Product search state per row
   const [productSearch, setProductSearch] = useState<string[]>(['']);
   const [productResults, setProductResults] = useState<any[][]>([[]]);
-  const [activeRow, setActiveRow] = useState<number | null>(null);
-  const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [productHasMore, setProductHasMore] = useState<boolean[]>([false]);
+  const [productPage, setProductPage] = useState<number[]>([1]);
+  const [productLoading, setProductLoading] = useState<boolean[]>([false]);
+  const [openDropdownIndex, setOpenDropdownIndex] = useState<number | null>(null);
+  const [dropdownPos, setDropdownPos] = useState({ top: 0, left: 0, width: 0 });
+  const searchTimerRef = useRef<Record<number, ReturnType<typeof setTimeout>>>({});
+
+  const [statusUpdating, setStatusUpdating] = useState<number | null>(null);
+  const [statusDropdownOpen, setStatusDropdownOpen] = useState<number | null>(null);
+  const [printTarget, setPrintTarget] = useState<any>(null);
+  const [printLoading, setPrintLoading] = useState<number | null>(null);
+
+  const handleStatusChange = async (q: any, newStatus: string) => {
+    setStatusDropdownOpen(null);
+    if (q.status === newStatus) return;
+    setStatusUpdating(q.id);
+    try {
+      await quotationService.updateStatus(q.id, newStatus);
+      setQuotations(prev => prev.map(x => x.id === q.id ? { ...x, status: newStatus } : x));
+    } catch {
+      dispatch(addNotification({ message: 'Failed to update status', type: 'error' }));
+    } finally {
+      setStatusUpdating(null);
+    }
+  };
 
   // Load data
   const fetchList = useCallback(async () => {
@@ -53,30 +85,70 @@ const Quotations: React.FC = () => {
     customerService.getAll({ page_size: 200 }).then(d => setCustomers(d.results || d)).catch(() => {});
   }, []);
 
+  useEffect(() => {
+    if (statusDropdownOpen === null) return;
+    const handler = () => setStatusDropdownOpen(null);
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [statusDropdownOpen]);
+
+  const fetchProducts = async (rowIdx: number, term: string, page: number, append: boolean) => {
+    setProductLoading(prev => { const n = [...prev]; n[rowIdx] = true; return n; });
+    try {
+      const d = await productService.getAll({ search: term, page_size: 10, page });
+      const results = d.results || [];
+      setProductResults(prev => { const n = [...prev]; n[rowIdx] = append ? [...(n[rowIdx] || []), ...results] : results; return n; });
+      setProductHasMore(prev => { const n = [...prev]; n[rowIdx] = !!d.next; return n; });
+      setProductPage(prev => { const n = [...prev]; n[rowIdx] = page; return n; });
+    } catch {} finally {
+      setProductLoading(prev => { const n = [...prev]; n[rowIdx] = false; return n; });
+    }
+  };
+
   const searchProduct = (rowIdx: number, term: string) => {
-    if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
+    clearTimeout(searchTimerRef.current[rowIdx]);
     if (!term || term.length < 2) {
       setProductResults(prev => { const n = [...prev]; n[rowIdx] = []; return n; });
+      setProductHasMore(prev => { const n = [...prev]; n[rowIdx] = false; return n; });
       return;
     }
-    searchTimerRef.current = setTimeout(async () => {
-      try {
-        const d = await productService.getAll({ search: term, page_size: 8 });
-        setProductResults(prev => { const n = [...prev]; n[rowIdx] = d.results || d; return n; });
-      } catch {}
-    }, 350);
+    searchTimerRef.current[rowIdx] = setTimeout(() => fetchProducts(rowIdx, term, 1, false), 300);
+  };
+
+  const handleSearchFocus = (rowIdx: number, e: React.FocusEvent<HTMLInputElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    setDropdownPos({ top: rect.bottom + 4, left: rect.left, width: Math.max(rect.width, 260) });
+    setOpenDropdownIndex(rowIdx);
+    if (!productResults[rowIdx]?.length) fetchProducts(rowIdx, productSearch[rowIdx] || '', 1, false);
+  };
+
+  const handleDropdownScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    const el = e.currentTarget;
+    if (openDropdownIndex === null) return;
+    if (el.scrollTop + el.clientHeight >= el.scrollHeight - 30) {
+      if (productHasMore[openDropdownIndex] && !productLoading[openDropdownIndex]) {
+        fetchProducts(openDropdownIndex, productSearch[openDropdownIndex] || '', (productPage[openDropdownIndex] || 1) + 1, true);
+      }
+    }
   };
 
   const addRow = () => {
     setItems(p => [...p, emptyItem()]);
     setProductSearch(p => [...p, '']);
     setProductResults(p => [...p, []]);
+    setProductHasMore(p => [...p, false]);
+    setProductPage(p => [...p, 1]);
+    setProductLoading(p => [...p, false]);
   };
 
   const removeRow = (i: number) => {
     setItems(p => p.filter((_, idx) => idx !== i));
     setProductSearch(p => p.filter((_, idx) => idx !== i));
     setProductResults(p => p.filter((_, idx) => idx !== i));
+    setProductHasMore(p => p.filter((_, idx) => idx !== i));
+    setProductPage(p => p.filter((_, idx) => idx !== i));
+    setProductLoading(p => p.filter((_, idx) => idx !== i));
+    if (openDropdownIndex === i) setOpenDropdownIndex(null);
   };
 
   const updateItem = (i: number, field: keyof QuoteItem, val: string | number | null) => {
@@ -93,8 +165,7 @@ const Quotations: React.FC = () => {
       return n;
     });
     setProductSearch(p => { const n = [...p]; n[rowIdx] = product.name; return n; });
-    setProductResults(p => { const n = [...p]; n[rowIdx] = []; return n; });
-    setActiveRow(null);
+    setOpenDropdownIndex(null);
   };
 
   const lineTotal = (item: QuoteItem) => {
@@ -130,7 +201,7 @@ const Quotations: React.FC = () => {
       dispatch(addNotification({ message: 'Quotation created', type: 'success' }));
       setShowCreateModal(false);
       setCustomerId(''); setValidityDate(''); setNotes(''); setTerms(''); setDiscount('0');
-      setItems([emptyItem()]); setProductSearch(['']); setProductResults([[]]);
+      setItems([emptyItem()]); setProductSearch(['']); setProductResults([[]]); setProductHasMore([false]); setProductPage([1]); setProductLoading([false]);
       fetchList();
     } catch (e: any) {
       dispatch(addNotification({ message: e?.response?.data?.error || 'Failed to save', type: 'error' }));
@@ -144,6 +215,18 @@ const Quotations: React.FC = () => {
       dispatch(addNotification({ message: 'Quotation deleted', type: 'success' }));
       setShowDeleteModal(false); fetchList();
     } catch { dispatch(addNotification({ message: 'Failed to delete', type: 'error' })); }
+  };
+
+  const handleViewQuotation = async (q: any) => {
+    setPrintLoading(q.id);
+    try {
+      const detail = await quotationService.getById(q.id);
+      setPrintTarget(detail);
+    } catch {
+      dispatch(addNotification({ message: 'Failed to load quotation details', type: 'error' }));
+    } finally {
+      setPrintLoading(null);
+    }
   };
 
   const handleConvert = async (q: any) => {
@@ -193,8 +276,53 @@ const Quotations: React.FC = () => {
                     <td className="text-gray-500 text-sm">{q.created_date}</td>
                     <td className="text-gray-500 text-sm">{q.validity_date}</td>
                     <td className="td-right font-semibold">₹{Number(q.total_amount).toLocaleString()}</td>
-                    <td className="td-center"><span className={`badge ${STATUS_COLORS[q.status] || 'badge-secondary'}`}>{q.status}</span></td>
+                    <td className="td-center">
+                      {['converted', 'expired'].includes(q.status) ? (
+                        <span className={`badge ${STATUS_COLORS[q.status] || 'badge-secondary'} capitalize`}>{q.status}</span>
+                      ) : (
+                        <div className="relative inline-block">
+                          <button
+                            className={`badge ${STATUS_COLORS[q.status] || 'badge-secondary'} capitalize flex items-center gap-1 cursor-pointer hover:opacity-80 transition-opacity`}
+                            onClick={() => setStatusDropdownOpen(prev => prev === q.id ? null : q.id)}
+                            disabled={statusUpdating === q.id}
+                            title="Click to change status"
+                          >
+                            {statusUpdating === q.id
+                              ? <Loader2 className="w-3 h-3 animate-spin" />
+                              : q.status
+                            }
+                            {statusUpdating !== q.id && <ChevronDown className="w-3 h-3 opacity-60" />}
+                          </button>
+                          {statusDropdownOpen === q.id && (STATUS_TRANSITIONS[q.status] || []).length > 0 && (
+                            <div className="absolute left-0 top-full mt-1 z-50 bg-white border border-gray-200 rounded-xl shadow-lg min-w-[120px] overflow-hidden">
+                              {(STATUS_TRANSITIONS[q.status] || []).map(s => (
+                                <button
+                                  key={s}
+                                  className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 transition-colors flex items-center gap-2 text-gray-700"
+                                  onMouseDown={e => e.stopPropagation()}
+                                  onClick={() => handleStatusChange(q, s)}
+                                >
+                                  <span className={`w-2 h-2 rounded-full ${STATUS_COLORS[s]?.includes('warning') ? 'bg-amber-400' : STATUS_COLORS[s]?.includes('info') ? 'bg-blue-400' : STATUS_COLORS[s]?.includes('success') ? 'bg-green-500' : 'bg-gray-400'}`} />
+                                  {s.charAt(0).toUpperCase() + s.slice(1)}
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </td>
                     <td><div className="flex items-center justify-end gap-1">
+                      <button
+                        className="action-btn action-btn-primary"
+                        title="View Quotation"
+                        onClick={() => handleViewQuotation(q)}
+                        disabled={printLoading === q.id}
+                      >
+                        {printLoading === q.id
+                          ? <Loader2 className="w-4 h-4 animate-spin" />
+                          : <Eye className="w-4 h-4" />
+                        }
+                      </button>
                       {!['converted','expired'].includes(q.status) && (
                         <button className="action-btn action-btn-success" title="Convert to Invoice" onClick={() => handleConvert(q)}>
                           <CheckCircle className="w-4 h-4" />
@@ -238,9 +366,9 @@ const Quotations: React.FC = () => {
                 <Plus className="w-3 h-3" /> Add Row
               </button>
             </div>
-            <div className="border rounded-lg overflow-hidden">
+            <div className="border rounded-lg overflow-visible">
               <table className="w-full text-sm">
-                <thead className="bg-gray-50 border-b">
+                <thead className="bg-gray-50 border-b rounded-t-lg">
                   <tr>
                     <th className="px-3 py-2 text-left font-medium text-gray-600">Product</th>
                     <th className="px-3 py-2 text-left w-24">HSN</th>
@@ -254,24 +382,21 @@ const Quotations: React.FC = () => {
                 <tbody className="divide-y">
                   {items.map((item, i) => (
                     <tr key={i}>
-                      <td className="px-3 py-2 relative">
+                      <td className="px-3 py-2">
                         <input
                           className="input-field w-full text-sm py-1"
                           placeholder="Search product…"
                           value={productSearch[i] || ''}
-                          onChange={e => { const v = e.target.value; setProductSearch(p => { const n=[...p]; n[i]=v; return n; }); updateItem(i, 'product_name', v); searchProduct(i, v); setActiveRow(i); }}
-                          onFocus={() => setActiveRow(i)}
+                          autoComplete="off"
+                          onChange={e => {
+                            const v = e.target.value;
+                            setProductSearch(p => { const n=[...p]; n[i]=v; return n; });
+                            updateItem(i, 'product_name', v);
+                            searchProduct(i, v);
+                          }}
+                          onFocus={e => handleSearchFocus(i, e)}
+                          onBlur={() => setTimeout(() => setOpenDropdownIndex(null), 150)}
                         />
-                        {activeRow === i && productResults[i]?.length > 0 && (
-                          <div className="absolute left-3 top-full z-30 w-64 bg-white shadow-xl border rounded-lg overflow-hidden mt-0.5">
-                            {productResults[i].map(p => (
-                              <button key={p.id} className="w-full text-left px-3 py-2 text-sm hover:bg-primary-50 border-b last:border-b-0" onClick={() => selectProduct(i, p)}>
-                                <div className="font-medium">{p.name}</div>
-                                <div className="text-xs text-gray-400">{p.sku} · ₹{p.selling_price} · GST {p.gst_rate}%</div>
-                              </button>
-                            ))}
-                          </div>
-                        )}
                       </td>
                       <td className="px-3 py-2"><input className="input-field w-full text-sm py-1" value={item.hsn_code} onChange={e => updateItem(i, 'hsn_code', e.target.value)} /></td>
                       <td className="px-3 py-2"><input type="number" min="0.01" step="0.01" className="input-field w-full text-sm py-1 text-right" value={item.quantity} onChange={e => updateItem(i, 'quantity', e.target.value)} /></td>
@@ -323,6 +448,37 @@ const Quotations: React.FC = () => {
         </div>
       </Modal>
 
+      {/* Fixed-position product dropdown — renders outside modal overflow */}
+      {openDropdownIndex !== null && (
+        <div
+          className="fixed z-[9999] bg-white border border-gray-200 rounded-xl shadow-lg max-h-52 overflow-y-auto"
+          style={{ top: dropdownPos.top, left: dropdownPos.left, width: dropdownPos.width }}
+          onScroll={handleDropdownScroll}
+        >
+          {productResults[openDropdownIndex]?.length === 0 && !productLoading[openDropdownIndex] ? (
+            <div className="px-3 py-3 text-sm text-gray-400 text-center">No products found</div>
+          ) : (
+            <>
+              {productResults[openDropdownIndex]?.map((p: any) => (
+                <button
+                  key={p.id}
+                  type="button"
+                  className="w-full text-left px-3 py-2.5 hover:bg-primary-50 border-b border-gray-50 last:border-0 transition-colors"
+                  onMouseDown={e => e.preventDefault()}
+                  onClick={() => selectProduct(openDropdownIndex, p)}
+                >
+                  <div className="font-medium text-sm text-gray-800">{p.name}</div>
+                  <div className="text-xs text-gray-400">{p.sku} · ₹{p.selling_price} · GST {p.gst_rate}%</div>
+                </button>
+              ))}
+              {productLoading[openDropdownIndex] && (
+                <div className="px-3 py-2 text-xs text-gray-400 text-center">Loading…</div>
+              )}
+            </>
+          )}
+        </div>
+      )}
+
       {showDeleteModal && selected && (
         <DeleteConfirmModal show={showDeleteModal}
           title="Delete Quotation"
@@ -331,6 +487,12 @@ const Quotations: React.FC = () => {
           onHide={() => { setShowDeleteModal(false); setSelected(null); }}
         />
       )}
+
+      <QuotationPrintModal
+        show={!!printTarget}
+        onHide={() => setPrintTarget(null)}
+        quotation={printTarget}
+      />
     </div>
   );
 };
