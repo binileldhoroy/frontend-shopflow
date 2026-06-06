@@ -85,8 +85,9 @@ const ProductCSVImportModal: React.FC<Props> = ({ show, onHide, onImported }) =>
 
   // ── File selection ──────────────────────────
   const handleFile = useCallback(async (selected: File) => {
-    if (!selected.name.toLowerCase().endsWith('.csv')) {
-      setError('Please select a .csv file.');
+    const name = selected.name.toLowerCase();
+    if (!name.endsWith('.csv') && !name.endsWith('.xlsx') && !name.endsWith('.xls')) {
+      setError('Please select a .csv, .xlsx, or .xls file.');
       return;
     }
     setFile(selected);
@@ -178,23 +179,23 @@ const ProductCSVImportModal: React.FC<Props> = ({ show, onHide, onImported }) =>
         <input
           ref={fileInputRef}
           type="file"
-          accept=".csv"
+          accept=".csv,.xlsx,.xls"
           className="hidden"
           onChange={handleInputChange}
         />
         {loadingPreview ? (
           <div className="flex flex-col items-center gap-3 text-blue-500">
             <RefreshCw className="w-10 h-10 animate-spin" />
-            <p className="font-medium">Parsing CSV…</p>
+            <p className="font-medium">Parsing file…</p>
           </div>
         ) : (
           <div className="flex flex-col items-center gap-3 text-gray-400">
             <Upload className="w-10 h-10" />
             <div>
-              <p className="font-semibold text-gray-700">Drop your CSV file here</p>
+              <p className="font-semibold text-gray-700">Drop your file here</p>
               <p className="text-sm mt-0.5">or click to browse</p>
             </div>
-            <p className="text-xs text-gray-400">Only .csv files are supported</p>
+            <p className="text-xs text-gray-400">Supported formats: .csv, .xlsx, .xls</p>
           </div>
         )}
       </div>
@@ -459,7 +460,7 @@ const ProductCSVImportModal: React.FC<Props> = ({ show, onHide, onImported }) =>
   };
 
   const titles: Record<Step, string> = {
-    upload: 'Import Products from CSV',
+    upload: 'Import Products',
     preview: 'Preview Import',
     done: 'Import Complete',
   };

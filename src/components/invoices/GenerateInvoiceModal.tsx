@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import {
   X, FileText, Search, User, ChevronLeft, ChevronRight,
   CheckCircle2, Printer, Download, MessageCircle, Mail, Copy, Check,
@@ -266,7 +266,43 @@ const GenerateInvoiceModal: React.FC<GenerateInvoiceModalProps> = ({
     }
   };
 
+  // Memoised customer details for the generated invoice view.
+  // Using an inline object literal would create a new reference on every render,
+  // causing InvoiceTemplate to restart its measuring phase each time (e.g. when
+  // the async `states` list loads), which makes the template unavailable for
+  // capture right when the user presses Print.
+  const generatedCustomerDetails = useMemo(() => ({
+    name: customerDetails.customer_name,
+    gstin: customerDetails.customer_gstin,
+    address: customerDetails.customer_address,
+    city: customerDetails.customer_city,
+    state: states.find(s => s.id === customerDetails.customer_state)?.name,
+    pincode: customerDetails.customer_pincode,
+    country_code: customerDetails.customer_country_code || '91',
+    phone: customerDetails.customer_phone,
+    email: customerDetails.customer_email,
+  }), [customerDetails, states]);
+
   // ── Invoice actions (available after generation) ────────────────────────────
+
+  // Waits for InvoiceTemplate to finish its measuring phase before we capture
+  // the DOM. Without this, clicking Print immediately after invoice generation
+  // (or after any parent re-render that resets measuring) would capture the
+  // hidden measuring div instead of the rendered invoice pages.
+  const waitForTemplate = useCallback((): Promise<void> => {
+    return new Promise<void>(resolve => {
+      if (!invoiceRef.current) { resolve(); return; }
+      if (invoiceRef.current.querySelector('.invoice-outer-wrapper')) { resolve(); return; }
+      const observer = new MutationObserver(() => {
+        if (invoiceRef.current?.querySelector('.invoice-outer-wrapper')) {
+          observer.disconnect();
+          resolve();
+        }
+      });
+      observer.observe(invoiceRef.current, { childList: true, subtree: true });
+      setTimeout(() => { observer.disconnect(); resolve(); }, 3000);
+    });
+  }, []);
 
   /**
    * Print — opens the invoice in a new browser tab as a self-contained HTML
@@ -281,13 +317,15 @@ const GenerateInvoiceModal: React.FC<GenerateInvoiceModalProps> = ({
    *  • The new-tab approach is a completely isolated context — our invoice HTML
    *    is the only content, with zero risk of interference.
    */
-  const handlePrint = () => {
+  const handlePrint = async () => {
     if (!invoiceRef.current || !generatedInvoice) return;
+
+    await waitForTemplate();
 
     // Pull out InvoiceTemplate's embedded <style> (defines @page, .invoice-page, etc.)
     const styleContent = invoiceRef.current.querySelector('style')?.textContent ?? '';
     const outerWrapper = invoiceRef.current.querySelector('.invoice-outer-wrapper');
-    const invoiceHTML = outerWrapper ? outerWrapper.outerHTML : invoiceRef.current.innerHTML;
+    if (!outerWrapper) return;
 
     const html = `<!DOCTYPE html>
 <html>
@@ -300,7 +338,7 @@ const GenerateInvoiceModal: React.FC<GenerateInvoiceModalProps> = ({
     ${styleContent}
   </style>
 </head>
-<body>${invoiceHTML}</body>
+<body>${outerWrapper.outerHTML}</body>
 </html>`;
 
     const blob = new Blob([html], { type: 'text/html' });
@@ -330,6 +368,8 @@ const GenerateInvoiceModal: React.FC<GenerateInvoiceModalProps> = ({
   const handleDownloadPDF = async () => {
     if (!invoiceRef.current || !generatedInvoice) return;
     setDownloading(true);
+
+    await waitForTemplate();
 
     // Clone the already-rendered (post-measuring) invoice DOM
     const offScreen = document.createElement('div');
@@ -510,17 +550,7 @@ const GenerateInvoiceModal: React.FC<GenerateInvoiceModalProps> = ({
                 invoiceNumber={generatedInvoice.invoice_number}
                 invoiceDate={generatedInvoice.invoice_date}
                 invoiceUrl={invoicePageUrl}
-                customerDetails={{
-                  name: customerDetails.customer_name,
-                  gstin: customerDetails.customer_gstin,
-                  address: customerDetails.customer_address,
-                  city: customerDetails.customer_city,
-                  state: states.find(s => s.id === customerDetails.customer_state)?.name,
-                  pincode: customerDetails.customer_pincode,
-                  country_code: customerDetails.customer_country_code || '91',
-                  phone: customerDetails.customer_phone,
-                  email: customerDetails.customer_email,
-                }}
+                customerDetails={generatedCustomerDetails}
               />
             </div>
           </div>

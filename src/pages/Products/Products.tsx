@@ -1,18 +1,38 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { productService, categoryService } from '@api/services/product.service';
-import { priceTierService } from '@api/services/priceTier.service';
 import { categoryService as catSearchService } from '@api/services/category.service';
 import { brandService } from '@api/services/brand.service';
-import { Product, Category, Brand, ProductFormData } from '../../types/product.types';
+import { Product, Category, Brand } from '../../types/product.types';
 import ProductFormModal from '@components/features/products/ProductFormModal';
 import ProductCSVImportModal from '@components/features/products/ProductCSVImportModal';
 import DeleteConfirmModal from '@components/common/DeleteConfirmModal/DeleteConfirmModal';
 import { useAppDispatch } from '@hooks/useRedux';
 import { addNotification } from '@store/slices/uiSlice';
-import { Package, Plus, Search, Edit2, Trash2, Inbox, AlertTriangle, Upload, X } from 'lucide-react';
+import { Package, Plus, Search, Edit2, Trash2, Inbox, AlertTriangle, Upload, X, List } from 'lucide-react';
+
+function extractErrorMessage(error: any): string {
+  const data = error?.response?.data;
+  if (data && typeof data === 'object' && !Array.isArray(data)) {
+    if (data.message) return String(data.message);
+    if (data.detail) return String(data.detail);
+    if (data.error) return String(data.error);
+    const firstKey = Object.keys(data)[0];
+    if (firstKey) {
+      const val = data[firstKey];
+      const fieldMsg = Array.isArray(val) ? val[0] : val;
+      const label = firstKey === 'non_field_errors' ? '' : `${firstKey}: `;
+      return `${label}${fieldMsg}`;
+    }
+  }
+  if (typeof data === 'string' && data && !data.trimStart().startsWith('<')) return data;
+  if (error?.message) return error.message;
+  return 'Operation failed';
+}
 
 const Products: React.FC = () => {
   const dispatch = useAppDispatch();
+  const navigate = useNavigate();
 
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -181,8 +201,7 @@ const Products: React.FC = () => {
 
 
   const handleAddProduct = () => {
-    setSelectedProduct(null);
-    setShowFormModal(true);
+    navigate('/products/add');
   };
 
   const handleEditProduct = (product: Product) => {
@@ -195,56 +214,29 @@ const Products: React.FC = () => {
     setShowDeleteModal(true);
   };
 
-  const handleFormSubmit = async (data: ProductFormData) => {
+  const handleFormSubmit = async (data: any) => {
+    if (!selectedProduct) return;
     try {
       setFormLoading(true);
 
       const formData = new FormData();
-
       Object.keys(data).forEach((key) => {
-        const value = (data as any)[key];
-
-        if (key === "image") {
-          if (value instanceof File) formData.append("image", value);
-          // Skip string URLs — backend keeps existing image
-        } else if (key === "attributes") {
-          // Serialize as JSON string for the backend
-          if (Array.isArray(value)) {
-            formData.append("attributes", JSON.stringify(value));
-          }
-        } else if (key === "priceTierRules") {
-          // handled separately after product creation
-        } else if (value !== null && value !== undefined) {
+        const value = data[key];
+        if (key === 'image') {
+          if (value instanceof File) formData.append('image', value);
+        } else if (key === 'attributes') {
+          if (Array.isArray(value)) formData.append('attributes', JSON.stringify(value));
+        } else if (key !== 'priceTierRules' && value !== null && value !== undefined) {
           formData.append(key, value);
         }
       });
 
-      if (selectedProduct) {
-        await productService.update(selectedProduct.id, formData);
-        dispatch(addNotification({
-          message: 'Product updated successfully',
-          type: 'success',
-        }));
-      } else {
-        const newProduct = await productService.create(formData);
-        if (data.priceTierRules && data.priceTierRules.length > 0) {
-          await Promise.all(data.priceTierRules.map(rule =>
-            priceTierService.createProductRule({ product: newProduct.id, tier: rule.tier, type: rule.type, value: rule.value })
-          ));
-        }
-        dispatch(addNotification({
-          message: 'Product created successfully',
-          type: 'success',
-        }));
-      }
-
+      await productService.update(selectedProduct.id, formData);
+      dispatch(addNotification({ message: 'Product updated successfully', type: 'success' }));
       setShowFormModal(false);
       loadData();
     } catch (error: any) {
-      dispatch(addNotification({
-        message: error.response?.data?.message || 'Operation failed',
-        type: 'error',
-      }));
+      dispatch(addNotification({ message: extractErrorMessage(error), type: 'error' }));
     } finally {
       setFormLoading(false);
     }
@@ -294,6 +286,10 @@ const Products: React.FC = () => {
           <button className="btn btn-secondary" onClick={() => setShowImportModal(true)}>
             <Upload className="w-4 h-4 inline mr-1.5" />
             Import CSV
+          </button>
+          <button className="btn btn-secondary" onClick={() => navigate('/products/bulk-add')}>
+            <List className="w-4 h-4 inline mr-1.5" />
+            Bulk Add
           </button>
           <button className="btn btn-primary" onClick={handleAddProduct}>
             <Plus className="w-4 h-4 inline mr-1.5" />

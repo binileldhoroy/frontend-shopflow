@@ -16,6 +16,8 @@ import Dashboard from './pages/Dashboard/Dashboard';
 import Companies from './pages/Companies/Companies';
 import CompanyDetails from './pages/Companies/CompanyDetails';
 import Products from './pages/Products/Products';
+import AddProduct from './pages/Products/AddProduct';
+import BulkAddProducts from './pages/Products/BulkAddProducts';
 import Categories from './pages/Categories/Categories';
 import Brands from './pages/Brands/Brands';
 import POS from './pages/POS/POS';
@@ -29,6 +31,7 @@ import Customers from './pages/Customers/Customers';
 import CustomerLedger from './pages/Customers/CustomerLedger';
 import Inventory from './pages/Inventory/Inventory';
 import Purchases from './pages/Purchases/Purchases';
+import ImportInvoicePage from './pages/Purchases/ImportInvoicePage';
 import Suppliers from './pages/Suppliers/Suppliers';
 import Payments from './pages/Payments/Payments';
 import Invoices from './pages/Invoices/Invoices';
@@ -125,6 +128,28 @@ function App() {
           />
 
           {/* Products & Inventory routes */}
+          <Route
+            path="/products/add"
+            element={
+              <RoleBasedRoute allowedRoles={[UserRole.ADMIN, UserRole.MANAGER, UserRole.INVENTORY_STAFF]} requiredFeature="inventory_enabled">
+                <Layout>
+                  <AddProduct />
+                </Layout>
+              </RoleBasedRoute>
+            }
+          />
+
+          <Route
+            path="/products/bulk-add"
+            element={
+              <RoleBasedRoute allowedRoles={[UserRole.ADMIN, UserRole.MANAGER, UserRole.INVENTORY_STAFF]} requiredFeature="inventory_enabled">
+                <Layout>
+                  <BulkAddProducts />
+                </Layout>
+              </RoleBasedRoute>
+            }
+          />
+
           <Route
             path="/products"
             element={
@@ -276,6 +301,17 @@ function App() {
               <RoleBasedRoute allowedRoles={[UserRole.ADMIN, UserRole.MANAGER, UserRole.INVENTORY_STAFF]} requiredFeature="purchases_enabled">
                 <Layout>
                   <Purchases />
+                </Layout>
+              </RoleBasedRoute>
+            }
+          />
+
+          <Route
+            path="/purchases/import-invoice"
+            element={
+              <RoleBasedRoute allowedRoles={[UserRole.ADMIN, UserRole.MANAGER, UserRole.INVENTORY_STAFF]} requiredFeature="purchases_enabled">
+                <Layout>
+                  <ImportInvoicePage />
                 </Layout>
               </RoleBasedRoute>
             }

@@ -20,6 +20,7 @@ interface PurchaseItemFormData {
   product: number | string;
   product_name: string;
   quantity: number | string;
+  unit: string;
   unit_price: number | string;
   tax_rate: number | string;
 }
@@ -37,6 +38,10 @@ type FormErrors = {
 };
 
 const EMPTY_DROPDOWN: DropdownState = { results: [], page: 1, hasMore: false, loading: false };
+
+function formatINR(v: number) {
+  return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', minimumFractionDigits: 2 }).format(v);
+}
 
 const PurchaseFormModal: React.FC<PurchaseFormModalProps> = ({
   show,
@@ -87,6 +92,7 @@ const PurchaseFormModal: React.FC<PurchaseFormModalProps> = ({
         product: item.product || '',
         product_name: item.product_name,
         quantity: item.quantity,
+        unit: '',
         unit_price: item.unit_price,
         tax_rate: item.tax_rate,
       }));
@@ -109,7 +115,7 @@ const PurchaseFormModal: React.FC<PurchaseFormModalProps> = ({
       payment_method: 'cash',
       notes: '',
     });
-    setItems([{ product: '', product_name: '', quantity: 1, unit_price: 0, tax_rate: 0 }]);
+    setItems([{ product: '', product_name: '', quantity: 1, unit: '', unit_price: 0, tax_rate: 0 }]);
     setProductSearches(['']);
     setDropdownStates([{ ...EMPTY_DROPDOWN }]);
   };
@@ -121,7 +127,6 @@ const PurchaseFormModal: React.FC<PurchaseFormModalProps> = ({
       next[index] = { ...next[index], loading: true };
       return next;
     });
-
     try {
       const response = await axiosInstance.get('/api/products/', { params: { search, page } });
       const data = response.data;
@@ -146,44 +151,30 @@ const PurchaseFormModal: React.FC<PurchaseFormModalProps> = ({
   };
 
   const handleSearchChange = (index: number, value: string) => {
-    setProductSearches(prev => {
-      const next = [...prev];
-      next[index] = value;
-      return next;
-    });
+    setProductSearches(prev => { const n = [...prev]; n[index] = value; return n; });
     setOpenDropdownIndex(index);
     clearTimeout(debounceRefs.current[index]);
-    debounceRefs.current[index] = setTimeout(() => {
-      fetchProducts(index, value, 1, false);
-    }, 300);
+    debounceRefs.current[index] = setTimeout(() => fetchProducts(index, value, 1, false), 300);
   };
 
   const handleDropdownOpen = (index: number, e: React.FocusEvent<HTMLInputElement>) => {
     const rect = e.currentTarget.getBoundingClientRect();
-    setDropdownPos({
-      top: rect.bottom + 4,
-      left: rect.left,
-      width: Math.max(rect.width, 240),
-    });
+    setDropdownPos({ top: rect.bottom + 4, left: rect.left, width: Math.max(rect.width, 260) });
     setOpenDropdownIndex(index);
     const state = dropdownStates[index];
-    if (!state || state.results.length === 0) {
-      fetchProducts(index, productSearches[index] ?? '', 1, false);
-    }
+    if (!state || state.results.length === 0) fetchProducts(index, productSearches[index] ?? '', 1, false);
   };
 
   const handleDropdownScroll = (e: React.UIEvent<HTMLDivElement>, index: number) => {
     const el = e.currentTarget;
     if (el.scrollTop + el.clientHeight >= el.scrollHeight - 20) {
       const state = dropdownStates[index];
-      if (state?.hasMore && !state?.loading) {
-        fetchProducts(index, productSearches[index] ?? '', state.page + 1, true);
-      }
+      if (state?.hasMore && !state?.loading) fetchProducts(index, productSearches[index] ?? '', state.page + 1, true);
     }
   };
 
   const handleAddItem = () => {
-    setItems(prev => [...prev, { product: '', product_name: '', quantity: 1, unit_price: 0, tax_rate: 0 }]);
+    setItems(prev => [...prev, { product: '', product_name: '', quantity: 1, unit: '', unit_price: 0, tax_rate: 0 }]);
     setProductSearches(prev => [...prev, '']);
     setDropdownStates(prev => [...prev, { ...EMPTY_DROPDOWN }]);
   };
@@ -197,37 +188,40 @@ const PurchaseFormModal: React.FC<PurchaseFormModalProps> = ({
   const handleItemChange = (index: number, field: keyof PurchaseItemFormData, value: any) => {
     const newItems = [...items];
     const item = newItems[index];
-
     if (field === 'product') {
       const state = dropdownStates[index];
       const selectedProduct = state?.results.find(p => p.id === Number(value));
       if (selectedProduct) {
         item.product = selectedProduct.id;
         item.product_name = selectedProduct.name;
+        item.unit = selectedProduct.unit || '';
         item.unit_price = selectedProduct.cost_price || 0;
         item.tax_rate = selectedProduct.gst_rate || 0;
       } else {
         item.product = '';
         item.product_name = '';
+        item.unit = '';
         item.unit_price = 0;
         item.tax_rate = 0;
       }
     } else {
       (item as any)[field] = value;
     }
-
     setItems(newItems);
   };
 
-  const calculateTotal = () => {
-    return items.reduce((total, item) => {
+  const calculateTotals = () => {
+    let subtotal = 0;
+    let taxTotal = 0;
+    items.forEach(item => {
       const qty = Number(item.quantity) || 0;
       const price = Number(item.unit_price) || 0;
       const tax = Number(item.tax_rate) || 0;
-      const itemTotal = qty * price;
-      const taxAmount = (itemTotal * tax) / 100;
-      return total + itemTotal + taxAmount;
-    }, 0);
+      const base = qty * price;
+      subtotal += base;
+      taxTotal += (base * tax) / 100;
+    });
+    return { subtotal, taxTotal, grandTotal: subtotal + taxTotal };
   };
 
   const validateForm = (): boolean => {
@@ -242,7 +236,6 @@ const PurchaseFormModal: React.FC<PurchaseFormModalProps> = ({
   const handleSubmit = (e: React.SyntheticEvent) => {
     e.preventDefault();
     if (!validateForm()) return;
-
     const submitData: PurchaseOrderCreate = {
       supplier: Number(formData.supplier),
       order_date: formData.order_date,
@@ -259,104 +252,117 @@ const PurchaseFormModal: React.FC<PurchaseFormModalProps> = ({
         tax_rate: Number(item.tax_rate) || 0,
       })),
     };
-
     onSubmit(submitData);
   };
+
+  const { subtotal, taxTotal, grandTotal } = calculateTotals();
 
   return (
     <Modal
       show={show}
       onHide={onHide}
-      title={purchase ? 'Edit Purchase Order' : 'New Purchase Order'}
+      title={purchase ? `Edit Purchase Order` : 'New Purchase Order'}
       size="xl"
       footer={
         <>
-          <div className="mr-auto text-lg font-bold">
-            Total: ₹{calculateTotal().toFixed(2)}
-          </div>
-          <button className="btn btn-secondary" onClick={onHide} disabled={loading}>
-            Cancel
-          </button>
-          <button
-            className="btn btn-primary"
-            onClick={handleSubmit}
-            disabled={loading}
-          >
-            {loading ? 'Saving...' : 'Save Purchase Order'}
+          <button className="btn btn-secondary" onClick={onHide} disabled={loading}>Cancel</button>
+          <button className="btn btn-primary" onClick={handleSubmit} disabled={loading}>
+            {loading ? 'Saving…' : 'Save Purchase Order'}
           </button>
         </>
       }
     >
-      <form onSubmit={handleSubmit} className="space-y-6">
-        {/* Header Section */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 p-4 bg-gray-50 rounded-lg">
-          <div>
-            <label className="label">Supplier *</label>
-            <select
-              className={`input-field ${errors.supplier ? 'border-red-500' : ''}`}
-              value={formData.supplier}
-              onChange={(e) => setFormData(p => ({ ...p, supplier: e.target.value }))}
-            >
-              <option value="">Select Supplier</option>
-              {suppliers.map(s => (
-                <option key={s.id} value={s.id}>{s.name}</option>
-              ))}
-            </select>
-            {errors.supplier && <p className="mt-1 text-xs text-red-500">{errors.supplier}</p>}
+      <form onSubmit={handleSubmit} className="space-y-5">
+
+        {/* Two-card header */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* Left card — Supplier & Dates */}
+          <div className="bg-gray-50 border border-gray-100 rounded-xl p-4 space-y-3">
+            <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Order Details</div>
+            <div>
+              <label className="label">Supplier *</label>
+              <select
+                className={`input-field ${errors.supplier ? 'border-red-500' : ''}`}
+                value={formData.supplier}
+                onChange={(e) => setFormData(p => ({ ...p, supplier: e.target.value }))}
+              >
+                <option value="">Select Supplier</option>
+                {suppliers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+              </select>
+              {errors.supplier && <p className="mt-1 text-xs text-red-500">{errors.supplier}</p>}
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="label">Order Date *</label>
+                <input
+                  type="date"
+                  className="input-field"
+                  value={formData.order_date}
+                  onChange={(e) => setFormData(p => ({ ...p, order_date: e.target.value }))}
+                />
+              </div>
+              <div>
+                <label className="label">Expected Delivery</label>
+                <input
+                  type="date"
+                  className="input-field"
+                  value={formData.expected_delivery_date}
+                  onChange={(e) => setFormData(p => ({ ...p, expected_delivery_date: e.target.value }))}
+                />
+              </div>
+            </div>
           </div>
-          <div>
-            <label className="label">Order Date *</label>
-            <input
-              type="date"
-              className="input-field"
-              value={formData.order_date}
-              onChange={(e) => setFormData(p => ({ ...p, order_date: e.target.value }))}
-            />
-          </div>
-          <div>
-            <label className="label">Payment Status</label>
-            <select
-              className="input-field"
-              value={formData.payment_status}
-              onChange={(e) => setFormData(p => ({ ...p, payment_status: e.target.value as any }))}
-            >
-              <option value="pending">Pending</option>
-              <option value="paid">Paid</option>
-              <option value="partial">Partial</option>
-            </select>
-          </div>
-          <div>
-            <label className="label">Payment Method</label>
-            <select
-              className="input-field"
-              value={formData.payment_method}
-              onChange={(e) => setFormData(p => ({ ...p, payment_method: e.target.value as any }))}
-            >
-              <option value="cash">Cash</option>
-              <option value="card">Card</option>
-              <option value="upi">UPI</option>
-              <option value="net_banking">Net Banking</option>
-              <option value="other">Other</option>
-            </select>
-          </div>
-          <div>
-            <label className="label">Status *</label>
-            <select
-              className="input-field"
-              value={formData.status}
-              onChange={(e) => setFormData(p => ({ ...p, status: e.target.value as PurchaseStatus }))}
-            >
-              <option value="draft">Draft</option>
-              <option value="ordered">Ordered</option>
-              <option value="cancelled">Cancelled</option>
-            </select>
+
+          {/* Right card — Status & Payment */}
+          <div className="bg-gray-50 border border-gray-100 rounded-xl p-4 space-y-3">
+            <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Status & Payment</div>
+            <div>
+              <label className="label">Status</label>
+              <select
+                className="input-field"
+                value={formData.status}
+                onChange={(e) => setFormData(p => ({ ...p, status: e.target.value as PurchaseStatus }))}
+              >
+                <option value="draft">Draft</option>
+                <option value="ordered">Ordered</option>
+                <option value="cancelled">Cancelled</option>
+              </select>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="label">Payment Status</label>
+                <select
+                  className="input-field"
+                  value={formData.payment_status}
+                  onChange={(e) => setFormData(p => ({ ...p, payment_status: e.target.value as any }))}
+                >
+                  <option value="pending">Pending</option>
+                  <option value="paid">Paid</option>
+                  <option value="partial">Partial</option>
+                </select>
+              </div>
+              <div>
+                <label className="label">Payment Method</label>
+                <select
+                  className="input-field"
+                  value={formData.payment_method}
+                  onChange={(e) => setFormData(p => ({ ...p, payment_method: e.target.value as any }))}
+                >
+                  <option value="cash">Cash</option>
+                  <option value="card">Card</option>
+                  <option value="upi">UPI</option>
+                  <option value="net_banking">Net Banking</option>
+                  <option value="other">Other</option>
+                </select>
+              </div>
+            </div>
           </div>
         </div>
 
         {/* Items Section */}
         <div className="space-y-3">
           <div className="flex justify-between items-center">
-            <h3 className="font-semibold text-gray-700">Order Items</h3>
+            <h3 className="font-semibold text-gray-700 text-sm">Order Items</h3>
             <button
               type="button"
               className="btn btn-outline-primary btn-sm flex items-center gap-1"
@@ -368,16 +374,17 @@ const PurchaseFormModal: React.FC<PurchaseFormModalProps> = ({
 
           {errors.items && <p className="text-xs text-red-500">{errors.items}</p>}
 
-          <div className="overflow-x-auto border rounded-lg">
+          <div className="overflow-x-auto border border-gray-200 rounded-xl">
             <table className="w-full text-sm text-left">
-              <thead className="text-xs text-gray-700 uppercase bg-gray-50">
+              <thead className="text-xs text-gray-500 uppercase bg-gray-50 border-b border-gray-200">
                 <tr>
-                  <th className="px-4 py-3 min-w-[220px]">Product *</th>
-                  <th className="px-4 py-3 w-24">Qty *</th>
-                  <th className="px-4 py-3 w-32">Unit Price *</th>
-                  <th className="px-4 py-3 w-24">Tax %</th>
-                  <th className="px-4 py-3 w-32 text-right">Total</th>
-                  <th className="px-4 py-3 w-10"></th>
+                  <th className="px-3 py-3 w-8 text-center">#</th>
+                  <th className="px-3 py-3 min-w-[220px]">Product *</th>
+                  <th className="px-3 py-3 w-24">Qty *</th>
+                  <th className="px-3 py-3 w-32">Unit Price *</th>
+                  <th className="px-3 py-3 w-20">Tax %</th>
+                  <th className="px-3 py-3 w-32 text-right">Total</th>
+                  <th className="px-3 py-3 w-8" />
                 </tr>
               </thead>
               <tbody>
@@ -390,33 +397,39 @@ const PurchaseFormModal: React.FC<PurchaseFormModalProps> = ({
                   const dropState = dropdownStates[index] || EMPTY_DROPDOWN;
 
                   return (
-                    <tr key={index} className="border-b last:border-b-0">
-                      <td className="px-4 py-2">
-                        <input
-                          type="text"
-                          className="input-field text-sm w-full"
-                          value={searchVal}
-                          placeholder="Search product..."
-                          autoComplete="off"
-                          onChange={(e) => handleSearchChange(index, e.target.value)}
-                          onFocus={(e) => handleDropdownOpen(index, e)}
-                          onBlur={() => setTimeout(() => setOpenDropdownIndex(null), 150)}
-                        />
+                    <tr key={index} className={`border-b border-gray-100 last:border-b-0 ${index % 2 === 1 ? 'bg-gray-50/40' : ''}`}>
+                      <td className="px-3 py-2 text-center text-xs text-gray-400 font-medium">{index + 1}</td>
+                      <td className="px-3 py-2">
+                        <div className="relative">
+                          <input
+                            type="text"
+                            className="input-field text-sm w-full"
+                            value={searchVal}
+                            placeholder="Search product…"
+                            autoComplete="off"
+                            onChange={(e) => handleSearchChange(index, e.target.value)}
+                            onFocus={(e) => handleDropdownOpen(index, e)}
+                            onBlur={() => setTimeout(() => setOpenDropdownIndex(null), 150)}
+                          />
+                          {item.unit && (
+                            <div className="text-xs text-gray-400 mt-0.5">{item.unit}</div>
+                          )}
+                        </div>
                         {openDropdownIndex === index && (
                           <div
-                            className="fixed z-[9999] bg-white border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto"
+                            className="fixed z-[9999] bg-white border border-gray-200 rounded-xl shadow-lg max-h-52 overflow-y-auto"
                             style={{ top: dropdownPos.top, left: dropdownPos.left, width: dropdownPos.width }}
                             onScroll={(e) => handleDropdownScroll(e, index)}
                           >
                             {dropState.results.length === 0 && !dropState.loading ? (
-                              <div className="px-3 py-2 text-sm text-gray-400">No products found</div>
+                              <div className="px-3 py-3 text-sm text-gray-400 text-center">No products found</div>
                             ) : (
                               <>
                                 {dropState.results.map(p => (
                                   <button
                                     key={p.id}
                                     type="button"
-                                    className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 border-b border-gray-50 last:border-0"
+                                    className="w-full text-left px-3 py-2.5 hover:bg-primary-50 border-b border-gray-50 last:border-0 transition-colors"
                                     onMouseDown={(e) => e.preventDefault()}
                                     onClick={() => {
                                       handleItemChange(index, 'product', String(p.id));
@@ -428,11 +441,15 @@ const PurchaseFormModal: React.FC<PurchaseFormModalProps> = ({
                                       setOpenDropdownIndex(null);
                                     }}
                                   >
-                                    {p.name}
+                                    <div className="text-sm font-medium text-gray-800">{p.name}</div>
+                                    <div className="text-xs text-gray-400 flex gap-3">
+                                      {p.sku && <span>SKU: {p.sku}</span>}
+                                      {p.cost_price !== undefined && <span>Cost: {formatINR(Number(p.cost_price))}</span>}
+                                    </div>
                                   </button>
                                 ))}
                                 {dropState.loading && (
-                                  <div className="px-3 py-2 text-xs text-gray-400 text-center">Loading...</div>
+                                  <div className="px-3 py-2 text-xs text-gray-400 text-center">Loading…</div>
                                 )}
                                 {!dropState.hasMore && !dropState.loading && dropState.results.length > 0 && (
                                   <div className="px-3 py-2 text-xs text-gray-300 text-center">End of results</div>
@@ -442,17 +459,17 @@ const PurchaseFormModal: React.FC<PurchaseFormModalProps> = ({
                           </div>
                         )}
                       </td>
-                      <td className="px-4 py-2">
+                      <td className="px-3 py-2">
                         <input
                           type="number"
-                          className="input-field text-sm"
+                          className="input-field text-sm !w-16"
                           value={item.quantity}
                           onChange={(e) => handleItemChange(index, 'quantity', e.target.value)}
                           min="0.01"
                           step="0.01"
                         />
                       </td>
-                      <td className="px-4 py-2">
+                      <td className="px-3 py-2">
                         <input
                           type="number"
                           className="input-field text-sm"
@@ -462,7 +479,7 @@ const PurchaseFormModal: React.FC<PurchaseFormModalProps> = ({
                           step="0.01"
                         />
                       </td>
-                      <td className="px-4 py-2">
+                      <td className="px-3 py-2">
                         <input
                           type="number"
                           className="input-field text-sm"
@@ -472,18 +489,18 @@ const PurchaseFormModal: React.FC<PurchaseFormModalProps> = ({
                           step="0.01"
                         />
                       </td>
-                      <td className="px-4 py-2 text-right font-medium">
-                        ₹{total.toFixed(2)}
+                      <td className="px-3 py-2 text-right font-semibold text-gray-800 tabular-nums">
+                        {formatINR(total)}
                       </td>
-                      <td className="px-4 py-2 text-center">
+                      <td className="px-3 py-2 text-center">
                         {items.length > 1 && (
                           <button
                             type="button"
-                            className="text-red-500 hover:text-red-700"
+                            className="p-1 rounded-md text-red-400 hover:bg-red-50 hover:text-red-600 transition-colors"
                             onClick={() => handleRemoveItem(index)}
-                            title="Remove Item"
+                            title="Remove"
                           >
-                            <Trash2 className="w-4 h-4" />
+                            <Trash2 className="w-3.5 h-3.5" />
                           </button>
                         )}
                       </td>
@@ -495,6 +512,24 @@ const PurchaseFormModal: React.FC<PurchaseFormModalProps> = ({
           </div>
         </div>
 
+        {/* Running Totals */}
+        <div className="flex justify-end">
+          <div className="w-full md:w-64 border border-gray-200 rounded-xl overflow-hidden text-sm">
+            <div className="flex justify-between px-4 py-2.5 border-b border-gray-100">
+              <span className="text-gray-500">Subtotal</span>
+              <span className="font-medium tabular-nums">{formatINR(subtotal)}</span>
+            </div>
+            <div className="flex justify-between px-4 py-2.5 border-b border-gray-100">
+              <span className="text-gray-500">Tax</span>
+              <span className="font-medium tabular-nums">{formatINR(taxTotal)}</span>
+            </div>
+            <div className="flex justify-between px-4 py-3 bg-primary-50">
+              <span className="font-bold text-primary-800">Grand Total</span>
+              <span className="font-bold text-primary-800 tabular-nums">{formatINR(grandTotal)}</span>
+            </div>
+          </div>
+        </div>
+
         {/* Notes */}
         <div>
           <label className="label">Notes</label>
@@ -503,9 +538,10 @@ const PurchaseFormModal: React.FC<PurchaseFormModalProps> = ({
             rows={2}
             value={formData.notes}
             onChange={(e) => setFormData(p => ({ ...p, notes: e.target.value }))}
-            placeholder="Additional notes..."
+            placeholder="Additional notes…"
           />
         </div>
+
       </form>
     </Modal>
   );

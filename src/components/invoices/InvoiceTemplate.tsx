@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { SaleOrder, SaleItem } from '../../types/sale.types';
 import { useAppSelector } from '@hooks/useRedux';
 import QRCode from 'react-qr-code';
+import { getInvoiceUnitLabel, formatInvoiceQty } from '@utils/units';
 
 interface InvoiceTemplateProps {
   saleOrder: SaleOrder;
@@ -222,7 +223,8 @@ const InvoiceTemplate: React.FC<InvoiceTemplateProps> = ({
           <th style={{ ...thBase, width: '26px' }}>S.No</th>
           <th style={{ ...thBase, textAlign: 'left' as const }}>Description of Goods</th>
           <th style={{ ...thBase, width: '58px' }}>HSN / SAC</th>
-          <th style={{ ...thBase, width: '36px' }}>Qty</th>
+          <th style={{ ...thBase, width: '40px' }}>Qty</th>
+          <th style={{ ...thBase, width: '36px' }}>Unit</th>
           <th style={{ ...thBase, width: '60px', textAlign: 'right' as const }}>Rate (₹)</th>
           <th style={{ ...thBase, width: '42px', textAlign: 'center' as const }}>Disc%</th>
           <th style={{ ...thBase, width: '64px', textAlign: 'right' as const }}>Taxable (₹)</th>
@@ -257,7 +259,8 @@ const InvoiceTemplate: React.FC<InvoiceTemplateProps> = ({
                 )}
               </td>
               <td style={{ ...tdBase, textAlign: 'center' as const }}>{item.hsn_code || '-'}</td>
-              <td style={{ ...tdBase, textAlign: 'center' as const }}>{item.quantity}</td>
+              <td style={{ ...tdBase, textAlign: 'center' as const }}>{formatInvoiceQty(item.quantity)}</td>
+              <td style={{ ...tdBase, textAlign: 'center' as const, fontSize: '9px', color: '#555' }}>{getInvoiceUnitLabel(item.unit)}</td>
               <td style={{ ...tdBase, textAlign: 'right' as const }}>{Number(item.unit_price).toFixed(2)}</td>
               <td style={{ ...tdBase, textAlign: 'center' as const, color: discPct > 0 ? '#059669' : '#aaa' }}>
                 {discPct > 0 ? `${discPct}%` : '-'}
@@ -278,6 +281,7 @@ const InvoiceTemplate: React.FC<InvoiceTemplateProps> = ({
         {/* Filler row to stretch vertical lines */}
         {!isMeasuring && (
           <tr style={{ height: '100%' }}>
+            <td style={{ borderRight: innerBorder }}></td>
             <td style={{ borderRight: innerBorder }}></td>
             <td style={{ borderRight: innerBorder }}></td>
             <td style={{ borderRight: innerBorder }}></td>
