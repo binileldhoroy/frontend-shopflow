@@ -46,6 +46,14 @@ interface ReviewItem {
     brand: number | '';
     unit: string;
     sku: string;
+    hsn_code: string;
+    cost_price: number | '';
+    selling_price: number | '';
+    gst_rate: number | '';
+    stock_quantity: number | '';
+    reorder_level: number | '';
+    barcode: string;
+    attributes: { name: string; value: string }[];
   };
 }
 
@@ -98,7 +106,21 @@ function buildReviewItems(items: ParsedInvoiceItem[]): ReviewItem[] {
     matchedProductName: item.matches?.[0]?.name ?? '',
     matches: item.matches ?? [],
     createNew: !item.matches?.length,
-    newProduct: { name: item.name, category: '', brand: '', unit: mapUnit(item.unit || 'piece'), sku: autoSku(item.name) },
+    newProduct: {
+      name: item.name,
+      category: '',
+      brand: '',
+      unit: mapUnit(item.unit || 'piece'),
+      sku: autoSku(item.name),
+      hsn_code: item.hsn_code || '',
+      cost_price: item.unit_price || '',
+      selling_price: item.unit_price || '',
+      gst_rate: item.tax_rate || '',
+      stock_quantity: item.quantity || '',
+      reorder_level: '',
+      barcode: '',
+      attributes: [],
+    },
   }));
 }
 
@@ -106,6 +128,10 @@ interface NewProductErrors {
   name?: string;
   category?: string;
   sku?: string;
+  cost_price?: string;
+  selling_price?: string;
+  stock_quantity?: string;
+  reorder_level?: string;
 }
 
 const STEPS = [
@@ -214,9 +240,13 @@ const ImportInvoicePage: React.FC = () => {
     reviewItems.forEach((ri, idx) => {
       if (!ri.createNew) return;
       const errs: NewProductErrors = {};
-      if (!ri.newProduct.name.trim()) errs.name = 'Product name is required';
-      if (!ri.newProduct.category) errs.category = 'Category is required';
-      if (!ri.newProduct.sku.trim()) errs.sku = 'SKU is required';
+      if (!ri.newProduct.name.trim()) errs.name = 'Required';
+      if (!ri.newProduct.category) errs.category = 'Required';
+      if (!ri.newProduct.sku.trim()) errs.sku = 'Required';
+      if (ri.newProduct.cost_price === '' || ri.newProduct.cost_price === undefined) errs.cost_price = 'Required';
+      if (ri.newProduct.selling_price === '' || ri.newProduct.selling_price === undefined) errs.selling_price = 'Required';
+      if (ri.newProduct.stock_quantity === '' || ri.newProduct.stock_quantity === undefined) errs.stock_quantity = 'Required';
+      if (ri.newProduct.reorder_level === '' || ri.newProduct.reorder_level === undefined) errs.reorder_level = 'Required';
       if (Object.keys(errs).length) errors[idx] = errs;
     });
     if (Object.keys(errors).length) {
@@ -241,8 +271,16 @@ const ImportInvoicePage: React.FC = () => {
           if (ri.newProduct.sku) fd.append('sku', ri.newProduct.sku);
           if (ri.newProduct.category) fd.append('category', String(ri.newProduct.category));
           if (ri.newProduct.brand) fd.append('brand', String(ri.newProduct.brand));
-          fd.append('cost_price', String(ri.unit_price || 0));
-          fd.append('selling_price', String(ri.unit_price || 0));
+          if (ri.newProduct.hsn_code) fd.append('hsn_code', ri.newProduct.hsn_code);
+          if (ri.newProduct.barcode) fd.append('barcode', ri.newProduct.barcode);
+          fd.append('cost_price', String(ri.newProduct.cost_price || 0));
+          fd.append('selling_price', String(ri.newProduct.selling_price || 0));
+          fd.append('gst_rate', String(ri.newProduct.gst_rate || 0));
+          fd.append('stock_quantity', String(ri.newProduct.stock_quantity || 0));
+          fd.append('reorder_level', String(ri.newProduct.reorder_level || 0));
+          if (ri.newProduct.attributes.length) {
+            fd.append('attributes', JSON.stringify(ri.newProduct.attributes));
+          }
           const created = await productService.create(fd);
           finalItems.push({ product: created.id, product_name: created.name, quantity: ri.quantity, unit_price: ri.unit_price, tax_rate: ri.tax_rate });
         } else {
@@ -642,7 +680,11 @@ const ImportInvoicePage: React.FC = () => {
                     invoiceName: '', quantity: 1, unit: '', unit_price: 0, tax_rate: 0,
                     matchedProductId: null, matchedProductName: '', matches: [],
                     createNew: false,
-                    newProduct: { name: '', category: '', brand: '', unit: 'piece', sku: '' },
+                    newProduct: {
+                      name: '', category: '', brand: '', unit: 'piece', sku: '',
+                      hsn_code: '', cost_price: '', selling_price: '', gst_rate: '',
+                      stock_quantity: '', reorder_level: '', barcode: '', attributes: [],
+                    },
                   }])}
                 >
                   <Plus className="w-4 h-4" /> Add Row
@@ -771,7 +813,7 @@ const ImportInvoicePage: React.FC = () => {
                             <div className="text-xs font-semibold text-primary-700 uppercase tracking-wide mb-3">New Product Details</div>
                             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
 
-                              {/* Product Name */}
+                              {/* Row 1: Product Name | Category | Brand */}
                               <div>
                                 <label className="label text-xs">Product Name *</label>
                                 <input
@@ -783,20 +825,6 @@ const ImportInvoicePage: React.FC = () => {
                                 {errs?.name && <p className="text-xs text-red-600 mt-0.5">{errs.name}</p>}
                               </div>
 
-                              {/* SKU */}
-                              <div>
-                                <label className="label text-xs">SKU *</label>
-                                <input
-                                  type="text"
-                                  className={`input-field text-sm ${errs?.sku ? 'border-red-400 ring-1 ring-red-300' : ''}`}
-                                  value={ri.newProduct.sku}
-                                  placeholder="e.g. ABC-1001"
-                                  onChange={e => updateNewProduct(idx, { sku: e.target.value })}
-                                />
-                                {errs?.sku && <p className="text-xs text-red-600 mt-0.5">{errs.sku}</p>}
-                              </div>
-
-                              {/* Category */}
                               <div>
                                 <label className="label text-xs">Category *</label>
                                 <select
@@ -810,17 +838,39 @@ const ImportInvoicePage: React.FC = () => {
                                 {errs?.category && <p className="text-xs text-red-600 mt-0.5">{errs.category}</p>}
                               </div>
 
-                              {/* Brand */}
                               <div>
                                 <label className="label text-xs">Brand</label>
                                 <select className="input-field text-sm" value={ri.newProduct.brand}
                                   onChange={e => updateNewProduct(idx, { brand: e.target.value ? Number(e.target.value) : '' })}>
-                                  <option value="">Select brand (optional)</option>
+                                  <option value="">Select brand</option>
                                   {brands.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
                                 </select>
                               </div>
 
-                              {/* Unit */}
+                              {/* Row 2: SKU | HSN | Unit */}
+                              <div>
+                                <label className="label text-xs">SKU *</label>
+                                <input
+                                  type="text"
+                                  className={`input-field text-sm ${errs?.sku ? 'border-red-400 ring-1 ring-red-300' : ''}`}
+                                  value={ri.newProduct.sku}
+                                  placeholder="e.g. ABC-1001"
+                                  onChange={e => updateNewProduct(idx, { sku: e.target.value })}
+                                />
+                                {errs?.sku && <p className="text-xs text-red-600 mt-0.5">{errs.sku}</p>}
+                              </div>
+
+                              <div>
+                                <label className="label text-xs">HSN</label>
+                                <input
+                                  type="text"
+                                  className="input-field text-sm"
+                                  value={ri.newProduct.hsn_code}
+                                  placeholder="e.g. 6910"
+                                  onChange={e => updateNewProduct(idx, { hsn_code: e.target.value })}
+                                />
+                              </div>
+
                               <div>
                                 <label className="label text-xs">Unit</label>
                                 <select className="input-field text-sm" value={ri.newProduct.unit}
@@ -831,7 +881,155 @@ const ImportInvoicePage: React.FC = () => {
                                 </select>
                               </div>
 
+                              {/* Row 3: Cost ₹ | Price ₹ | GST % */}
+                              <div>
+                                <label className="label text-xs">Cost ₹ *</label>
+                                <input
+                                  type="number"
+                                  className={`input-field text-sm ${errs?.cost_price ? 'border-red-400 ring-1 ring-red-300' : ''}`}
+                                  value={ri.newProduct.cost_price}
+                                  min="0" step="0.01"
+                                  onChange={e => updateNewProduct(idx, { cost_price: e.target.value !== '' ? parseFloat(e.target.value) : '' })}
+                                />
+                                {errs?.cost_price && <p className="text-xs text-red-600 mt-0.5">{errs.cost_price}</p>}
+                              </div>
+
+                              <div>
+                                <label className="label text-xs">Price ₹ *</label>
+                                <input
+                                  type="number"
+                                  className={`input-field text-sm ${errs?.selling_price ? 'border-red-400 ring-1 ring-red-300' : ''}`}
+                                  value={ri.newProduct.selling_price}
+                                  min="0" step="0.01"
+                                  onChange={e => updateNewProduct(idx, { selling_price: e.target.value !== '' ? parseFloat(e.target.value) : '' })}
+                                />
+                                {errs?.selling_price && <p className="text-xs text-red-600 mt-0.5">{errs.selling_price}</p>}
+                              </div>
+
+                              <div>
+                                <label className="label text-xs">GST %</label>
+                                <input
+                                  type="number"
+                                  className="input-field text-sm"
+                                  value={ri.newProduct.gst_rate}
+                                  min="0" step="0.01"
+                                  onChange={e => updateNewProduct(idx, { gst_rate: e.target.value !== '' ? parseFloat(e.target.value) : '' })}
+                                />
+                              </div>
+
+                              {/* Row 4: Stock | Reorder | Barcode */}
+                              <div>
+                                <label className="label text-xs">Stock *</label>
+                                <input
+                                  type="number"
+                                  className={`input-field text-sm ${errs?.stock_quantity ? 'border-red-400 ring-1 ring-red-300' : ''}`}
+                                  value={ri.newProduct.stock_quantity}
+                                  min="0" step="1"
+                                  onChange={e => updateNewProduct(idx, { stock_quantity: e.target.value !== '' ? parseFloat(e.target.value) : '' })}
+                                />
+                                {errs?.stock_quantity && <p className="text-xs text-red-600 mt-0.5">{errs.stock_quantity}</p>}
+                              </div>
+
+                              <div>
+                                <label className="label text-xs">Reorder *</label>
+                                <input
+                                  type="number"
+                                  className={`input-field text-sm ${errs?.reorder_level ? 'border-red-400 ring-1 ring-red-300' : ''}`}
+                                  value={ri.newProduct.reorder_level}
+                                  min="0" step="1"
+                                  onChange={e => updateNewProduct(idx, { reorder_level: e.target.value !== '' ? parseFloat(e.target.value) : '' })}
+                                />
+                                {errs?.reorder_level && <p className="text-xs text-red-600 mt-0.5">{errs.reorder_level}</p>}
+                              </div>
+
+                              <div>
+                                <label className="label text-xs">Barcode</label>
+                                <input
+                                  type="text"
+                                  className="input-field text-sm"
+                                  value={ri.newProduct.barcode}
+                                  placeholder="Scan or enter barcode"
+                                  onChange={e => updateNewProduct(idx, { barcode: e.target.value })}
+                                />
+                              </div>
+
                             </div>
+
+                            {/* Attributes */}
+                            <div className="mt-3">
+                              <div className="flex items-center justify-between mb-2">
+                                <label className="label text-xs mb-0">Attributes</label>
+                                <button
+                                  type="button"
+                                  className="text-xs text-primary-600 hover:underline flex items-center gap-1"
+                                  onClick={() => updateNewProduct(idx, { attributes: [...ri.newProduct.attributes, { name: '', value: '' }] })}
+                                >
+                                  <Plus className="w-3 h-3" /> Add
+                                </button>
+                              </div>
+                              {ri.newProduct.attributes.length === 0 && (
+                                <p className="text-xs text-gray-400 italic">No attributes — click Add to specify size, colour, etc.</p>
+                              )}
+                              <div className="space-y-2">
+                                {ri.newProduct.attributes.map((attr, ai) => (
+                                  <div key={ai} className="flex gap-2 items-center">
+                                    <input
+                                      type="text"
+                                      className="input-field text-sm flex-1"
+                                      placeholder="Name (e.g. Size)"
+                                      value={attr.name}
+                                      onChange={e => {
+                                        const updated = ri.newProduct.attributes.map((a, i) => i === ai ? { ...a, name: e.target.value } : a);
+                                        updateNewProduct(idx, { attributes: updated });
+                                      }}
+                                    />
+                                    <input
+                                      type="text"
+                                      className="input-field text-sm flex-1"
+                                      placeholder="Value (e.g. 6x6)"
+                                      value={attr.value}
+                                      onChange={e => {
+                                        const updated = ri.newProduct.attributes.map((a, i) => i === ai ? { ...a, value: e.target.value } : a);
+                                        updateNewProduct(idx, { attributes: updated });
+                                      }}
+                                    />
+                                    <button
+                                      type="button"
+                                      className="p-1.5 rounded text-red-400 hover:bg-red-50 hover:text-red-600 transition-colors shrink-0"
+                                      onClick={() => updateNewProduct(idx, { attributes: ri.newProduct.attributes.filter((_, i) => i !== ai) })}
+                                    >
+                                      <Trash2 className="w-3.5 h-3.5" />
+                                    </button>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })()}
+
+                      {/* Existing product details (read-only) */}
+                      {!ri.createNew && ri.matchedProductId && (() => {
+                        const match = ri.matches.find(m => m.id === ri.matchedProductId);
+                        if (!match) return null;
+                        return (
+                          <div className="px-4 py-3 bg-emerald-50/60 border-t border-emerald-100">
+                            <div className="text-xs font-semibold text-emerald-700 uppercase tracking-wide mb-2">Matched Product Details</div>
+                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-1.5 text-xs">
+                              <div>
+                                <span className="text-gray-400">Name</span>
+                                <p className="font-medium text-gray-700 truncate">{match.name}</p>
+                              </div>
+                              <div>
+                                <span className="text-gray-400">SKU</span>
+                                <p className="font-medium text-gray-700 font-mono">{match.sku || '—'}</p>
+                              </div>
+                              <div>
+                                <span className="text-gray-400">Cost Price</span>
+                                <p className="font-medium text-gray-700">{match.cost_price != null ? formatINR(match.cost_price) : '—'}</p>
+                              </div>
+                            </div>
+                            <p className="text-xs text-emerald-600 mt-2 font-medium">Stock will be updated when this order is received.</p>
                           </div>
                         );
                       })()}

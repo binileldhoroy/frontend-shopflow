@@ -68,6 +68,7 @@ export interface ParsedInvoiceItem {
   unit_price: number;
   tax_rate: number;
   total: number;
+  hsn_code?: string;
   matches: ParsedInvoiceProductMatch[];
 }
 
