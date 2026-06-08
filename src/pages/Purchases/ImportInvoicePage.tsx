@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { purchaseService } from '../../api/services/purchase.service';
 import { productService } from '../../api/services/product.service';
 import { supplierService } from '../../api/services/supplier.service';
-import { ParsedInvoice, ParsedInvoiceItem, PurchaseOrderCreate } from '../../types/purchase.types';
+import { ParsedInvoice, ParsedInvoiceItem, PurchaseOrderCreate, PurchaseStatus, PurchaseOrder } from '../../types/purchase.types';
 import { useAppDispatch } from '../../hooks/useRedux';
 import { addNotification } from '../../store/slices/uiSlice';
 import axiosInstance from '../../api/axios';
@@ -26,6 +26,9 @@ import {
   PackagePlus,
   ShoppingCart,
   Zap,
+  Search,
+  X,
+  Link2,
 } from 'lucide-react';
 
 type Step = 'upload' | 'parsing' | 'review' | 'creating' | 'done';
@@ -40,12 +43,21 @@ interface ReviewItem {
   matchedProductName: string;
   matches: { id: number; name: string; sku: string; cost_price: number }[];
   createNew: boolean;
+  updateStock: boolean;
   newProduct: {
     name: string;
     category: number | '';
     brand: number | '';
     unit: string;
     sku: string;
+    hsn_code: string;
+    cost_price: number | '';
+    selling_price: number | '';
+    gst_rate: number | '';
+    stock_quantity: number | '';
+    reorder_level: number | '';
+    barcode: string;
+    attributes: { name: string; value: string }[];
   };
 }
 
@@ -98,7 +110,22 @@ function buildReviewItems(items: ParsedInvoiceItem[]): ReviewItem[] {
     matchedProductName: item.matches?.[0]?.name ?? '',
     matches: item.matches ?? [],
     createNew: !item.matches?.length,
-    newProduct: { name: item.name, category: '', brand: '', unit: mapUnit(item.unit || 'piece'), sku: autoSku(item.name) },
+    updateStock: true,
+    newProduct: {
+      name: item.name,
+      category: '',
+      brand: '',
+      unit: mapUnit(item.unit || 'piece'),
+      sku: autoSku(item.name),
+      hsn_code: item.hsn_code || '',
+      cost_price: item.unit_price || '',
+      selling_price: item.unit_price || '',
+      gst_rate: item.tax_rate || '',
+      stock_quantity: item.quantity || '',
+      reorder_level: '',
+      barcode: '',
+      attributes: [],
+    },
   }));
 }
 
@@ -106,6 +133,10 @@ interface NewProductErrors {
   name?: string;
   category?: string;
   sku?: string;
+  cost_price?: string;
+  selling_price?: string;
+  stock_quantity?: string;
+  reorder_level?: string;
 }
 
 const STEPS = [
@@ -136,13 +167,32 @@ const ImportInvoicePage: React.FC = () => {
   const [fromCache, setFromCache] = useState(false);
   const [itemErrors, setItemErrors]           = useState<Record<number, NewProductErrors>>({});
 
+  // Order options
+  const [orderStatus, setOrderStatus]       = useState<PurchaseStatus>('received');
+  const [paymentStatus, setPaymentStatus]   = useState<PurchaseOrder['payment_status']>('paid');
+  const [paymentMethod, setPaymentMethod]   = useState<PurchaseOrder['payment_method']>('cash');
+
   // Creating state
   const [creatingLog, setCreatingLog]         = useState<string[]>([]);
   const [createdOrderNumber, setCreatedOrderNumber] = useState('');
   const [_createdOrderId, setCreatedOrderId]   = useState<number | null>(null);
   const [createError, setCreateError]         = useState('');
+  const [duplicateWarning, setDuplicateWarning] = useState<{ orderNumber: string; date: string } | null>(null);
+
+  // Link-to-existing search state
+  const [linkingItemIdx, setLinkingItemIdx]   = useState<number | null>(null);
+  const [linkSearchQuery, setLinkSearchQuery] = useState('');
+  const [linkSearchResults, setLinkSearchResults] = useState<{ id: number; name: string; sku: string; cost_price: number }[]>([]);
+  const [linkSearchLoading, setLinkSearchLoading] = useState(false);
+
+  // Category / brand inline search per item
+  const [catSearch, setCatSearch]   = useState<Record<number, string>>({});
+  const [brandSearch, setBrandSearch] = useState<Record<number, string>>({});
+  const [catOpen, setCatOpen]   = useState<Record<number, boolean>>({});
+  const [brandOpen, setBrandOpen] = useState<Record<number, boolean>>({});
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const linkSearchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Load reference data once
   useEffect(() => {
@@ -156,6 +206,35 @@ const ImportInvoicePage: React.FC = () => {
   }, []);
 
   const handleFileSelect = (f: File) => { setFile(f); setParseError(''); };
+
+  const checkDuplicateInvoice = useCallback(async (invoiceNumber: string) => {
+    if (!invoiceNumber?.trim()) return;
+    setDuplicateWarning(null);
+    try {
+      const res = await axiosInstance.get(API_ENDPOINTS.PURCHASES.LIST, { params: { search: invoiceNumber } });
+      const data = res.data;
+      const orders: PurchaseOrder[] = Array.isArray(data) ? data : (data.results ?? []);
+      const match = orders.find(o => o.notes && o.notes.includes(invoiceNumber));
+      if (match) {
+        setDuplicateWarning({ orderNumber: match.order_number, date: match.order_date });
+      }
+    } catch { /* ignore */ }
+  }, []);
+
+  const searchProducts = useCallback((query: string) => {
+    if (linkSearchTimer.current) clearTimeout(linkSearchTimer.current);
+    if (!query.trim()) { setLinkSearchResults([]); setLinkSearchLoading(false); return; }
+    setLinkSearchLoading(true);
+    linkSearchTimer.current = setTimeout(async () => {
+      try {
+        const res = await axiosInstance.get('/api/products/', { params: { search: query, limit: 12 } });
+        const data = res.data;
+        const items: any[] = Array.isArray(data) ? data : (data.results ?? []);
+        setLinkSearchResults(items.map(p => ({ id: p.id, name: p.name, sku: p.sku || '', cost_price: p.cost_price || 0 })));
+      } catch { setLinkSearchResults([]); }
+      finally { setLinkSearchLoading(false); }
+    }, 280);
+  }, []);
 
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault(); setDragOver(false);
@@ -179,6 +258,8 @@ const ImportInvoicePage: React.FC = () => {
         (data.supplier_name || '').toLowerCase().includes(s.name.toLowerCase())
       );
       setSupplierId(matched?.id ?? '');
+      setDuplicateWarning(null);
+      if (data.invoice_number) checkDuplicateInvoice(data.invoice_number);
       setStep('review');
     } catch (err: any) {
       setParseError(err?.response?.data?.error || err?.message || 'Document parsing failed');
@@ -214,9 +295,13 @@ const ImportInvoicePage: React.FC = () => {
     reviewItems.forEach((ri, idx) => {
       if (!ri.createNew) return;
       const errs: NewProductErrors = {};
-      if (!ri.newProduct.name.trim()) errs.name = 'Product name is required';
-      if (!ri.newProduct.category) errs.category = 'Category is required';
-      if (!ri.newProduct.sku.trim()) errs.sku = 'SKU is required';
+      if (!ri.newProduct.name.trim()) errs.name = 'Required';
+      if (!ri.newProduct.category) errs.category = 'Required';
+      if (!ri.newProduct.sku.trim()) errs.sku = 'Required';
+      if (ri.newProduct.cost_price === '' || ri.newProduct.cost_price === undefined) errs.cost_price = 'Required';
+      if (ri.newProduct.selling_price === '' || ri.newProduct.selling_price === undefined) errs.selling_price = 'Required';
+      if (ri.newProduct.stock_quantity === '' || ri.newProduct.stock_quantity === undefined) errs.stock_quantity = 'Required';
+      if (ri.newProduct.reorder_level === '' || ri.newProduct.reorder_level === undefined) errs.reorder_level = 'Required';
       if (Object.keys(errs).length) errors[idx] = errs;
     });
     if (Object.keys(errors).length) {
@@ -241,8 +326,16 @@ const ImportInvoicePage: React.FC = () => {
           if (ri.newProduct.sku) fd.append('sku', ri.newProduct.sku);
           if (ri.newProduct.category) fd.append('category', String(ri.newProduct.category));
           if (ri.newProduct.brand) fd.append('brand', String(ri.newProduct.brand));
-          fd.append('cost_price', String(ri.unit_price || 0));
-          fd.append('selling_price', String(ri.unit_price || 0));
+          if (ri.newProduct.hsn_code) fd.append('hsn_code', ri.newProduct.hsn_code);
+          if (ri.newProduct.barcode) fd.append('barcode', ri.newProduct.barcode);
+          fd.append('cost_price', String(ri.newProduct.cost_price || 0));
+          fd.append('selling_price', String(ri.newProduct.selling_price || 0));
+          fd.append('gst_rate', String(ri.newProduct.gst_rate || 0));
+          fd.append('stock_quantity', String(ri.newProduct.stock_quantity || 0));
+          fd.append('reorder_level', String(ri.newProduct.reorder_level || 0));
+          if (ri.newProduct.attributes.length) {
+            fd.append('attributes', JSON.stringify(ri.newProduct.attributes));
+          }
           const created = await productService.create(fd);
           finalItems.push({ product: created.id, product_name: created.name, quantity: ri.quantity, unit_price: ri.unit_price, tax_rate: ri.tax_rate });
         } else {
@@ -254,12 +347,21 @@ const ImportInvoicePage: React.FC = () => {
       const order = await purchaseService.createPurchase({
         supplier: Number(supplierId),
         order_date: invoiceDate || new Date().toISOString().split('T')[0],
-        status: 'ordered',
-        payment_status: 'pending',
-        payment_method: 'other',
+        status: orderStatus,
+        payment_status: paymentStatus,
+        payment_method: paymentMethod,
         notes: parsedData?.invoice_number ? `Invoice: ${parsedData.invoice_number}` : '',
         items: finalItems,
       });
+
+      // If marked as received, trigger the receive endpoint so backend updates stock
+      if (orderStatus === 'received') {
+        log('Updating stock…');
+        const hasExistingItemsToUpdate = reviewItems.some(ri => !ri.createNew && ri.matchedProductId && ri.updateStock);
+        if (hasExistingItemsToUpdate) {
+          await purchaseService.receivePurchase(order.id, undefined, true, null);
+        }
+      }
 
       setCreatedOrderNumber(order.order_number);
       setCreatedOrderId(order.id);
@@ -515,100 +617,161 @@ const ImportInvoicePage: React.FC = () => {
       {step === 'review' && (
         <div className="flex-1 flex flex-col lg:flex-row gap-6 px-0 min-h-0 overflow-y-auto lg:overflow-hidden">
 
-          {/* Left sidebar — document info + totals + actions */}
-          <div className="w-full lg:w-72 shrink-0 flex flex-col gap-4 lg:overflow-y-auto py-2">
+          {/* Left sidebar */}
+          <div className="w-full lg:w-72 shrink-0 flex flex-col py-2 lg:h-full min-h-0">
 
-            {createError && (
-              <div className="flex items-start gap-2 px-3 py-2.5 bg-red-50 rounded-xl border border-red-100 text-red-700 text-xs">
-                <AlertCircle className="w-3.5 h-3.5 mt-0.5 shrink-0" /><span>{createError}</span>
-              </div>
-            )}
+            {/* Scrollable content */}
+            <div className="flex-1 overflow-y-auto space-y-2.5 pb-2 min-h-0">
 
-            {Object.keys(itemErrors).length > 0 && (
-              <div className="flex items-start gap-2 px-3 py-2.5 bg-amber-50 rounded-xl border border-amber-200 text-amber-800 text-xs">
-                <AlertCircle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
-                <span>
-                  {Object.keys(itemErrors).length === 1
-                    ? `Item #${Number(Object.keys(itemErrors)[0]) + 1} has missing required fields.`
-                    : `${Object.keys(itemErrors).length} items have missing required fields.`
-                  } Fill in the highlighted fields before creating the order.
-                </span>
-              </div>
-            )}
+              {/* Error / warning banners */}
+              {createError && (
+                <div className="flex items-start gap-2 px-3 py-2 bg-red-50 rounded-xl border border-red-100 text-red-700 text-xs">
+                  <AlertCircle className="w-3.5 h-3.5 mt-0.5 shrink-0" /><span>{createError}</span>
+                </div>
+              )}
 
-            {/* Document card */}
-            <div className="section-card !p-4 space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Document Info</div>
-                {fromCache && (
-                  <span className="flex items-center gap-1 text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-full px-2 py-0.5">
-                    <Zap className="w-3 h-3" /> Cached
+              {duplicateWarning && (
+                <div className="flex items-start gap-2 px-2.5 py-2 bg-orange-50 rounded-xl border border-orange-300 text-orange-800 text-xs">
+                  <AlertCircle className="w-3.5 h-3.5 mt-0.5 shrink-0 text-orange-500" />
+                  <div>
+                    <p className="font-semibold">Possible duplicate</p>
+                    <p className="mt-0.5">Already imported as <span className="font-mono font-bold">{duplicateWarning.orderNumber}</span> ({duplicateWarning.date}). Proceed only if intentional.</p>
+                  </div>
+                </div>
+              )}
+
+              {Object.keys(itemErrors).length > 0 && (
+                <div className="flex items-start gap-2 px-2.5 py-2 bg-amber-50 rounded-xl border border-amber-200 text-amber-800 text-xs">
+                  <AlertCircle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+                  <span>
+                    {Object.keys(itemErrors).length === 1
+                      ? `Item #${Number(Object.keys(itemErrors)[0]) + 1} has missing required fields.`
+                      : `${Object.keys(itemErrors).length} items have missing required fields.`
+                    } Fill in highlighted fields.
                   </span>
-                )}
-              </div>
+                </div>
+              )}
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-4">
+              {/* Combined Document Info + Order Options card */}
+              <div className="section-card !p-3 space-y-2.5">
+
+                {/* ── Document Info ── */}
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Document Info</span>
+                  {fromCache && (
+                    <span className="flex items-center gap-1 text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-full px-2 py-0.5">
+                      <Zap className="w-3 h-3" /> Cached
+                    </span>
+                  )}
+                </div>
+
+                {/* Supplier */}
                 <div>
-                  <label className="label">Supplier *</label>
+                  <label className="label text-xs">Supplier *</label>
                   <select
-                    className={`input-field ${!supplierId ? 'border-amber-400 ring-1 ring-amber-300' : ''}`}
+                    className={`input-field text-sm ${!supplierId ? 'border-amber-400 ring-1 ring-amber-300' : ''}`}
                     value={supplierId}
                     onChange={e => setSupplierId(e.target.value ? Number(e.target.value) : '')}
                   >
                     <option value="">Select supplier…</option>
                     {suppliers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                   </select>
-                  {supplierName && (
-                    <p className="text-xs text-gray-400 mt-0.5">Detected: <em className="text-gray-600">{supplierName}</em></p>
-                  )}
-                  {!supplierId && (
-                    <p className="text-xs text-amber-600 mt-1 font-medium">Required to create order</p>
-                  )}
+                  <div className="flex items-center justify-between mt-0.5 flex-wrap gap-x-2">
+                    {supplierName && <p className="text-xs text-gray-400">Detected: <em className="text-gray-600">{supplierName}</em></p>}
+                    {!supplierId && <p className="text-xs text-amber-600 font-medium">Required</p>}
+                  </div>
                 </div>
 
-                <div>
-                  <label className="label">Invoice Date</label>
-                  <input type="date" className="input-field" value={invoiceDate}
-                    onChange={e => setInvoiceDate(e.target.value)} />
-                </div>
-
-                <div className="sm:col-span-2 lg:col-span-1">
-                  <div className="label mb-1">Document Type</div>
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className={`badge ${parsedData?.document_type === 'invoice' ? 'badge-info' : parsedData?.document_type === 'delivery_note' ? 'badge-success' : 'badge-secondary'} capitalize`}>
+                {/* Invoice Date + Doc Type row */}
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="label text-xs">Invoice Date</label>
+                    <input type="date" className="input-field text-sm" value={invoiceDate}
+                      onChange={e => setInvoiceDate(e.target.value)} />
+                  </div>
+                  <div>
+                    <div className="label text-xs mb-1">Type</div>
+                    <span className={`badge text-xs ${parsedData?.document_type === 'invoice' ? 'badge-info' : parsedData?.document_type === 'delivery_note' ? 'badge-success' : 'badge-secondary'} capitalize`}>
                       {parsedData?.document_type?.replace('_', ' ') || 'Unknown'}
                     </span>
-                    {parsedData?.invoice_number && (
-                      <span className="text-xs text-gray-500 font-mono">#{parsedData.invoice_number}</span>
+                  </div>
+                </div>
+
+                {/* Invoice number */}
+                {parsedData?.invoice_number && (
+                  <div>
+                    <div className="label text-xs mb-0.5">Invoice #</div>
+                    <p className="text-xs text-gray-700 font-mono break-all bg-gray-50 rounded px-2 py-1">{parsedData.invoice_number}</p>
+                  </div>
+                )}
+
+                <div className="border-t border-gray-100 pt-2.5 space-y-2.5">
+                  {/* ── Order Options ── */}
+                  <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Order Options</span>
+
+                  {/* Order Status */}
+                  <div>
+                    <label className="label text-xs">Order Status</label>
+                    <select className="input-field text-sm" value={orderStatus} onChange={e => setOrderStatus(e.target.value as PurchaseStatus)}>
+                      <option value="received">Received — goods in hand</option>
+                      <option value="ordered">Ordered — awaiting delivery</option>
+                      <option value="partially_received">Partially Received</option>
+                      <option value="draft">Draft</option>
+                    </select>
+                    {orderStatus === 'received' && (
+                      <p className="text-xs text-emerald-700 mt-0.5">Stock updated for matched items with "Update stock" on.</p>
                     )}
+                  </div>
+
+                  {/* Payment Status + Method in a 2-col grid */}
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="label text-xs">Payment</label>
+                      <select className="input-field text-sm" value={paymentStatus} onChange={e => setPaymentStatus(e.target.value as PurchaseOrder['payment_status'])}>
+                        <option value="paid">Fully Paid</option>
+                        <option value="partial">Partial</option>
+                        <option value="pending">Pending</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="label text-xs">Method</label>
+                      <select className="input-field text-sm" value={paymentMethod} onChange={e => setPaymentMethod(e.target.value as PurchaseOrder['payment_method'])}>
+                        <option value="other">Other</option>
+                        <option value="cash">Cash</option>
+                        <option value="upi">UPI</option>
+                        <option value="card">Card</option>
+                        <option value="net_banking">Net Banking</option>
+                      </select>
+                    </div>
                   </div>
                 </div>
               </div>
+
+              {/* Totals card */}
+              <div className="section-card !p-3 overflow-hidden">
+                <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Order Summary</div>
+                <div className="flex justify-between text-sm py-1.5 border-b border-gray-100">
+                  <span className="text-gray-500">Items</span>
+                  <span className="font-medium">{reviewItems.length}</span>
+                </div>
+                <div className="flex justify-between text-sm py-1.5 border-b border-gray-100">
+                  <span className="text-gray-500">Subtotal</span>
+                  <span className="font-medium tabular-nums">{formatINR(totals.sub)}</span>
+                </div>
+                <div className="flex justify-between text-sm py-1.5 border-b border-gray-100">
+                  <span className="text-gray-500">Tax</span>
+                  <span className="font-medium tabular-nums">{formatINR(totals.tax)}</span>
+                </div>
+                <div className="flex justify-between py-2 bg-primary-50 -mx-3 px-3 mt-1">
+                  <span className="font-bold text-primary-800 text-sm">Grand Total</span>
+                  <span className="font-bold text-primary-800 tabular-nums text-sm">{formatINR(grandTotal)}</span>
+                </div>
+              </div>
+
             </div>
 
-            {/* Totals card */}
-            <div className="section-card !p-4 space-y-0 overflow-hidden">
-              <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Order Summary</div>
-              <div className="flex justify-between text-sm py-2 border-b border-gray-100">
-                <span className="text-gray-500">Items</span>
-                <span className="font-medium">{reviewItems.length}</span>
-              </div>
-              <div className="flex justify-between text-sm py-2 border-b border-gray-100">
-                <span className="text-gray-500">Subtotal</span>
-                <span className="font-medium tabular-nums">{formatINR(totals.sub)}</span>
-              </div>
-              <div className="flex justify-between text-sm py-2 border-b border-gray-100">
-                <span className="text-gray-500">Tax</span>
-                <span className="font-medium tabular-nums">{formatINR(totals.tax)}</span>
-              </div>
-              <div className="flex justify-between py-3 bg-primary-50 -mx-4 px-4 mt-1">
-                <span className="font-bold text-primary-800">Grand Total</span>
-                <span className="font-bold text-primary-800 tabular-nums">{formatINR(grandTotal)}</span>
-              </div>
-            </div>
-
-            {/* Actions */}
-            <div className="space-y-2">
+            {/* Sticky action buttons — always visible */}
+            <div className="pt-2.5 space-y-2 border-t border-gray-100 shrink-0 bg-white">
               <button
                 className="btn btn-primary w-full flex items-center justify-center gap-2"
                 onClick={handleCreateOrder}
@@ -641,8 +804,12 @@ const ImportInvoicePage: React.FC = () => {
                   onClick={() => setReviewItems(prev => [...prev, {
                     invoiceName: '', quantity: 1, unit: '', unit_price: 0, tax_rate: 0,
                     matchedProductId: null, matchedProductName: '', matches: [],
-                    createNew: false,
-                    newProduct: { name: '', category: '', brand: '', unit: 'piece', sku: '' },
+                    createNew: false, updateStock: true,
+                    newProduct: {
+                      name: '', category: '', brand: '', unit: 'piece', sku: '',
+                      hsn_code: '', cost_price: '', selling_price: '', gst_rate: '',
+                      stock_quantity: '', reorder_level: '', barcode: '', attributes: [],
+                    },
                   }])}
                 >
                   <Plus className="w-4 h-4" /> Add Row
@@ -695,41 +862,150 @@ const ImportInvoicePage: React.FC = () => {
                             <div className="text-xs text-gray-400 mb-1 font-medium uppercase tracking-wide">Match to Product</div>
                             {!ri.createNew ? (
                               <div className="space-y-1.5">
-                                <select
-                                  className="input-field text-sm w-full"
-                                  value={ri.matchedProductId ?? ''}
-                                  onChange={e => {
-                                    const id = e.target.value ? Number(e.target.value) : null;
-                                    const match = ri.matches.find(m => m.id === id);
-                                    updateItem(idx, { matchedProductId: id, matchedProductName: match?.name || '', unit_price: match?.cost_price || ri.unit_price });
-                                  }}
-                                >
-                                  <option value="">— search / no match —</option>
-                                  {ri.matches.map(m => (
-                                    <option key={m.id} value={m.id}>{m.name}{m.sku ? ` (${m.sku})` : ''}</option>
-                                  ))}
-                                </select>
-                                <div className="flex items-center justify-between">
-                                  {ri.matchedProductId
-                                    ? <span className="flex items-center gap-1 text-xs text-emerald-600"><CheckCircle2 className="w-3 h-3" /> Matched</span>
-                                    : <span className="flex items-center gap-1 text-xs text-amber-600"><AlertCircle className="w-3 h-3" /> No match</span>
-                                  }
-                                  <button type="button" className="text-xs text-primary-600 hover:underline"
-                                    onClick={() => updateItem(idx, { createNew: true })}>
-                                    + Create new
-                                  </button>
-                                </div>
+                                {/* AI matches dropdown */}
+                                {ri.matches.length > 0 && (
+                                  <select
+                                    className="input-field text-sm w-full"
+                                    value={ri.matchedProductId ?? ''}
+                                    onChange={e => {
+                                      const id = e.target.value ? Number(e.target.value) : null;
+                                      const match = ri.matches.find(m => m.id === id);
+                                      updateItem(idx, { matchedProductId: id, matchedProductName: match?.name || '', unit_price: match?.cost_price || ri.unit_price });
+                                    }}
+                                  >
+                                    <option value="">— no match —</option>
+                                    {ri.matches.map(m => (
+                                      <option key={m.id} value={m.id}>{m.name}{m.sku ? ` (${m.sku})` : ''}</option>
+                                    ))}
+                                  </select>
+                                )}
+                                {/* Inline product search */}
+                                {linkingItemIdx === idx ? (
+                                  <div className="space-y-1">
+                                    <div className="relative">
+                                      
+                                      <input
+                                        autoFocus
+                                        type="text"
+                                        className="input-field text-sm pr-6"
+                                        placeholder="Search all products…"
+                                        value={linkSearchQuery}
+                                        onChange={e => { setLinkSearchQuery(e.target.value); searchProducts(e.target.value); }}
+                                      />
+                                      <button type="button" className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                                        onClick={() => { setLinkingItemIdx(null); setLinkSearchQuery(''); setLinkSearchResults([]); }}>
+                                        <X className="w-3.5 h-3.5" />
+                                      </button>
+                                    </div>
+                                    {linkSearchLoading && <p className="text-xs text-gray-400 px-1">Searching…</p>}
+                                    {!linkSearchLoading && linkSearchQuery && linkSearchResults.length === 0 && (
+                                      <p className="text-xs text-gray-400 px-1">No products found</p>
+                                    )}
+                                    {linkSearchResults.length > 0 && (
+                                      <div className="border border-gray-200 rounded-lg max-h-36 overflow-y-auto divide-y divide-gray-100 bg-white shadow-sm">
+                                        {linkSearchResults.map(p => (
+                                          <button key={p.id} type="button"
+                                            className="w-full text-left px-2.5 py-1.5 hover:bg-primary-50 transition-colors"
+                                            onClick={() => {
+                                              updateItem(idx, {
+                                                createNew: false,
+                                                matchedProductId: p.id,
+                                                matchedProductName: p.name,
+                                                matches: [...ri.matches.filter(m => m.id !== p.id), p],
+                                                unit_price: p.cost_price || ri.unit_price,
+                                              });
+                                              setLinkingItemIdx(null); setLinkSearchQuery(''); setLinkSearchResults([]);
+                                            }}>
+                                            <div className="text-xs font-medium text-gray-800">{p.name}</div>
+                                            {p.sku && <div className="text-xs text-gray-400 font-mono">{p.sku}</div>}
+                                          </button>
+                                        ))}
+                                      </div>
+                                    )}
+                                  </div>
+                                ) : (
+                                  <div className="flex items-center justify-between">
+                                    {ri.matchedProductId
+                                      ? <span className="flex items-center gap-1 text-xs text-emerald-600"><CheckCircle2 className="w-3 h-3" /> Matched</span>
+                                      : <span className="flex items-center gap-1 text-xs text-amber-600"><AlertCircle className="w-3 h-3" /> No match</span>
+                                    }
+                                    <div className="flex items-center gap-2">
+                                      <button type="button"
+                                        className="flex items-center gap-1 text-xs text-primary-600 hover:underline"
+                                        onClick={() => { setLinkingItemIdx(idx); setLinkSearchQuery(''); setLinkSearchResults([]); }}>
+                                        <Search className="w-3 h-3" /> Search
+                                      </button>
+                                      <button type="button" className="text-xs text-gray-500 hover:underline"
+                                        onClick={() => updateItem(idx, { createNew: true })}>
+                                        + New
+                                      </button>
+                                    </div>
+                                  </div>
+                                )}
                               </div>
                             ) : (
                               <div className="space-y-1.5">
                                 <div className="flex items-center gap-1 text-xs font-semibold text-primary-700 bg-primary-50 rounded-lg px-2 py-1">
                                   <Plus className="w-3 h-3" /> Creating new product
                                 </div>
-                                {ri.matches.length > 0 && (
-                                  <button type="button" className="text-xs text-gray-500 hover:underline"
-                                    onClick={() => updateItem(idx, { createNew: false, matchedProductId: ri.matches[0].id, matchedProductName: ri.matches[0].name })}>
-                                    Use existing instead
-                                  </button>
+                                {/* Link to existing search */}
+                                {linkingItemIdx === idx ? (
+                                  <div className="space-y-1">
+                                    <div className="relative">
+                                      
+                                      <input
+                                        autoFocus
+                                        type="text"
+                                        className="input-field text-sm pr-6"
+                                        placeholder="Search existing products…"
+                                        value={linkSearchQuery}
+                                        onChange={e => { setLinkSearchQuery(e.target.value); searchProducts(e.target.value); }}
+                                      />
+                                      <button type="button" className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                                        onClick={() => { setLinkingItemIdx(null); setLinkSearchQuery(''); setLinkSearchResults([]); }}>
+                                        <X className="w-3.5 h-3.5" />
+                                      </button>
+                                    </div>
+                                    {linkSearchLoading && <p className="text-xs text-gray-400 px-1">Searching…</p>}
+                                    {!linkSearchLoading && linkSearchQuery && linkSearchResults.length === 0 && (
+                                      <p className="text-xs text-gray-400 px-1">No products found</p>
+                                    )}
+                                    {linkSearchResults.length > 0 && (
+                                      <div className="border border-gray-200 rounded-lg max-h-36 overflow-y-auto divide-y divide-gray-100 bg-white shadow-sm">
+                                        {linkSearchResults.map(p => (
+                                          <button key={p.id} type="button"
+                                            className="w-full text-left px-2.5 py-1.5 hover:bg-primary-50 transition-colors"
+                                            onClick={() => {
+                                              updateItem(idx, {
+                                                createNew: false,
+                                                matchedProductId: p.id,
+                                                matchedProductName: p.name,
+                                                matches: [p],
+                                                unit_price: p.cost_price || ri.unit_price,
+                                              });
+                                              setLinkingItemIdx(null); setLinkSearchQuery(''); setLinkSearchResults([]);
+                                            }}>
+                                            <div className="text-xs font-medium text-gray-800">{p.name}</div>
+                                            {p.sku && <div className="text-xs text-gray-400 font-mono">{p.sku}</div>}
+                                          </button>
+                                        ))}
+                                      </div>
+                                    )}
+                                  </div>
+                                ) : (
+                                  <div className="flex items-center gap-2 flex-wrap">
+                                    <button type="button"
+                                      className="flex items-center gap-1 text-xs text-primary-600 hover:underline"
+                                      onClick={() => { setLinkingItemIdx(idx); setLinkSearchQuery(''); setLinkSearchResults([]); }}>
+                                      <Link2 className="w-3 h-3" /> Link to existing
+                                    </button>
+                                    {ri.matches.length > 0 && (
+                                      <button type="button" className="text-xs text-gray-500 hover:underline"
+                                        onClick={() => updateItem(idx, { createNew: false, matchedProductId: ri.matches[0].id, matchedProductName: ri.matches[0].name })}>
+                                        Use AI match
+                                      </button>
+                                    )}
+                                  </div>
                                 )}
                               </div>
                             )}
@@ -740,21 +1016,28 @@ const ImportInvoicePage: React.FC = () => {
                         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                           <div>
                             <div className="text-xs text-gray-400 mb-1 font-medium uppercase tracking-wide">Qty</div>
-                            <input type="number" className="input-field text-sm w-full" value={ri.quantity}
+                            <input type="number" className="input-field text-sm w-full"
+                              value={ri.quantity || ''}
                               min="0.01" step="0.01"
-                              onChange={e => updateItem(idx, { quantity: parseFloat(e.target.value) || 0 })} />
+                              onFocus={e => e.target.select()}
+                              onChange={e => updateItem(idx, { quantity: parseFloat(e.target.value) || 0 })}
+                              onBlur={e => { if (!e.target.value || parseFloat(e.target.value) <= 0) updateItem(idx, { quantity: 1 }); }} />
                           </div>
                           <div>
                             <div className="text-xs text-gray-400 mb-1 font-medium uppercase tracking-wide">Unit Price</div>
-                            <input type="number" className="input-field text-sm w-full" value={ri.unit_price}
+                            <input type="number" className="input-field text-sm w-full"
+                              value={ri.unit_price || ''}
                               min="0" step="0.01"
+                              onFocus={e => e.target.select()}
                               onChange={e => updateItem(idx, { unit_price: parseFloat(e.target.value) || 0 })} />
                           </div>
                           <div>
                             <div className="text-xs text-gray-400 mb-1 font-medium uppercase tracking-wide">Tax %</div>
-                            <input type="number" className="input-field text-sm w-full" value={ri.tax_rate}
+                            <input type="number" className="input-field text-sm w-full"
+                              value={ri.tax_rate === 0 ? '0' : ri.tax_rate || ''}
                               min="0" step="0.01"
-                              onChange={e => updateItem(idx, { tax_rate: parseFloat(e.target.value) || 0 })} />
+                              onFocus={e => e.target.select()}
+                              onChange={e => updateItem(idx, { tax_rate: e.target.value === '' ? 0 : parseFloat(e.target.value) || 0 })} />
                           </div>
                           <div>
                             <div className="text-xs text-gray-400 mb-1 font-medium uppercase tracking-wide">Total</div>
@@ -771,7 +1054,7 @@ const ImportInvoicePage: React.FC = () => {
                             <div className="text-xs font-semibold text-primary-700 uppercase tracking-wide mb-3">New Product Details</div>
                             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
 
-                              {/* Product Name */}
+                              {/* Row 1: Product Name | Category | Brand */}
                               <div>
                                 <label className="label text-xs">Product Name *</label>
                                 <input
@@ -783,7 +1066,94 @@ const ImportInvoicePage: React.FC = () => {
                                 {errs?.name && <p className="text-xs text-red-600 mt-0.5">{errs.name}</p>}
                               </div>
 
-                              {/* SKU */}
+                              <div className="relative">
+                                <label className="label text-xs">Category *</label>
+                                <div className="relative">
+                                  
+                                  <input
+                                    type="text"
+                                    className={`input-field text-sm ${errs?.category ? 'border-red-400 ring-1 ring-red-300' : ''}`}
+                                    placeholder={categories.find(c => c.id === ri.newProduct.category)?.name || 'Search category…'}
+                                    value={catSearch[idx] ?? ''}
+                                    onFocus={() => { setCatSearch(p => ({ ...p, [idx]: catSearch[idx] ?? '' })); setCatOpen(p => ({ ...p, [idx]: true })); }}
+                                    onBlur={() => setTimeout(() => setCatOpen(p => ({ ...p, [idx]: false })), 150)}
+                                    onChange={e => { setCatSearch(p => ({ ...p, [idx]: e.target.value })); setCatOpen(p => ({ ...p, [idx]: true })); }}
+                                  />
+                                  {ri.newProduct.category && !catOpen[idx] && (
+                                    <button type="button" className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-300 hover:text-red-400"
+                                      onMouseDown={e => { e.preventDefault(); updateNewProduct(idx, { category: '' }); setCatSearch(p => { const n = { ...p }; delete n[idx]; return n; }); }}>
+                                      <X className="w-3.5 h-3.5" />
+                                    </button>
+                                  )}
+                                </div>
+                                {catOpen[idx] && (
+                                  <div className="absolute z-20 top-full left-0 right-0 bg-white border border-gray-200 rounded-lg shadow-lg max-h-44 overflow-y-auto mt-0.5">
+                                    {categories
+                                      .filter(c => !(catSearch[idx] || '').trim() || c.name.toLowerCase().includes((catSearch[idx] || '').toLowerCase()))
+                                      .map(c => (
+                                        <button key={c.id} type="button"
+                                          className={`w-full text-left px-3 py-2 text-sm hover:bg-primary-50 transition-colors ${ri.newProduct.category === c.id ? 'bg-primary-50 font-medium text-primary-700' : 'text-gray-700'}`}
+                                          onMouseDown={e => {
+                                            e.preventDefault();
+                                            updateNewProduct(idx, { category: c.id });
+                                            setCatSearch(p => { const n = { ...p }; delete n[idx]; return n; });
+                                            setCatOpen(p => ({ ...p, [idx]: false }));
+                                          }}>
+                                          {c.name}
+                                        </button>
+                                      ))}
+                                    {categories.filter(c => !(catSearch[idx] || '').trim() || c.name.toLowerCase().includes((catSearch[idx] || '').toLowerCase())).length === 0 && (
+                                      <div className="px-3 py-2 text-xs text-gray-400">No categories found</div>
+                                    )}
+                                  </div>
+                                )}
+                                {errs?.category && <p className="text-xs text-red-600 mt-0.5">{errs.category}</p>}
+                              </div>
+
+                              <div className="relative">
+                                <label className="label text-xs">Brand</label>
+                                <div className="relative">
+                                  
+                                  <input
+                                    type="text"
+                                    className="input-field text-sm"
+                                    placeholder={brands.find(b => b.id === ri.newProduct.brand)?.name || 'Search brand…'}
+                                    value={brandSearch[idx] ?? ''}
+                                    onFocus={() => { setBrandSearch(p => ({ ...p, [idx]: brandSearch[idx] ?? '' })); setBrandOpen(p => ({ ...p, [idx]: true })); }}
+                                    onBlur={() => setTimeout(() => setBrandOpen(p => ({ ...p, [idx]: false })), 150)}
+                                    onChange={e => { setBrandSearch(p => ({ ...p, [idx]: e.target.value })); setBrandOpen(p => ({ ...p, [idx]: true })); }}
+                                  />
+                                  {ri.newProduct.brand && !brandOpen[idx] && (
+                                    <button type="button" className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-300 hover:text-red-400"
+                                      onMouseDown={e => { e.preventDefault(); updateNewProduct(idx, { brand: '' }); setBrandSearch(p => { const n = { ...p }; delete n[idx]; return n; }); }}>
+                                      <X className="w-3.5 h-3.5" />
+                                    </button>
+                                  )}
+                                </div>
+                                {brandOpen[idx] && (
+                                  <div className="absolute z-20 top-full left-0 right-0 bg-white border border-gray-200 rounded-lg shadow-lg max-h-44 overflow-y-auto mt-0.5">
+                                    {brands
+                                      .filter(b => !(brandSearch[idx] || '').trim() || b.name.toLowerCase().includes((brandSearch[idx] || '').toLowerCase()))
+                                      .map(b => (
+                                        <button key={b.id} type="button"
+                                          className={`w-full text-left px-3 py-2 text-sm hover:bg-primary-50 transition-colors ${ri.newProduct.brand === b.id ? 'bg-primary-50 font-medium text-primary-700' : 'text-gray-700'}`}
+                                          onMouseDown={e => {
+                                            e.preventDefault();
+                                            updateNewProduct(idx, { brand: b.id });
+                                            setBrandSearch(p => { const n = { ...p }; delete n[idx]; return n; });
+                                            setBrandOpen(p => ({ ...p, [idx]: false }));
+                                          }}>
+                                          {b.name}
+                                        </button>
+                                      ))}
+                                    {brands.filter(b => !(brandSearch[idx] || '').trim() || b.name.toLowerCase().includes((brandSearch[idx] || '').toLowerCase())).length === 0 && (
+                                      <div className="px-3 py-2 text-xs text-gray-400">No brands found</div>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+
+                              {/* Row 2: SKU | HSN | Unit */}
                               <div>
                                 <label className="label text-xs">SKU *</label>
                                 <input
@@ -796,31 +1166,17 @@ const ImportInvoicePage: React.FC = () => {
                                 {errs?.sku && <p className="text-xs text-red-600 mt-0.5">{errs.sku}</p>}
                               </div>
 
-                              {/* Category */}
                               <div>
-                                <label className="label text-xs">Category *</label>
-                                <select
-                                  className={`input-field text-sm ${errs?.category ? 'border-red-400 ring-1 ring-red-300' : ''}`}
-                                  value={ri.newProduct.category}
-                                  onChange={e => updateNewProduct(idx, { category: e.target.value ? Number(e.target.value) : '' })}
-                                >
-                                  <option value="">Select category</option>
-                                  {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                                </select>
-                                {errs?.category && <p className="text-xs text-red-600 mt-0.5">{errs.category}</p>}
+                                <label className="label text-xs">HSN</label>
+                                <input
+                                  type="text"
+                                  className="input-field text-sm"
+                                  value={ri.newProduct.hsn_code}
+                                  placeholder="e.g. 6910"
+                                  onChange={e => updateNewProduct(idx, { hsn_code: e.target.value })}
+                                />
                               </div>
 
-                              {/* Brand */}
-                              <div>
-                                <label className="label text-xs">Brand</label>
-                                <select className="input-field text-sm" value={ri.newProduct.brand}
-                                  onChange={e => updateNewProduct(idx, { brand: e.target.value ? Number(e.target.value) : '' })}>
-                                  <option value="">Select brand (optional)</option>
-                                  {brands.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
-                                </select>
-                              </div>
-
-                              {/* Unit */}
                               <div>
                                 <label className="label text-xs">Unit</label>
                                 <select className="input-field text-sm" value={ri.newProduct.unit}
@@ -831,7 +1187,165 @@ const ImportInvoicePage: React.FC = () => {
                                 </select>
                               </div>
 
+                              {/* Row 3: Cost ₹ | Price ₹ | GST % */}
+                              <div>
+                                <label className="label text-xs">Cost ₹ *</label>
+                                <input
+                                  type="number"
+                                  className={`input-field text-sm ${errs?.cost_price ? 'border-red-400 ring-1 ring-red-300' : ''}`}
+                                  value={ri.newProduct.cost_price}
+                                  min="0" step="0.01"
+                                  onChange={e => updateNewProduct(idx, { cost_price: e.target.value !== '' ? parseFloat(e.target.value) : '' })}
+                                />
+                                {errs?.cost_price && <p className="text-xs text-red-600 mt-0.5">{errs.cost_price}</p>}
+                              </div>
+
+                              <div>
+                                <label className="label text-xs">Price ₹ *</label>
+                                <input
+                                  type="number"
+                                  className={`input-field text-sm ${errs?.selling_price ? 'border-red-400 ring-1 ring-red-300' : ''}`}
+                                  value={ri.newProduct.selling_price}
+                                  min="0" step="0.01"
+                                  onChange={e => updateNewProduct(idx, { selling_price: e.target.value !== '' ? parseFloat(e.target.value) : '' })}
+                                />
+                                {errs?.selling_price && <p className="text-xs text-red-600 mt-0.5">{errs.selling_price}</p>}
+                              </div>
+
+                              <div>
+                                <label className="label text-xs">GST %</label>
+                                <input
+                                  type="number"
+                                  className="input-field text-sm"
+                                  value={ri.newProduct.gst_rate}
+                                  min="0" step="0.01"
+                                  onChange={e => updateNewProduct(idx, { gst_rate: e.target.value !== '' ? parseFloat(e.target.value) : '' })}
+                                />
+                              </div>
+
+                              {/* Row 4: Stock | Reorder | Barcode */}
+                              <div>
+                                <label className="label text-xs">Stock *</label>
+                                <input
+                                  type="number"
+                                  className={`input-field text-sm ${errs?.stock_quantity ? 'border-red-400 ring-1 ring-red-300' : ''}`}
+                                  value={ri.newProduct.stock_quantity}
+                                  min="0" step="1"
+                                  onChange={e => updateNewProduct(idx, { stock_quantity: e.target.value !== '' ? parseFloat(e.target.value) : '' })}
+                                />
+                                {errs?.stock_quantity && <p className="text-xs text-red-600 mt-0.5">{errs.stock_quantity}</p>}
+                              </div>
+
+                              <div>
+                                <label className="label text-xs">Reorder *</label>
+                                <input
+                                  type="number"
+                                  className={`input-field text-sm ${errs?.reorder_level ? 'border-red-400 ring-1 ring-red-300' : ''}`}
+                                  value={ri.newProduct.reorder_level}
+                                  min="0" step="1"
+                                  onChange={e => updateNewProduct(idx, { reorder_level: e.target.value !== '' ? parseFloat(e.target.value) : '' })}
+                                />
+                                {errs?.reorder_level && <p className="text-xs text-red-600 mt-0.5">{errs.reorder_level}</p>}
+                              </div>
+
+                              <div>
+                                <label className="label text-xs">Barcode</label>
+                                <input
+                                  type="text"
+                                  className="input-field text-sm"
+                                  value={ri.newProduct.barcode}
+                                  placeholder="Scan or enter barcode"
+                                  onChange={e => updateNewProduct(idx, { barcode: e.target.value })}
+                                />
+                              </div>
+
                             </div>
+
+                            {/* Attributes */}
+                            <div className="mt-3">
+                              <div className="flex items-center justify-between mb-2">
+                                <label className="label text-xs mb-0">Attributes</label>
+                                <button
+                                  type="button"
+                                  className="text-xs text-primary-600 hover:underline flex items-center gap-1"
+                                  onClick={() => updateNewProduct(idx, { attributes: [...ri.newProduct.attributes, { name: '', value: '' }] })}
+                                >
+                                  <Plus className="w-3 h-3" /> Add
+                                </button>
+                              </div>
+                              {ri.newProduct.attributes.length === 0 && (
+                                <p className="text-xs text-gray-400 italic">No attributes — click Add to specify size, colour, etc.</p>
+                              )}
+                              <div className="space-y-2">
+                                {ri.newProduct.attributes.map((attr, ai) => (
+                                  <div key={ai} className="flex gap-2 items-center">
+                                    <input
+                                      type="text"
+                                      className="input-field text-sm flex-1"
+                                      placeholder="Name (e.g. Size)"
+                                      value={attr.name}
+                                      onChange={e => {
+                                        const updated = ri.newProduct.attributes.map((a, i) => i === ai ? { ...a, name: e.target.value } : a);
+                                        updateNewProduct(idx, { attributes: updated });
+                                      }}
+                                    />
+                                    <input
+                                      type="text"
+                                      className="input-field text-sm flex-1"
+                                      placeholder="Value (e.g. 6x6)"
+                                      value={attr.value}
+                                      onChange={e => {
+                                        const updated = ri.newProduct.attributes.map((a, i) => i === ai ? { ...a, value: e.target.value } : a);
+                                        updateNewProduct(idx, { attributes: updated });
+                                      }}
+                                    />
+                                    <button
+                                      type="button"
+                                      className="p-1.5 rounded text-red-400 hover:bg-red-50 hover:text-red-600 transition-colors shrink-0"
+                                      onClick={() => updateNewProduct(idx, { attributes: ri.newProduct.attributes.filter((_, i) => i !== ai) })}
+                                    >
+                                      <Trash2 className="w-3.5 h-3.5" />
+                                    </button>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })()}
+
+                      {/* Existing product details (read-only) */}
+                      {!ri.createNew && ri.matchedProductId && (() => {
+                        const match = ri.matches.find(m => m.id === ri.matchedProductId);
+                        if (!match) return null;
+                        return (
+                          <div className="px-4 py-3 bg-emerald-50/60 border-t border-emerald-100">
+                            <div className="text-xs font-semibold text-emerald-700 uppercase tracking-wide mb-2">Matched Product Details</div>
+                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-1.5 text-xs">
+                              <div>
+                                <span className="text-gray-400">Name</span>
+                                <p className="font-medium text-gray-700 truncate">{match.name}</p>
+                              </div>
+                              <div>
+                                <span className="text-gray-400">SKU</span>
+                                <p className="font-medium text-gray-700 font-mono">{match.sku || '—'}</p>
+                              </div>
+                              <div>
+                                <span className="text-gray-400">Cost Price</span>
+                                <p className="font-medium text-gray-700">{match.cost_price != null ? formatINR(match.cost_price) : '—'}</p>
+                              </div>
+                            </div>
+                            <label className="flex items-center gap-2 mt-2.5 cursor-pointer select-none w-fit">
+                              <input
+                                type="checkbox"
+                                className="w-3.5 h-3.5 rounded accent-emerald-600"
+                                checked={ri.updateStock}
+                                onChange={e => updateItem(idx, { updateStock: e.target.checked })}
+                              />
+                              <span className={`text-xs font-medium ${ri.updateStock ? 'text-emerald-700' : 'text-gray-400'}`}>
+                                Update stock when order is received
+                              </span>
+                            </label>
                           </div>
                         );
                       })()}

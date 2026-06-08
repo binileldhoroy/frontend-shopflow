@@ -17,14 +17,8 @@ import {
   Smartphone,
 } from 'lucide-react';
 import {
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-  ResponsiveContainer,
+  LineChart, Line, BarChart, Bar, PieChart, Pie, Cell,
+  XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
 } from 'recharts';
 import { format, subDays } from 'date-fns';
 import axiosInstance from '@api/axios';
@@ -73,6 +67,9 @@ const CompanyDashboard: React.FC = () => {
   const [lowStockItems, setLowStockItems] = useState<StockItem[]>([]);
   const [trendData, setTrendData] = useState<any[]>([]);
   const [recentSales, setRecentSales] = useState<RecentSale[]>([]);
+  const [topProducts, setTopProducts] = useState<any[]>([]);
+  const [topCustomers, setTopCustomers] = useState<any[]>([]);
+  const [paymentModes, setPaymentModes] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Fetch profile once on mount if not already loaded
@@ -130,6 +127,20 @@ const CompanyDashboard: React.FC = () => {
         params: { page_size: 5, status: 'completed', ordering: '-sale_date' },
       });
       setRecentSales(recentSalesResponse.data.results || recentSalesResponse.data || []);
+
+      // Fetch analytics charts
+      try {
+        const [topProdsRes, topCustsRes, payModesRes] = await Promise.all([
+          axiosInstance.get('/api/sales/analytics/top-products/?limit=8'),
+          axiosInstance.get('/api/sales/analytics/top-customers/?limit=8'),
+          axiosInstance.get('/api/sales/analytics/payment-modes/'),
+        ]);
+        setTopProducts(topProdsRes.data || []);
+        setTopCustomers(topCustsRes.data || []);
+        setPaymentModes(payModesRes.data || []);
+      } catch {
+        // Analytics are non-critical; fail silently
+      }
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
     } finally {
@@ -285,6 +296,58 @@ const CompanyDashboard: React.FC = () => {
           )}
         </div>
       </div>
+
+      {/* Analytics Charts */}
+      {(topProducts.length > 0 || topCustomers.length > 0 || paymentModes.length > 0) && (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Top Products */}
+          {topProducts.length > 0 && (
+            <div className="card lg:col-span-1">
+              <h3 className="text-base font-semibold text-gray-800 mb-4">Top Products (Revenue)</h3>
+              <ResponsiveContainer width="100%" height={220}>
+                <BarChart layout="vertical" data={topProducts.slice(0, 6)} margin={{ left: 0, right: 16 }}>
+                  <CartesianGrid strokeDasharray="3 3" horizontal={false} />
+                  <XAxis type="number" tick={{ fontSize: 10, fill: '#6B7280' }} axisLine={false} tickLine={false} tickFormatter={v => `₹${(v/1000).toFixed(0)}k`} />
+                  <YAxis type="category" dataKey="name" tick={{ fontSize: 10, fill: '#374151' }} axisLine={false} tickLine={false} width={90} />
+                  <Tooltip formatter={(v) => [`₹${Number(v).toLocaleString()}`, 'Revenue']} />
+                  <Bar dataKey="revenue" fill="#0d9158" radius={[0, 4, 4, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          )}
+          {/* Top Customers */}
+          {topCustomers.length > 0 && (
+            <div className="card lg:col-span-1">
+              <h3 className="text-base font-semibold text-gray-800 mb-4">Top Customers</h3>
+              <ResponsiveContainer width="100%" height={220}>
+                <BarChart layout="vertical" data={topCustomers.slice(0, 6)} margin={{ left: 0, right: 16 }}>
+                  <CartesianGrid strokeDasharray="3 3" horizontal={false} />
+                  <XAxis type="number" tick={{ fontSize: 10, fill: '#6B7280' }} axisLine={false} tickLine={false} tickFormatter={v => `₹${(v/1000).toFixed(0)}k`} />
+                  <YAxis type="category" dataKey="name" tick={{ fontSize: 10, fill: '#374151' }} axisLine={false} tickLine={false} width={90} />
+                  <Tooltip formatter={(v) => [`₹${Number(v).toLocaleString()}`, 'Spend']} />
+                  <Bar dataKey="spend" fill="#6366f1" radius={[0, 4, 4, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          )}
+          {/* Payment Modes */}
+          {paymentModes.length > 0 && (
+            <div className="card lg:col-span-1">
+              <h3 className="text-base font-semibold text-gray-800 mb-4">Payment Modes</h3>
+              <ResponsiveContainer width="100%" height={220}>
+                <PieChart>
+                  <Pie data={paymentModes} dataKey="total" nameKey="label" cx="50%" cy="50%" outerRadius={80} label={(props) => `${props.name} ${((props.percent ?? 0) * 100).toFixed(0)}%`} labelLine={false}>
+                    {paymentModes.map((_: any, i: number) => (
+                      <Cell key={i} fill={['#0d9158','#6366f1','#f59e0b','#ef4444','#06b6d4','#8b5cf6'][i % 6]} />
+                    ))}
+                  </Pie>
+                  <Tooltip formatter={(v) => [`₹${Number(v).toLocaleString()}`, 'Revenue']} />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Low Stock Alerts */}
       {lowStockItems.length > 0 && (

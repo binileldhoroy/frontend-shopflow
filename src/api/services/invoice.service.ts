@@ -53,3 +53,33 @@ export const invoiceService = {
     return response.data;
   },
 };
+
+// E-Invoice
+export const eInvoiceService = {
+  generate: async (invoiceId: number) => {
+    const r = await axiosInstance.post('/api/sales/einvoice/generate/', { invoice_id: invoiceId });
+    return r.data;
+  },
+  cancel: async (invoiceId: number, reason: string) => {
+    const r = await axiosInstance.post('/api/sales/einvoice/cancel/', { invoice_id: invoiceId, reason });
+    return r.data;
+  },
+};
+
+export const eWayBillService = {
+  generate: async (data: {
+    sale_order_id: number;
+    transporter_id?: string;
+    transporter_name?: string;
+    vehicle_no?: string;
+    transport_mode?: string;
+    distance?: number;
+  }) => {
+    const r = await axiosInstance.post('/api/sales/ewaybill/generate/', data);
+    return r.data;
+  },
+  cancel: async (ewbId: number, reason: string) => {
+    const r = await axiosInstance.post(`/api/sales/ewaybill/${ewbId}/cancel/`, { reason });
+    return r.data;
+  },
+};

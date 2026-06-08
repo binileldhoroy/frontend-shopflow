@@ -1,14 +1,16 @@
 import React, { useState, useRef, useEffect } from 'react';
 import Modal from '../common/Modal/Modal';
 import { PurchaseOrder } from '../../types/purchase.types';
-import { Printer, CheckCircle2, ChevronDown, Loader2 } from 'lucide-react';
+import { Printer, CheckCircle2, ChevronDown, Loader2, RotateCcw } from 'lucide-react';
 import { purchaseService } from '../../api/services/purchase.service';
+import PurchaseReturnModal from './PurchaseReturnModal';
 
 interface PurchaseDetailModalProps {
   show: boolean;
   onHide: () => void;
   purchase: PurchaseOrder | null;
   onPaymentUpdated?: (updated: PurchaseOrder) => void;
+  onReturnProcessed?: () => void;
 }
 
 const STATUS_STEPS = [
@@ -47,10 +49,13 @@ const PurchaseDetailModal: React.FC<PurchaseDetailModalProps> = ({
   onHide,
   purchase: initialPurchase,
   onPaymentUpdated,
+  onReturnProcessed,
 }) => {
   const [purchase, setPurchase] = useState(initialPurchase);
   const [paymentOpen, setPaymentOpen] = useState(false);
   const [paymentSaving, setPaymentSaving] = useState(false);
+  const [showReturnModal, setShowReturnModal] = useState(false);
+  const [returnSuccess, setReturnSuccess] = useState<{ returnNumber: string; debitNoteNumber: string } | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   // Sync when prop changes
@@ -97,6 +102,7 @@ const PurchaseDetailModal: React.FC<PurchaseDetailModalProps> = ({
   const handlePrint = () => window.print();
 
   return (
+    <>
     <Modal
       show={show}
       onHide={onHide}
@@ -104,12 +110,22 @@ const PurchaseDetailModal: React.FC<PurchaseDetailModalProps> = ({
       size="lg"
       footer={
         <div className="flex items-center gap-2 w-full justify-between">
-          <button
-            className="btn btn-outline-secondary flex items-center gap-1.5"
-            onClick={handlePrint}
-          >
-            <Printer className="w-4 h-4" /> Print
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              className="btn btn-outline-secondary flex items-center gap-1.5"
+              onClick={handlePrint}
+            >
+              <Printer className="w-4 h-4" /> Print
+            </button>
+            {(purchase.status === 'received' || purchase.status === 'partially_received') && (
+              <button
+                className="btn btn-outline-danger flex items-center gap-1.5"
+                onClick={() => { setReturnSuccess(null); setShowReturnModal(true); }}
+              >
+                <RotateCcw className="w-4 h-4" /> Return Items
+              </button>
+            )}
+          </div>
           <button className="btn btn-secondary" onClick={onHide}>Close</button>
         </div>
       }
@@ -297,8 +313,34 @@ const PurchaseDetailModal: React.FC<PurchaseDetailModalProps> = ({
           Created by User #{purchase.created_by} · {new Date(purchase.created_at).toLocaleString('en-IN')}
         </div>
 
+        {/* Return success banner */}
+        {returnSuccess && (
+          <div className="flex items-center gap-3 p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-sm">
+            <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
+            <div>
+              <div className="font-semibold text-emerald-800">Return processed successfully</div>
+              <div className="text-emerald-700 text-xs mt-0.5">
+                Return# <span className="font-mono font-bold">{returnSuccess.returnNumber}</span>
+                &nbsp;·&nbsp;Debit Note# <span className="font-mono font-bold">{returnSuccess.debitNoteNumber}</span>
+              </div>
+            </div>
+          </div>
+        )}
+
       </div>
     </Modal>
+
+    <PurchaseReturnModal
+      show={showReturnModal}
+      onHide={() => setShowReturnModal(false)}
+      purchase={purchase}
+      onSuccess={(returnNumber, debitNoteNumber) => {
+        setShowReturnModal(false);
+        setReturnSuccess({ returnNumber, debitNoteNumber });
+        onReturnProcessed?.();
+      }}
+    />
+    </>
   );
 };
 
