@@ -1,22 +1,30 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Download, Printer, Share2, Mail, Copy, Check, MessageCircle, X } from 'lucide-react';
+import { ArrowLeft, Download, Printer, Share2, Mail, MessageCircle, X } from 'lucide-react';
 import { format } from 'date-fns';
 import html2pdf from 'html2pdf.js';
+import { useAppDispatch } from '@hooks/useRedux';
+import { addNotification } from '@store/slices/uiSlice';
 import { invoiceService } from '../../api/services/invoice.service';
 import { TaxInvoice } from '../../types/invoice.types';
 import InvoiceTemplate from '../../components/invoices/InvoiceTemplate';
 
+// Memoised wrapper — InvoiceTemplate runs an internal measuring phase on every render.
+// Without this, toggling showShareMenu re-renders the parent and triggers the measuring
+// phase again, causing a visible flicker in the invoice preview.
+const MemoInvoiceTemplate = React.memo(InvoiceTemplate);
+
 const InvoiceDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const dispatch = useAppDispatch();
 
   const [invoice, setInvoice] = useState<TaxInvoice | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showShareMenu, setShowShareMenu] = useState(false);
-  const [copied, setCopied] = useState(false);
   const [downloading, setDownloading] = useState(false);
+  const [sharingWhatsApp, setSharingWhatsApp] = useState(false);
 
   const invoiceRef = useRef<HTMLDivElement>(null);
   const shareMenuRef = useRef<HTMLDivElement>(null);
@@ -72,48 +80,53 @@ const InvoiceDetail: React.FC = () => {
     if (win) {
       win.onload = () => {
         win.focus();
-        win.print();
-        setTimeout(() => URL.revokeObjectURL(url), 2000);
+        setTimeout(() => {
+          win.print();
+          setTimeout(() => URL.revokeObjectURL(url), 2000);
+        }, 500);
       };
     }
   };
 
-  const handleDownloadPDF = async () => {
-    if (!invoiceRef.current || !invoice) return;
-    setDownloading(true);
+  const buildPdfOpt = (filename: string) => ({
+    margin: 0,
+    filename,
+    image: { type: 'png' as const },
+    html2canvas: {
+      scale: 3,
+      useCORS: true,
+      backgroundColor: '#ffffff',
+      logging: false,
+      allowTaint: false,
+    },
+    jsPDF: { unit: 'mm' as const, format: 'a4' as const, orientation: 'portrait' as const },
+    pagebreak: { mode: 'css', before: '.invoice-page:not(:first-child)' },
+  });
 
-    // Clone into off-screen container (not inside page scroll area) for full-height capture
+  const cloneToOffScreen = () => {
     const offScreen = document.createElement('div');
     offScreen.style.cssText =
       'position:fixed;left:-9999px;top:0;width:210mm;background:white;z-index:-9999;';
-    offScreen.appendChild(invoiceRef.current.cloneNode(true));
+    offScreen.appendChild(invoiceRef.current!.cloneNode(true));
     document.body.appendChild(offScreen);
 
     const tempStyle = document.createElement('style');
     tempStyle.textContent = '.invoice-page + .invoice-page { margin-top: 0 !important; }';
     document.head.appendChild(tempStyle);
 
-    await new Promise<void>(r => setTimeout(r, 80));
+    return { offScreen, tempStyle };
+  };
 
+  const handleDownloadPDF = async () => {
+    if (!invoiceRef.current || !invoice) return;
+    setDownloading(true);
+
+    const { offScreen, tempStyle } = cloneToOffScreen();
+    await new Promise<void>(r => setTimeout(r, 80));
     const element = offScreen.querySelector<HTMLElement>('.invoice-outer-wrapper') ?? offScreen;
 
-    const opt = {
-      margin: 0,
-      filename: `Invoice_${invoice.invoice_number}.pdf`,
-      image: { type: 'png' as const },
-      html2canvas: {
-        scale: 3,
-        useCORS: true,
-        backgroundColor: '#ffffff',
-        logging: false,
-        allowTaint: false,
-      },
-      jsPDF: { unit: 'mm' as const, format: 'a4' as const, orientation: 'portrait' as const },
-      pagebreak: { mode: 'css', before: '.invoice-page:not(:first-child)' },
-    };
-
     try {
-      await html2pdf().set(opt).from(element).save();
+      await html2pdf().set(buildPdfOpt(`Invoice_${invoice.invoice_number}.pdf`)).from(element).save();
     } finally {
       document.body.removeChild(offScreen);
       document.head.removeChild(tempStyle);
@@ -121,30 +134,80 @@ const InvoiceDetail: React.FC = () => {
     }
   };
 
-  const shareUrl = window.location.href;
-  const shareText = invoice
-    ? `Invoice ${invoice.invoice_number} — ${invoice.customer_name} — ₹${invoice.sale_order_data?.total_amount ?? ''}`
-    : 'Invoice';
+  const handleShareWhatsApp = async () => {
+    if (!invoiceRef.current || !invoice) return;
 
-  const handleShareWhatsApp = () => {
-    const msg = encodeURIComponent(`${shareText}\n${shareUrl}`);
-    window.open(`https://wa.me/?text=${msg}`, '_blank');
+    const phone = invoice.customer_phone
+      ? `${invoice.customer_country_code || '91'}${invoice.customer_phone}`
+      : '';
+    // Open the chat only — no pre-filled text/link, just the PDF will be shared
+    const waUrl = phone ? `https://wa.me/${phone}` : 'https://web.whatsapp.com/';
+
+    // Open WhatsApp now (user-gesture context) — popup blockers reject window.open after an await
+    const waWindow = window.open(waUrl, '_blank');
     setShowShareMenu(false);
+    setSharingWhatsApp(true);
+
+    const { offScreen, tempStyle } = cloneToOffScreen();
+    await new Promise<void>(r => setTimeout(r, 80));
+    const element = offScreen.querySelector<HTMLElement>('.invoice-outer-wrapper') ?? offScreen;
+    const filename = `Invoice_${invoice.invoice_number}.pdf`;
+
+    try {
+      const jsPDFInstance: any = await html2pdf()
+        .set(buildPdfOpt(filename))
+        .from(element)
+        .toPdf()
+        .get('pdf');
+      const pdfBlob: Blob = jsPDFInstance.output('blob');
+      const pdfFile = new File([pdfBlob], filename, { type: 'application/pdf' });
+
+      if (navigator.canShare && navigator.canShare({ files: [pdfFile] })) {
+        waWindow?.close();
+        await navigator.share({ files: [pdfFile], title: `Invoice ${invoice.invoice_number}` });
+      } else {
+        const blobUrl = URL.createObjectURL(pdfBlob);
+        const a = document.createElement('a');
+        a.href = blobUrl;
+        a.download = filename;
+        a.click();
+        URL.revokeObjectURL(blobUrl);
+      }
+    } catch (err: any) {
+      if (err?.name !== 'AbortError') {
+        dispatch(addNotification({ message: 'Failed to generate PDF for sharing.', type: 'error' }));
+      }
+    } finally {
+      document.body.removeChild(offScreen);
+      document.head.removeChild(tempStyle);
+      setSharingWhatsApp(false);
+    }
   };
 
   const handleShareEmail = () => {
     const subject = encodeURIComponent(`Invoice ${invoice?.invoice_number}`);
-    const body = encodeURIComponent(`${shareText}\n\nView invoice: ${shareUrl}`);
+    const body = encodeURIComponent(
+      `Please find the attached Invoice ${invoice?.invoice_number} for ${invoice?.customer_name}.`
+    );
     window.open(`mailto:?subject=${subject}&body=${body}`);
     setShowShareMenu(false);
   };
 
-  const handleCopyLink = async () => {
-    await navigator.clipboard.writeText(shareUrl);
-    setCopied(true);
-    setShowShareMenu(false);
-    setTimeout(() => setCopied(false), 2000);
-  };
+  // Both saleOrder and customerDetails are memoised so MemoInvoiceTemplate receives
+  // stable prop references and never re-renders when unrelated state (showShareMenu,
+  // sharingWhatsApp, downloading) changes.
+  const saleOrder = useMemo(() => invoice?.sale_order_data, [invoice]);
+
+  const customerDetails = useMemo(() => invoice ? {
+    name: invoice.customer_name,
+    gstin: invoice.customer_gstin,
+    address: invoice.customer_address,
+    city: invoice.customer_city,
+    pincode: invoice.customer_pincode,
+    country_code: invoice.customer_country_code || '91',
+    phone: invoice.customer_phone,
+    email: invoice.customer_email,
+  } : null, [invoice]);
 
   // ── Loading ───────────────────────────────────────────────────────────────
   if (loading) {
@@ -155,7 +218,7 @@ const InvoiceDetail: React.FC = () => {
     );
   }
 
-  if (error || !invoice) {
+  if (error || !invoice || !customerDetails) {
     return (
       <div className="flex flex-col items-center justify-center h-64 gap-4">
         <p className="text-gray-500">{error || 'Invoice not found.'}</p>
@@ -215,13 +278,6 @@ const InvoiceDetail: React.FC = () => {
             <span className="hidden sm:inline">Print</span>
           </button>
 
-          {/* Copy link feedback */}
-          {copied && (
-            <span className="flex items-center gap-1 text-xs text-green-600 font-medium px-2">
-              <Check className="w-3.5 h-3.5" /> Copied!
-            </span>
-          )}
-
           {/* Share */}
           <div className="relative" ref={shareMenuRef}>
             <button
@@ -242,9 +298,14 @@ const InvoiceDetail: React.FC = () => {
                 </div>
                 <button
                   onClick={handleShareWhatsApp}
-                  className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                  disabled={sharingWhatsApp}
+                  className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-50 transition-colors"
                 >
-                  <MessageCircle className="w-4 h-4 text-green-500" />
+                  {sharingWhatsApp ? (
+                    <div className="w-4 h-4 border-2 border-gray-300 border-t-green-500 rounded-full animate-spin" />
+                  ) : (
+                    <MessageCircle className="w-4 h-4 text-green-500" />
+                  )}
                   WhatsApp
                 </button>
                 <button
@@ -253,13 +314,6 @@ const InvoiceDetail: React.FC = () => {
                 >
                   <Mail className="w-4 h-4 text-blue-500" />
                   Email
-                </button>
-                <button
-                  onClick={handleCopyLink}
-                  className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
-                >
-                  <Copy className="w-4 h-4 text-gray-500" />
-                  Copy Link
                 </button>
               </div>
             )}
@@ -270,21 +324,11 @@ const InvoiceDetail: React.FC = () => {
       {/* ── Invoice preview ── */}
       <div className="bg-gray-100 rounded-xl p-4 overflow-auto">
         <div ref={invoiceRef}>
-          <InvoiceTemplate
-            saleOrder={invoice.sale_order_data}
+          <MemoInvoiceTemplate
+            saleOrder={saleOrder!}
             invoiceNumber={invoice.invoice_number}
             invoiceDate={invoice.invoice_date}
-            invoiceUrl={shareUrl}
-            customerDetails={{
-              name: invoice.customer_name,
-              gstin: invoice.customer_gstin,
-              address: invoice.customer_address,
-              city: invoice.customer_city,
-              pincode: invoice.customer_pincode,
-              country_code: invoice.customer_country_code || '91',
-              phone: invoice.customer_phone,
-              email: invoice.customer_email,
-            }}
+            customerDetails={customerDetails}
           />
         </div>
       </div>

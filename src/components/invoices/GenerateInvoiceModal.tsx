@@ -1,4 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { useAppDispatch } from '@hooks/useRedux';
+import { addNotification } from '@store/slices/uiSlice';
 import {
   X, FileText, Search, User, ChevronLeft, ChevronRight,
   CheckCircle2, Printer, Download, MessageCircle, Mail, Copy, Check,
@@ -30,6 +32,7 @@ const GenerateInvoiceModal: React.FC<GenerateInvoiceModalProps> = ({
   initialSale,
   onSuccess,
 }) => {
+  const dispatch = useAppDispatch();
   const [visible, setVisible] = useState(false);
   const [currentStep, setCurrentStep] = useState(initialSale ? 2 : 1);
   const [selectedSale, setSelectedSale] = useState<SaleOrder | null>(
@@ -58,6 +61,7 @@ const GenerateInvoiceModal: React.FC<GenerateInvoiceModalProps> = ({
     invoice_date: string;
   } | null>(null);
   const [downloading, setDownloading] = useState(false);
+  const [sharingWhatsApp, setSharingWhatsApp] = useState(false);
   const [copied, setCopied] = useState(false);
 
   const invoiceRef = useRef<HTMLDivElement>(null);
@@ -260,7 +264,7 @@ const GenerateInvoiceModal: React.FC<GenerateInvoiceModalProps> = ({
         error?.response?.data?.error ||
         error?.response?.data?.sale_order_id?.[0] ||
         'Failed to create invoice. Please try again.';
-      alert(msg);
+      dispatch(addNotification({ message: msg, type: 'error' }));
     } finally {
       setCreating(false);
     }
@@ -422,11 +426,83 @@ const GenerateInvoiceModal: React.FC<GenerateInvoiceModalProps> = ({
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const handleShareWhatsApp = () => {
-    const text = encodeURIComponent(
-      `Invoice ${generatedInvoice?.invoice_number}\n${invoicePageUrl}`
-    );
-    window.open(`https://wa.me/?text=${text}`, '_blank');
+  const handleShareWhatsApp = async () => {
+    if (!invoiceRef.current || !generatedInvoice) return;
+
+    const phone = customerDetails.customer_phone
+      ? `${customerDetails.customer_country_code || '91'}${customerDetails.customer_phone}`
+      : '';
+    // Open the chat only — no pre-filled text/link, just the PDF will be shared
+    const waUrl = phone ? `https://wa.me/${phone}` : 'https://web.whatsapp.com/';
+
+    // Open WhatsApp NOW while still inside the user-gesture handler — popup
+    // blockers reject window.open called after an await (transient activation expires).
+    // On mobile where the native share sheet takes over, we close this window.
+    const waWindow = window.open(waUrl, '_blank');
+
+    setSharingWhatsApp(true);
+
+    await waitForTemplate();
+
+    const offScreen = document.createElement('div');
+    offScreen.style.cssText =
+      'position:fixed;left:-9999px;top:0;width:210mm;background:white;z-index:-9999;';
+    offScreen.appendChild(invoiceRef.current.cloneNode(true));
+    document.body.appendChild(offScreen);
+
+    const tempStyle = document.createElement('style');
+    tempStyle.textContent = '.invoice-page + .invoice-page { margin-top: 0 !important; }';
+    document.head.appendChild(tempStyle);
+
+    await new Promise<void>(r => setTimeout(r, 80));
+
+    const element = offScreen.querySelector<HTMLElement>('.invoice-outer-wrapper') ?? offScreen;
+    const filename = `Invoice_${generatedInvoice.invoice_number}.pdf`;
+
+    const opt = {
+      margin: 0,
+      filename,
+      image: { type: 'png' as const },
+      html2canvas: {
+        scale: 3,
+        useCORS: true,
+        backgroundColor: '#ffffff',
+        logging: false,
+        allowTaint: false,
+      },
+      jsPDF: { unit: 'mm' as const, format: 'a4' as const, orientation: 'portrait' as const },
+      pagebreak: { mode: 'css', before: '.invoice-page:not(:first-child)' },
+    };
+
+    try {
+      // .toPdf().get('pdf') is the reliable way to obtain the jsPDF instance from html2pdf.js
+      const jsPDFInstance: any = await html2pdf().set(opt).from(element).toPdf().get('pdf');
+      const pdfBlob: Blob = jsPDFInstance.output('blob');
+      const pdfFile = new File([pdfBlob], filename, { type: 'application/pdf' });
+
+      if (navigator.canShare && navigator.canShare({ files: [pdfFile] })) {
+        // Mobile: native share sheet handles the PDF — close the pre-opened WhatsApp window
+        waWindow?.close();
+        await navigator.share({
+          files: [pdfFile],
+          title: `Invoice ${generatedInvoice.invoice_number}`,
+        });
+      } else {
+        // Desktop: WhatsApp is already open in waWindow; just download the PDF so the user can attach it
+        const blobUrl = URL.createObjectURL(pdfBlob);
+        const a = document.createElement('a');
+        a.href = blobUrl;
+        a.download = filename;
+        a.click();
+        URL.revokeObjectURL(blobUrl);
+      }
+    } catch (err) {
+      dispatch(addNotification({ message: 'Failed to generate PDF for sharing. Please try again.', type: 'error' }));
+    } finally {
+      document.body.removeChild(offScreen);
+      document.head.removeChild(tempStyle);
+      setSharingWhatsApp(false);
+    }
   };
 
   const handleShareEmail = () => {
@@ -922,9 +998,14 @@ const GenerateInvoiceModal: React.FC<GenerateInvoiceModalProps> = ({
               {/* Share via WhatsApp */}
               <button
                 onClick={handleShareWhatsApp}
-                className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-gray-700 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+                disabled={sharingWhatsApp}
+                className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-gray-700 border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-50 transition-colors"
               >
-                <MessageCircle className="w-4 h-4 text-green-500" />
+                {sharingWhatsApp ? (
+                  <div className="w-4 h-4 border-2 border-gray-300 border-t-green-500 rounded-full animate-spin" />
+                ) : (
+                  <MessageCircle className="w-4 h-4 text-green-500" />
+                )}
                 WhatsApp
               </button>
 
