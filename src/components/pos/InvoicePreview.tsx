@@ -56,8 +56,11 @@ const InvoicePreview: React.FC<InvoicePreviewProps> = ({ sale, onClose, onGenera
     if (win) {
       win.onload = () => {
         win.focus();
-        win.print();
-        setTimeout(() => URL.revokeObjectURL(url), 2000);
+        // Delay gives the browser time to fully render styles/layout before opening the print dialog
+        setTimeout(() => {
+          win.print();
+          setTimeout(() => URL.revokeObjectURL(url), 2000);
+        }, 500);
       };
     }
   };
