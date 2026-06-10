@@ -140,11 +140,14 @@ const InvoiceDetail: React.FC = () => {
     const phone = invoice.customer_phone
       ? `${invoice.customer_country_code || '91'}${invoice.customer_phone}`
       : '';
-    // Open the chat only — no pre-filled text/link, just the PDF will be shared
     const waUrl = phone ? `https://wa.me/${phone}` : 'https://web.whatsapp.com/';
 
-    // Open WhatsApp now (user-gesture context) — popup blockers reject window.open after an await
-    const waWindow = window.open(waUrl, '_blank');
+    // On mobile the Web Share API handles file sharing natively — don't pre-open WhatsApp
+    // or it opens the app with no PDF and the share sheet appears separately.
+    // On desktop, open WhatsApp synchronously (user-gesture context) to beat popup blockers.
+    const isMobileShareSupported = typeof navigator.share === 'function' && typeof navigator.canShare === 'function';
+    if (!isMobileShareSupported) window.open(waUrl, '_blank');
+
     setShowShareMenu(false);
     setSharingWhatsApp(true);
 
@@ -162,16 +165,18 @@ const InvoiceDetail: React.FC = () => {
       const pdfBlob: Blob = jsPDFInstance.output('blob');
       const pdfFile = new File([pdfBlob], filename, { type: 'application/pdf' });
 
-      if (navigator.canShare && navigator.canShare({ files: [pdfFile] })) {
-        waWindow?.close();
+      if (isMobileShareSupported && navigator.canShare({ files: [pdfFile] })) {
+        // Mobile: native share sheet — user picks WhatsApp and PDF arrives as attachment
         await navigator.share({ files: [pdfFile], title: `Invoice ${invoice.invoice_number}` });
       } else {
+        // Desktop: WhatsApp tab already open; download PDF so user can attach it
         const blobUrl = URL.createObjectURL(pdfBlob);
         const a = document.createElement('a');
         a.href = blobUrl;
         a.download = filename;
         a.click();
         URL.revokeObjectURL(blobUrl);
+        if (isMobileShareSupported) window.open(waUrl, '_blank');
       }
     } catch (err: any) {
       if (err?.name !== 'AbortError') {

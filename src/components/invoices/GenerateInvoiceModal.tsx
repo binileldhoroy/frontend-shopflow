@@ -432,13 +432,15 @@ const GenerateInvoiceModal: React.FC<GenerateInvoiceModalProps> = ({
     const phone = customerDetails.customer_phone
       ? `${customerDetails.customer_country_code || '91'}${customerDetails.customer_phone}`
       : '';
-    // Open the chat only — no pre-filled text/link, just the PDF will be shared
     const waUrl = phone ? `https://wa.me/${phone}` : 'https://web.whatsapp.com/';
 
-    // Open WhatsApp NOW while still inside the user-gesture handler — popup
-    // blockers reject window.open called after an await (transient activation expires).
-    // On mobile where the native share sheet takes over, we close this window.
-    const waWindow = window.open(waUrl, '_blank');
+    // On mobile the Web Share API handles file sharing natively — do NOT pre-open
+    // WhatsApp, otherwise the app opens with no PDF and the share sheet appears
+    // separately, confusing the user.
+    // On desktop there is no share API, so we open WhatsApp now (synchronously,
+    // inside the user-gesture handler) to bypass popup blockers.
+    const isMobileShareSupported = typeof navigator.share === 'function' && typeof navigator.canShare === 'function';
+    const waWindow = isMobileShareSupported ? null : window.open(waUrl, '_blank');
 
     setSharingWhatsApp(true);
 
@@ -480,21 +482,23 @@ const GenerateInvoiceModal: React.FC<GenerateInvoiceModalProps> = ({
       const pdfBlob: Blob = jsPDFInstance.output('blob');
       const pdfFile = new File([pdfBlob], filename, { type: 'application/pdf' });
 
-      if (navigator.canShare && navigator.canShare({ files: [pdfFile] })) {
-        // Mobile: native share sheet handles the PDF — close the pre-opened WhatsApp window
-        waWindow?.close();
+      if (isMobileShareSupported && navigator.canShare({ files: [pdfFile] })) {
+        // Mobile: native share sheet — user picks WhatsApp and the PDF lands as attachment
         await navigator.share({
           files: [pdfFile],
           title: `Invoice ${generatedInvoice.invoice_number}`,
         });
       } else {
-        // Desktop: WhatsApp is already open in waWindow; just download the PDF so the user can attach it
+        // Desktop (or rare mobile that can't share files):
+        // WhatsApp tab is already open; download the PDF so the user can attach it.
         const blobUrl = URL.createObjectURL(pdfBlob);
         const a = document.createElement('a');
         a.href = blobUrl;
         a.download = filename;
         a.click();
         URL.revokeObjectURL(blobUrl);
+        // If we're on a mobile that couldn't share files, also open WhatsApp now
+        if (isMobileShareSupported) window.open(waUrl, '_blank');
       }
     } catch (err) {
       dispatch(addNotification({ message: 'Failed to generate PDF for sharing. Please try again.', type: 'error' }));
