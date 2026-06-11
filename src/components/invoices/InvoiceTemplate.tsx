@@ -49,8 +49,10 @@ const InvoiceTemplate: React.FC<InvoiceTemplateProps> = ({
       const footerLast = measureRef.current.querySelector('.measure-footer-last') as HTMLElement;
       const rows = measureRef.current.querySelectorAll('.measure-row');
 
-      const A4_HEIGHT = 1080;
-      const SAFE_PADDING = 15;
+      // 287 mm printable height (297 mm A4 minus 5 mm top + 5 mm bottom @page margin)
+      // at 96 dpi = 287 × (96/25.4) ≈ 1085 px; subtract 4 px for the 2 px outer border.
+      const A4_HEIGHT = 1081;
+      const SAFE_PADDING = 8;
 
       const heights = {
         fpHeader: (fpHeader?.offsetHeight || 0) + SAFE_PADDING,
@@ -65,6 +67,7 @@ const InvoiceTemplate: React.FC<InvoiceTemplateProps> = ({
       const items = saleOrder.items || [];
       const newPages: SaleItem[][] = [];
       let currentPage: SaleItem[] = [];
+      let needsSummaryPage = false;
 
       let remainingHeight = A4_HEIGHT - heights.fpHeader - heights.tHeader - heights.footerCont;
 
@@ -77,9 +80,13 @@ const InvoiceTemplate: React.FC<InvoiceTemplateProps> = ({
           remainingHeight -= itemHeight;
 
           if (isLastItem) {
-            if (remainingHeight < heights.summary + heights.footerLast) {
-               newPages.push(currentPage);
-               currentPage = [];
+            // The last page has no footerCont — add it back to get the real
+            // remaining space, then check whether summary + footerLast fit.
+            const actualRemaining = remainingHeight + heights.footerCont;
+            if (actualRemaining < heights.summary + heights.footerLast) {
+              newPages.push(currentPage);
+              currentPage = [];
+              needsSummaryPage = true;
             }
           }
         } else {
@@ -89,15 +96,17 @@ const InvoiceTemplate: React.FC<InvoiceTemplateProps> = ({
           remainingHeight = A4_HEIGHT - heights.cpHeader - heights.tHeader - heights.footerCont - itemHeight;
 
           if (isLastItem) {
-             if (remainingHeight < heights.summary + heights.footerLast) {
-                newPages.push(currentPage);
-                currentPage = [];
-             }
+            const actualRemaining = remainingHeight + heights.footerCont;
+            if (actualRemaining < heights.summary + heights.footerLast) {
+              newPages.push(currentPage);
+              currentPage = [];
+              needsSummaryPage = true;
+            }
           }
         }
       }
 
-      if (currentPage.length > 0 || items.length === 0) {
+      if (currentPage.length > 0 || items.length === 0 || needsSummaryPage) {
         newPages.push(currentPage);
       }
 
@@ -684,8 +693,9 @@ const InvoiceTemplate: React.FC<InvoiceTemplateProps> = ({
         .invoice-page + .invoice-page { margin-top: 16px; }
 
         @media print {
-          /* Zero browser margin — our content div handles its own sizing */
-          @page { size: A4; margin: 0; }
+          /* 8 mm left/right + 5 mm top/bottom margins give equal breathing room
+             on all four edges and clear the printer's non-printable zone. */
+          @page { size: A4 portrait; margin: 5mm 8mm; }
 
           html, body {
             -webkit-print-color-adjust: exact;
@@ -698,8 +708,8 @@ const InvoiceTemplate: React.FC<InvoiceTemplateProps> = ({
 
           /* Each div = exactly one A4 page */
           .invoice-page {
-            width:  210mm !important;
-            height: 297mm !important;
+            width:  194mm !important;
+            height: 287mm !important;
             margin: 0 auto !important;
             overflow: hidden !important;
             box-sizing: border-box !important;
@@ -707,6 +717,13 @@ const InvoiceTemplate: React.FC<InvoiceTemplateProps> = ({
             page-break-inside: avoid !important;
           }
           .invoice-page:last-child { page-break-after: auto !important; }
+
+          /* Summary-only last page: let the frame wrap the content tightly */
+          .invoice-page-summary-only {
+            height: auto !important;
+            overflow: visible !important;
+          }
+          .invoice-page-summary-only .invoice-page-inner { height: auto !important; }
 
           /* Inner wrapper must also be full height in print */
           .invoice-page-inner { height: 100% !important; }
@@ -719,19 +736,20 @@ const InvoiceTemplate: React.FC<InvoiceTemplateProps> = ({
           const isLastPage = pageIndex === totalPages - 1;
           const startItemIndex = itemPages.slice(0, pageIndex).reduce((acc, p) => acc + p.length, 0);
 
+          const isSummaryOnlyPage = isLastPage && pageItems.length === 0;
           return (
             <div
               key={pageIndex}
-              className="invoice-page"
+              className={`invoice-page${isSummaryOnlyPage ? ' invoice-page-summary-only' : ''}`}
               style={{
                 width: '210mm',
-                height: '297mm',
+                height: isSummaryOnlyPage ? 'auto' : '297mm',
                 margin: '0 auto',
                 boxSizing: 'border-box' as const,
                 fontFamily: 'Arial, sans-serif',
                 fontSize: BASE,
                 backgroundColor: 'white',
-                overflow: 'hidden',
+                overflow: isSummaryOnlyPage ? 'visible' : 'hidden',
               }}
             >
               {/*
@@ -746,7 +764,7 @@ const InvoiceTemplate: React.FC<InvoiceTemplateProps> = ({
                 className="invoice-page-inner"
                 style={{
                   border: outerBorder,
-                  height: '100%',
+                  height: isSummaryOnlyPage ? 'auto' : '100%',
                   boxSizing: 'border-box' as const,
                   display: 'flex',
                   flexDirection: 'column' as const,
@@ -774,8 +792,12 @@ const InvoiceTemplate: React.FC<InvoiceTemplateProps> = ({
                 </div>
 
                 {/* ── Items area — grows to fill remaining space ── */}
-                <div style={{ flex: 1, overflow: 'hidden', borderBottom: outerBorder, }}>
-                  {renderItemsTable(pageItems, startItemIndex, taxDetails.isInterstate)}
+                <div style={{
+                  flex: (isLastPage && pageItems.length === 0) ? 0 : 1,
+                  overflow: 'hidden',
+                  borderBottom: (isLastPage && pageItems.length === 0) ? 'none' : outerBorder,
+                }}>
+                  {(pageItems.length > 0) && renderItemsTable(pageItems, startItemIndex, taxDetails.isInterstate)}
                 </div>
 
                 {/* ── Bottom section — summary on last page, footer on others ── */}
