@@ -440,7 +440,7 @@ const GenerateInvoiceModal: React.FC<GenerateInvoiceModalProps> = ({
     // On desktop there is no share API, so we open WhatsApp now (synchronously,
     // inside the user-gesture handler) to bypass popup blockers.
     const isMobileShareSupported = typeof navigator.share === 'function' && typeof navigator.canShare === 'function';
-    const waWindow = isMobileShareSupported ? null : window.open(waUrl, '_blank');
+    if (!isMobileShareSupported) window.open(waUrl, '_blank');
 
     setSharingWhatsApp(true);
 
