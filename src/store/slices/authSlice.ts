@@ -27,7 +27,7 @@ const initialState: AuthState = {
   user: getUserFromStorage(),
   accessToken: localStorage.getItem('accessToken'),
   refreshToken: localStorage.getItem('refreshToken'),
-  isAuthenticated: !!localStorage.getItem('accessToken'),
+  isAuthenticated: !!(localStorage.getItem('accessToken') || localStorage.getItem('refreshToken')),
   loading: false,
   error: null,
 };

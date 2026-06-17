@@ -105,7 +105,8 @@ axiosInstance.interceptors.response.use(
         // Try to refresh the token
         const response = await axios.post(
           `${(import.meta as any).env.VITE_API_URL || 'http://localhost:4000'}/api/auth/token/refresh/`,
-          { refresh: refreshToken }
+          { refresh: refreshToken },
+          { timeout: 10000 }
         );
 
         const { access, refresh: newRefresh } = response.data;
@@ -123,7 +124,23 @@ axiosInstance.interceptors.response.use(
         }
         return axiosInstance(originalRequest);
       } catch (refreshError) {
-        // Refresh failed - notify queued requests and logout
+        // Before logging out, check if another browser tab already refreshed the tokens.
+        // With ROTATE_REFRESH_TOKENS=True, a concurrent tab may have blacklisted the token
+        // we tried. If localStorage now has a different (newer) refresh token, use it.
+        const latestRefresh = localStorage.getItem('refreshToken');
+        if (latestRefresh && latestRefresh !== refreshToken) {
+          const latestAccess = localStorage.getItem('accessToken');
+          if (latestAccess) {
+            processQueue(null, latestAccess);
+            if (originalRequest.headers) {
+              originalRequest.headers.Authorization = `Bearer ${latestAccess}`;
+            }
+            isRefreshing = false;
+            return axiosInstance(originalRequest);
+          }
+        }
+
+        // Refresh truly failed - notify queued requests and logout
         processQueue(refreshError, null);
         clearAuthAndRedirect();
         return Promise.reject(refreshError);
