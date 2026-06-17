@@ -1,12 +1,16 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAppDispatch } from '@hooks/useRedux';
 import { customerService } from '@api/services/customer.service';
+import { stateService } from '@api/services/state.service';
 import { documentService } from '@api/services/document.service';
 import { addNotification } from '@store/slices/uiSlice';
-import { Plus, Search, Edit, Trash2, Users, UserCheck, Mail, Phone, Receipt, FileSpreadsheet, MessageCircle } from 'lucide-react';
+import { Plus, Search, Edit, Trash2, Users, UserCheck, Mail, Phone, Receipt, FileSpreadsheet, MessageCircle, MapPin, X, Star } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import CustomerFormModal from '../../components/features/customers/CustomerFormModal';
 import DeleteConfirmModal from '../../components/common/DeleteConfirmModal/DeleteConfirmModal';
+import PhoneInput from '../../components/common/PhoneInput/PhoneInput';
+import { StateMaster } from '../../types/state.types';
+import { CustomerShippingAddress } from '../../types/invoice.types';
 
 interface Customer {
   id: number;
@@ -40,6 +44,8 @@ const Customers: React.FC = () => {
   const [showFormModal, setShowFormModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
+  const [showShippingModal, setShowShippingModal] = useState(false);
+  const [shippingCustomer, setShippingCustomer] = useState<Customer | null>(null);
 
   const fetchCustomers = useCallback(async () => {
     try {
@@ -361,6 +367,11 @@ const Customers: React.FC = () => {
                               <Receipt className="w-4 h-4" />
                             </button>
                           )}
+                          {!customer.is_guest && (
+                            <button className="action-btn" onClick={() => { setShippingCustomer(customer); setShowShippingModal(true); }} title="Shipping Addresses" style={{ color: '#6366f1' }}>
+                              <MapPin className="w-4 h-4" />
+                            </button>
+                          )}
                           <button className="action-btn action-btn-primary" onClick={() => { setSelectedCustomer(customer); setShowFormModal(true); }} title="Edit">
                             <Edit className="w-4 h-4" />
                           </button>
@@ -426,6 +437,242 @@ const Customers: React.FC = () => {
           setSelectedCustomer(null);
         }}
       />
+
+      {/* Shipping Addresses Modal */}
+      {showShippingModal && shippingCustomer && (
+        <ShippingAddressesModal
+          customer={shippingCustomer}
+          onClose={() => { setShowShippingModal(false); setShippingCustomer(null); }}
+        />
+      )}
+    </div>
+  );
+};
+
+// ─── Shipping Addresses Modal ─────────────────────────────────────────────────
+
+interface ShippingAddressesModalProps {
+  customer: { id: number; name: string };
+  onClose: () => void;
+}
+
+const emptyAddrForm = {
+  label: '',
+  contact_name: '',
+  address_line1: '',
+  address_line2: '',
+  city: '',
+  state: '' as string | number,
+  pincode: '',
+  phone_country_code: '91',
+  phone: '',
+  is_default: false,
+};
+
+const ShippingAddressesModal: React.FC<ShippingAddressesModalProps> = ({ customer, onClose }) => {
+  const [addresses, setAddresses] = useState<CustomerShippingAddress[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [states, setStates] = useState<StateMaster[]>([]);
+  const [showForm, setShowForm] = useState(false);
+  const [editingAddr, setEditingAddr] = useState<CustomerShippingAddress | null>(null);
+  const [form, setForm] = useState({ ...emptyAddrForm });
+  const [saving, setSaving] = useState(false);
+  const [deletingId, setDeletingId] = useState<number | null>(null);
+
+  useEffect(() => {
+    Promise.all([
+      customerService.getShippingAddresses(customer.id),
+      stateService.getAll(),
+    ]).then(([addrs, sts]) => {
+      setAddresses(addrs);
+      setStates(sts);
+    }).finally(() => setLoading(false));
+  }, [customer.id]);
+
+  const openNew = () => { setEditingAddr(null); setForm({ ...emptyAddrForm }); setShowForm(true); };
+  const openEdit = (addr: CustomerShippingAddress) => {
+    setEditingAddr(addr);
+    setForm({
+      label: addr.label,
+      contact_name: addr.contact_name,
+      address_line1: addr.address_line1,
+      address_line2: addr.address_line2,
+      city: addr.city,
+      state: addr.state ?? '',
+      pincode: addr.pincode,
+      phone_country_code: addr.phone_country_code || '91',
+      phone: addr.phone,
+      is_default: addr.is_default,
+    });
+    setShowForm(true);
+  };
+
+  const handleSave = async () => {
+    if (!form.address_line1.trim() || !form.city.trim()) return;
+    setSaving(true);
+    try {
+      const payload = { ...form, state: form.state || null };
+      if (editingAddr) {
+        const updated = await customerService.updateShippingAddress(customer.id, editingAddr.id, payload);
+        setAddresses(prev => prev.map(a => a.id === editingAddr.id ? updated : (updated.is_default ? { ...a, is_default: false } : a)));
+      } else {
+        const created = await customerService.createShippingAddress(customer.id, payload);
+        setAddresses(prev => {
+          const base = created.is_default ? prev.map(a => ({ ...a, is_default: false })) : prev;
+          return [...base, created];
+        });
+      }
+      setShowForm(false);
+    } catch {
+      // error silently — user can retry
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDelete = async (id: number) => {
+    setDeletingId(id);
+    try {
+      await customerService.deleteShippingAddress(customer.id, id);
+      setAddresses(prev => prev.filter(a => a.id !== id));
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+      <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg mx-4 flex flex-col max-h-[90vh]">
+        {/* Header */}
+        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+          <div className="flex items-center gap-2">
+            <MapPin className="w-4 h-4 text-indigo-500" />
+            <h2 className="font-semibold text-gray-900 text-sm">Shipping Addresses — {customer.name}</h2>
+          </div>
+          <div className="flex items-center gap-2">
+            {!showForm && (
+              <button onClick={openNew} className="btn btn-primary text-xs px-3 py-1.5 flex items-center gap-1.5">
+                <Plus className="w-3.5 h-3.5" /> Add Address
+              </button>
+            )}
+            <button onClick={onClose} className="p-1 rounded text-gray-400 hover:text-gray-600 hover:bg-gray-100">
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+
+        <div className="flex-1 overflow-y-auto p-5 space-y-4">
+          {/* Add / Edit Form */}
+          {showForm && (
+            <div className="border border-indigo-100 bg-indigo-50/40 rounded-lg p-4 space-y-3">
+              <p className="text-xs font-semibold text-indigo-700 uppercase tracking-wide">{editingAddr ? 'Edit Address' : 'New Address'}</p>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs text-gray-600 mb-1">Label</label>
+                  <input placeholder="e.g. Warehouse" value={form.label} onChange={e => setForm(f => ({ ...f, label: e.target.value }))}
+                    className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-indigo-300" />
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-600 mb-1">Contact Name</label>
+                  <input placeholder="Recipient name" value={form.contact_name} onChange={e => setForm(f => ({ ...f, contact_name: e.target.value }))}
+                    className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-indigo-300" />
+                </div>
+                <div className="col-span-2">
+                  <label className="block text-xs text-gray-600 mb-1">Address Line 1 <span className="text-red-500">*</span></label>
+                  <input placeholder="Street address" value={form.address_line1} onChange={e => setForm(f => ({ ...f, address_line1: e.target.value }))}
+                    className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-indigo-300" />
+                </div>
+                <div className="col-span-2">
+                  <label className="block text-xs text-gray-600 mb-1">Address Line 2</label>
+                  <input placeholder="Area, landmark…" value={form.address_line2} onChange={e => setForm(f => ({ ...f, address_line2: e.target.value }))}
+                    className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-indigo-300" />
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-600 mb-1">City <span className="text-red-500">*</span></label>
+                  <input placeholder="City" value={form.city} onChange={e => setForm(f => ({ ...f, city: e.target.value }))}
+                    className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-indigo-300" />
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-600 mb-1">Pincode</label>
+                  <input placeholder="123456" maxLength={6} value={form.pincode} onChange={e => setForm(f => ({ ...f, pincode: e.target.value }))}
+                    className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-indigo-300" />
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-600 mb-1">State</label>
+                  <select value={form.state} onChange={e => setForm(f => ({ ...f, state: e.target.value ? Number(e.target.value) : '' }))}
+                    className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-indigo-300">
+                    <option value="">Select state</option>
+                    {states.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-600 mb-1">Phone</label>
+                  <PhoneInput
+                    phone={form.phone}
+                    countryCode={form.phone_country_code}
+                    onPhoneChange={v => setForm(f => ({ ...f, phone: v }))}
+                    onCountryCodeChange={v => setForm(f => ({ ...f, phone_country_code: v }))}
+                  />
+                </div>
+              </div>
+              <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer">
+                <input type="checkbox" checked={form.is_default} onChange={e => setForm(f => ({ ...f, is_default: e.target.checked }))}
+                  className="rounded border-gray-300" />
+                Set as default shipping address
+              </label>
+              <div className="flex justify-end gap-2 pt-1">
+                <button onClick={() => setShowForm(false)} className="px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-100 rounded-lg">Cancel</button>
+                <button onClick={handleSave} disabled={saving || !form.address_line1.trim() || !form.city.trim()}
+                  className="px-4 py-1.5 text-sm font-medium bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-40">
+                  {saving ? 'Saving…' : (editingAddr ? 'Update' : 'Add')}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Addresses List */}
+          {loading ? (
+            <div className="py-8 text-center text-sm text-gray-400">
+              <div className="w-5 h-5 border-2 border-gray-200 border-t-indigo-500 rounded-full animate-spin mx-auto mb-2" />Loading…
+            </div>
+          ) : addresses.length === 0 && !showForm ? (
+            <div className="py-10 text-center text-sm text-gray-400">
+              <MapPin className="w-8 h-8 mx-auto mb-2 text-gray-200" />
+              <p>No shipping addresses yet.</p>
+              <button onClick={openNew} className="mt-3 text-indigo-600 hover:underline text-xs">Add one now</button>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {addresses.map(addr => (
+                <div key={addr.id} className={`border rounded-lg p-3.5 ${addr.is_default ? 'border-indigo-200 bg-indigo-50/50' : 'border-gray-100 bg-white'}`}>
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1">
+                        {addr.label && <span className="text-xs font-semibold text-gray-700">{addr.label}</span>}
+                        {addr.is_default && (
+                          <span className="flex items-center gap-0.5 text-xs text-indigo-600 font-medium">
+                            <Star className="w-3 h-3 fill-indigo-500 text-indigo-500" /> Default
+                          </span>
+                        )}
+                      </div>
+                      {addr.contact_name && <p className="text-sm text-gray-800 font-medium">{addr.contact_name}</p>}
+                      <p className="text-sm text-gray-600">{addr.address_line1}{addr.address_line2 ? `, ${addr.address_line2}` : ''}</p>
+                      <p className="text-sm text-gray-500">{[addr.city, addr.state_name, addr.pincode].filter(Boolean).join(', ')}</p>
+                      {addr.phone && <p className="text-xs text-gray-400 mt-0.5">+{addr.phone_country_code || '91'} {addr.phone}</p>}
+                    </div>
+                    <div className="flex items-center gap-1 shrink-0">
+                      <button onClick={() => openEdit(addr)} className="action-btn action-btn-primary" title="Edit"><Edit className="w-3.5 h-3.5" /></button>
+                      <button onClick={() => handleDelete(addr.id)} disabled={deletingId === addr.id} className="action-btn action-btn-danger" title="Delete">
+                        {deletingId === addr.id ? <div className="w-3.5 h-3.5 border-2 border-red-300 border-t-red-600 rounded-full animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   );
 };

@@ -4,6 +4,16 @@ import { useAppSelector } from '@hooks/useRedux';
 import QRCode from 'react-qr-code';
 import { getInvoiceUnitLabel, formatInvoiceQty } from '@utils/units';
 
+interface ShippingDetails {
+  contact_name?: string;
+  address_line1?: string;
+  address_line2?: string;
+  city?: string;
+  state_name?: string;
+  pincode?: string;
+  phone?: string;
+}
+
 interface InvoiceTemplateProps {
   saleOrder: SaleOrder;
   invoiceNumber?: string;
@@ -20,6 +30,7 @@ interface InvoiceTemplateProps {
     phone?: string;
     email?: string;
   };
+  shippingDetails?: ShippingDetails;
 }
 
 const InvoiceTemplate: React.FC<InvoiceTemplateProps> = ({
@@ -28,6 +39,7 @@ const InvoiceTemplate: React.FC<InvoiceTemplateProps> = ({
   invoiceDate,
   invoiceUrl,
   customerDetails,
+  shippingDetails,
 }) => {
   const currentCompany = useAppSelector((state) => state.company.currentCompany);
 
@@ -397,11 +409,13 @@ const InvoiceTemplate: React.FC<InvoiceTemplateProps> = ({
     </div>
   );
 
-  // ─── Bill To + Invoice details ────────────────────────────────────────────
+  // ─── Bill To + Ship To + Invoice details ─────────────────────────────────
+  const hasShipping = !!(shippingDetails?.address_line1);
+
   const renderBillToSection = () => (
     <div style={{ display: 'flex', borderBottom: outerBorder }}>
       {/* Bill To */}
-      <div style={{ flex: 3, padding: '8px 10px', borderRight: innerBorder }}>
+      <div style={{ flex: hasShipping ? 2 : 3, padding: '8px 10px', borderRight: innerBorder }}>
         <p style={{ fontSize: '9px', fontWeight: '700', margin: '0 0 5px 0', color: '#555', textTransform: 'uppercase' as const, letterSpacing: '0.8px' }}>Bill To:</p>
         <p style={{ fontWeight: 'bold', fontSize: '13px', margin: '0 0 4px 0' }}>
           {customerDetails?.name || saleOrder.customer_name || 'Walk-in Customer'}
@@ -434,6 +448,32 @@ const InvoiceTemplate: React.FC<InvoiceTemplateProps> = ({
           {customerDetails?.state || saleOrder.place_of_supply || currentCompany.state_name || ''}
         </p>
       </div>
+
+      {/* Ship To (only when a shipping address is provided) */}
+      {hasShipping && (
+        <div style={{ flex: 2, padding: '8px 10px', borderRight: innerBorder }}>
+          <p style={{ fontSize: '9px', fontWeight: '700', margin: '0 0 5px 0', color: '#555', textTransform: 'uppercase' as const, letterSpacing: '0.8px' }}>Ship To:</p>
+          {shippingDetails?.contact_name && (
+            <p style={{ fontWeight: 'bold', fontSize: '13px', margin: '0 0 4px 0' }}>{shippingDetails.contact_name}</p>
+          )}
+          {shippingDetails?.address_line1 && (
+            <p style={{ fontSize: BASE, margin: '2px 0' }}>{shippingDetails.address_line1}</p>
+          )}
+          {shippingDetails?.address_line2 && (
+            <p style={{ fontSize: BASE, margin: '2px 0' }}>{shippingDetails.address_line2}</p>
+          )}
+          {(shippingDetails?.city || shippingDetails?.state_name || shippingDetails?.pincode) && (
+            <p style={{ fontSize: BASE, margin: '2px 0' }}>
+              {[shippingDetails?.city, shippingDetails?.state_name, shippingDetails?.pincode].filter(Boolean).join(', ')}
+            </p>
+          )}
+          {shippingDetails?.phone && (
+            <p style={{ fontSize: BASE, margin: '2px 0' }}>
+              <span style={{ fontWeight: '600' }}>Ph:</span> {shippingDetails.phone}
+            </p>
+          )}
+        </div>
+      )}
 
       {/* Invoice details */}
       <div style={{ flex: 2, padding: '8px 10px' }}>

@@ -72,4 +72,24 @@ export const customerService = {
     const response = await axiosInstance.post(API_ENDPOINTS.CUSTOMERS.WALLET_TOPUP(id), data);
     return response.data;
   },
+
+  // Shipping addresses
+  getShippingAddresses: async (customerId: number): Promise<any[]> => {
+    const response = await axiosInstance.get(API_ENDPOINTS.CUSTOMERS.SHIPPING_ADDRESSES(customerId));
+    return response.data;
+  },
+
+  createShippingAddress: async (customerId: number, data: any): Promise<any> => {
+    const response = await axiosInstance.post(API_ENDPOINTS.CUSTOMERS.SHIPPING_ADDRESSES(customerId), data);
+    return response.data;
+  },
+
+  updateShippingAddress: async (customerId: number, addrId: number, data: any): Promise<any> => {
+    const response = await axiosInstance.put(API_ENDPOINTS.CUSTOMERS.SHIPPING_ADDRESS_DETAIL(customerId, addrId), data);
+    return response.data;
+  },
+
+  deleteShippingAddress: async (customerId: number, addrId: number): Promise<void> => {
+    await axiosInstance.delete(API_ENDPOINTS.CUSTOMERS.SHIPPING_ADDRESS_DETAIL(customerId, addrId));
+  },
 };

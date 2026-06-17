@@ -214,6 +214,19 @@ const InvoiceDetail: React.FC = () => {
     email: invoice.customer_email,
   } : null, [invoice]);
 
+  const shippingDetails = useMemo(() => {
+    if (!invoice?.shipping_address_line1) return undefined;
+    return {
+      contact_name: invoice.shipping_contact_name,
+      address_line1: invoice.shipping_address_line1,
+      address_line2: invoice.shipping_address_line2,
+      city: invoice.shipping_city,
+      state_name: invoice.shipping_state_name,
+      pincode: invoice.shipping_pincode,
+      phone: invoice.shipping_phone,
+    };
+  }, [invoice]);
+
   // ── Loading ───────────────────────────────────────────────────────────────
   if (loading) {
     return (
@@ -334,6 +347,7 @@ const InvoiceDetail: React.FC = () => {
             invoiceNumber={invoice.invoice_number}
             invoiceDate={invoice.invoice_date}
             customerDetails={customerDetails}
+            shippingDetails={shippingDetails}
           />
         </div>
       </div>

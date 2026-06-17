@@ -12,7 +12,7 @@ import { invoiceService } from '../../api/services/invoice.service';
 import { saleService } from '../../api/services/sale.service';
 import { customerService } from '../../api/services/customer.service';
 import { stateService } from '../../api/services/state.service';
-import { TaxInvoiceCreate } from '../../types/invoice.types';
+import { TaxInvoiceCreate, CustomerShippingAddress } from '../../types/invoice.types';
 import { SaleOrder } from '../../types/sale.types';
 import { Customer } from '../../types/customer.types';
 import { StateMaster } from '../../types/state.types';
@@ -46,6 +46,11 @@ const GenerateInvoiceModal: React.FC<GenerateInvoiceModalProps> = ({
   const [customerSearchQuery, setCustomerSearchQuery] = useState('');
   const [creating, setCreating] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+
+  // Shipping address state
+  const [customerShippingAddresses, setCustomerShippingAddresses] = useState<CustomerShippingAddress[]>([]);
+  const [selectedShippingAddressId, setSelectedShippingAddressId] = useState<number | 'manual' | null>(null);
+  const [manualShipping, setManualShipping] = useState({ contact_name: '', address_line1: '', address_line2: '', city: '', state: '' as number | '', pincode: '', phone: '', phone_country_code: '91' });
 
   // Sale list for step 1 (only when no initialSale)
   const [sales, setSales] = useState<SaleOrder[]>([]);
@@ -112,7 +117,8 @@ const GenerateInvoiceModal: React.FC<GenerateInvoiceModalProps> = ({
           customer_gstin: c.gstin || '',
           customer_address: c.billing_address_line1 || c.address_line1 || '',
           customer_city: c.billing_city || c.city || '',
-          customer_state: c.billing_state || c.state || undefined,
+          // State resolved from string name in useEffect once states list loads
+          customer_state: undefined,
           customer_pincode: c.billing_pincode || c.pincode || '',
           customer_country_code: c.country_code || '91',
           customer_phone: c.phone || '',
@@ -131,10 +137,32 @@ const GenerateInvoiceModal: React.FC<GenerateInvoiceModalProps> = ({
     buildInitialCustomerDetails
   );
 
-  // Animate in + fetch states
+  // Animate in + fetch states, then resolve initial customer's state and shipping addresses
   useEffect(() => {
     requestAnimationFrame(() => setVisible(true));
-    stateService.getAll().then(setStates).catch(console.error);
+    stateService.getAll().then(stateList => {
+      setStates(stateList);
+      // Resolve billing state string → ID for the initial sale's customer
+      if (initialSale?.customer && typeof initialSale.customer === 'object') {
+        const c = initialSale.customer;
+        const stateName = c.billing_state || c.state;
+        if (stateName && typeof stateName === 'string') {
+          const found = stateList.find(s => s.name.toLowerCase() === stateName.toLowerCase());
+          if (found) {
+            setCustomerDetails(prev => ({ ...prev, customer_state: prev.customer_state ?? found.id }));
+          }
+        }
+        // Fetch shipping addresses for the initial customer
+        if (c.id) {
+          customerService.getShippingAddresses(c.id).then(addrs => {
+            setCustomerShippingAddresses(addrs);
+            const def = addrs.find((a: CustomerShippingAddress) => a.is_default);
+            if (def) setSelectedShippingAddressId(def.id);
+          }).catch(() => {});
+        }
+      }
+    }).catch(console.error);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Fetch sales for step 1 (only when no initialSale)
@@ -194,6 +222,9 @@ const GenerateInvoiceModal: React.FC<GenerateInvoiceModalProps> = ({
       customer_gstin: '', customer_address: '', customer_city: '',
       customer_state: undefined, customer_pincode: '', customer_country_code: '91', customer_phone: '', customer_email: '',
     });
+    setCustomerShippingAddresses([]);
+    setSelectedShippingAddressId(null);
+    setManualShipping({ contact_name: '', address_line1: '', address_line2: '', city: '', state: '', pincode: '', phone: '', phone_country_code: '91' });
     setCurrentStep(2);
   };
 
@@ -201,18 +232,31 @@ const GenerateInvoiceModal: React.FC<GenerateInvoiceModalProps> = ({
     const customer = customers.find(c => c.id === customerId);
     if (customer) {
       setSelectedCustomer(customerId);
+      // Resolve billing_state string → state ID from the loaded states list
+      const billingStateName = (customer as any).billing_state || (customer as any).state;
+      const resolvedStateId = billingStateName
+        ? states.find(s => s.name.toLowerCase() === String(billingStateName).toLowerCase())?.id
+        : undefined;
       setCustomerDetails({
         customer_name: customer.name,
         customer_gstin: (customer as any).gstin || '',
         customer_address: (customer as any).billing_address_line1 || (customer as any).address_line1 || '',
         customer_city: (customer as any).billing_city || (customer as any).city || '',
-        customer_state: Number((customer as any).state) || 0,
+        customer_state: resolvedStateId ?? undefined,
         customer_pincode: (customer as any).billing_pincode || (customer as any).pincode || '',
         customer_country_code: (customer as any).country_code || '91',
         customer_phone: customer.phone || '',
         customer_email: customer.email || '',
       });
       setErrors({});
+      // Fetch shipping addresses for this customer
+      setCustomerShippingAddresses([]);
+      setSelectedShippingAddressId(null);
+      customerService.getShippingAddresses(customerId).then(addrs => {
+        setCustomerShippingAddresses(addrs);
+        const def = addrs.find((a: CustomerShippingAddress) => a.is_default);
+        if (def) setSelectedShippingAddressId(def.id);
+      }).catch(() => {});
     }
   };
 
@@ -252,6 +296,18 @@ const GenerateInvoiceModal: React.FC<GenerateInvoiceModalProps> = ({
       if (customerDetails.customer_phone?.trim()) invoiceData.customer_phone = customerDetails.customer_phone.trim();
       if (customerDetails.customer_email?.trim()) invoiceData.customer_email = customerDetails.customer_email.trim();
       if (customerDetails.customer_state) invoiceData.customer_state = Number(customerDetails.customer_state);
+      // Shipping address
+      if (selectedShippingAddressId && selectedShippingAddressId !== 'manual') {
+        invoiceData.shipping_address_id = selectedShippingAddressId;
+      } else if (selectedShippingAddressId === 'manual' && manualShipping.address_line1.trim()) {
+        invoiceData.shipping_contact_name = manualShipping.contact_name;
+        invoiceData.shipping_address_line1 = manualShipping.address_line1;
+        invoiceData.shipping_address_line2 = manualShipping.address_line2;
+        invoiceData.shipping_city = manualShipping.city;
+        if (manualShipping.state) invoiceData.shipping_state = Number(manualShipping.state);
+        invoiceData.shipping_pincode = manualShipping.pincode;
+        if (manualShipping.phone.trim()) invoiceData.shipping_phone = `+${manualShipping.phone_country_code} ${manualShipping.phone.trim()}`;
+      }
       const created = await invoiceService.createInvoice(invoiceData);
       // Show invoice in-place — onSuccess is deferred until the user closes
       setGeneratedInvoice({
@@ -286,6 +342,17 @@ const GenerateInvoiceModal: React.FC<GenerateInvoiceModalProps> = ({
     phone: customerDetails.customer_phone,
     email: customerDetails.customer_email,
   }), [customerDetails, states]);
+
+  const generatedShippingDetails = useMemo(() => {
+    if (selectedShippingAddressId && selectedShippingAddressId !== 'manual') {
+      const addr = customerShippingAddresses.find(a => a.id === selectedShippingAddressId);
+      if (addr) return { contact_name: addr.contact_name, address_line1: addr.address_line1, address_line2: addr.address_line2, city: addr.city, state_name: addr.state_name || '', pincode: addr.pincode, phone: addr.phone ? `+${addr.phone_country_code || '91'} ${addr.phone}` : undefined };
+    }
+    if (selectedShippingAddressId === 'manual' && manualShipping.address_line1) {
+      return { contact_name: manualShipping.contact_name, address_line1: manualShipping.address_line1, address_line2: manualShipping.address_line2, city: manualShipping.city, state_name: states.find(s => s.id === Number(manualShipping.state))?.name || '', pincode: manualShipping.pincode, phone: manualShipping.phone ? `+${manualShipping.phone_country_code} ${manualShipping.phone}` : undefined };
+    }
+    return undefined;
+  }, [selectedShippingAddressId, customerShippingAddresses, manualShipping, states]);
 
   // ── Invoice actions (available after generation) ────────────────────────────
 
@@ -631,6 +698,7 @@ const GenerateInvoiceModal: React.FC<GenerateInvoiceModalProps> = ({
                 invoiceDate={generatedInvoice.invoice_date}
                 invoiceUrl={invoicePageUrl}
                 customerDetails={generatedCustomerDetails}
+                shippingDetails={generatedShippingDetails}
               />
             </div>
           </div>
@@ -944,6 +1012,85 @@ const GenerateInvoiceModal: React.FC<GenerateInvoiceModalProps> = ({
                     )}
                   </div>
                 </div>
+
+                {/* Ship To */}
+                <div className="border-t border-gray-100 pt-4">
+                  <label className="block text-xs font-medium text-gray-600 mb-1.5">
+                    Ship To <span className="text-gray-400 font-normal">(optional)</span>
+                  </label>
+                  <select
+                    value={selectedShippingAddressId ?? ''}
+                    onChange={e => setSelectedShippingAddressId(e.target.value === '' ? null : e.target.value === 'manual' ? 'manual' : Number(e.target.value))}
+                    className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-gray-400 mb-3"
+                  >
+                    <option value="">— No shipping address —</option>
+                    {customerShippingAddresses.map(addr => (
+                      <option key={addr.id} value={addr.id}>
+                        {addr.label ? `${addr.label} — ` : ''}{addr.address_line1}, {addr.city}
+                        {addr.is_default ? ' (Default)' : ''}
+                      </option>
+                    ))}
+                    <option value="manual">Enter manually…</option>
+                  </select>
+
+                  {selectedShippingAddressId && selectedShippingAddressId !== 'manual' && (() => {
+                    const addr = customerShippingAddresses.find(a => a.id === selectedShippingAddressId);
+                    return addr ? (
+                      <div className="px-3 py-2.5 bg-gray-50 border border-gray-100 rounded-lg text-xs text-gray-600 space-y-0.5">
+                        {addr.contact_name && <p className="font-medium text-gray-800">{addr.contact_name}</p>}
+                        <p>{addr.address_line1}{addr.address_line2 ? `, ${addr.address_line2}` : ''}</p>
+                        <p>{[addr.city, addr.state_name, addr.pincode].filter(Boolean).join(', ')}</p>
+                      </div>
+                    ) : null;
+                  })()}
+
+                  {selectedShippingAddressId === 'manual' && (
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="col-span-2">
+                        <label className="block text-xs text-gray-600 mb-1">Contact Name</label>
+                        <input placeholder="Recipient name" value={manualShipping.contact_name}
+                          onChange={e => setManualShipping(s => ({ ...s, contact_name: e.target.value }))}
+                          className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-gray-400" />
+                      </div>
+                      <div className="col-span-2">
+                        <label className="block text-xs text-gray-600 mb-1">Address</label>
+                        <input placeholder="Street address" value={manualShipping.address_line1}
+                          onChange={e => setManualShipping(s => ({ ...s, address_line1: e.target.value }))}
+                          className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-gray-400" />
+                      </div>
+                      <div>
+                        <label className="block text-xs text-gray-600 mb-1">City</label>
+                        <input placeholder="City" value={manualShipping.city}
+                          onChange={e => setManualShipping(s => ({ ...s, city: e.target.value }))}
+                          className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-gray-400" />
+                      </div>
+                      <div>
+                        <label className="block text-xs text-gray-600 mb-1">Pincode</label>
+                        <input placeholder="123456" maxLength={6} value={manualShipping.pincode}
+                          onChange={e => setManualShipping(s => ({ ...s, pincode: e.target.value }))}
+                          className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-gray-400" />
+                      </div>
+                      <div className="col-span-2">
+                        <label className="block text-xs text-gray-600 mb-1">State</label>
+                        <select value={manualShipping.state}
+                          onChange={e => setManualShipping(s => ({ ...s, state: e.target.value ? Number(e.target.value) : '' }))}
+                          className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-gray-400">
+                          <option value="">Select state</option>
+                          {states.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                        </select>
+                      </div>
+                      <div className="col-span-2">
+                        <label className="block text-xs text-gray-600 mb-1">Phone</label>
+                        <PhoneInput
+                          phone={manualShipping.phone}
+                          countryCode={manualShipping.phone_country_code}
+                          onPhoneChange={v => setManualShipping(s => ({ ...s, phone: v }))}
+                          onCountryCodeChange={v => setManualShipping(s => ({ ...s, phone_country_code: v }))}
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
             )}
 
@@ -965,6 +1112,7 @@ const GenerateInvoiceModal: React.FC<GenerateInvoiceModalProps> = ({
                     phone: customerDetails.customer_phone,
                     email: customerDetails.customer_email,
                   }}
+                  shippingDetails={generatedShippingDetails}
                 />
               </div>
             )}

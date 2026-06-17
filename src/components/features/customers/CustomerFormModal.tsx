@@ -27,7 +27,6 @@ const CustomerFormModal: React.FC<CustomerFormModalProps> = ({ customer, onClose
   });
 
   useEffect(() => {
-    // Fetch states
     const fetchStates = async () => {
       try {
         const response = await axiosInstance.get('/api/settings/states/');

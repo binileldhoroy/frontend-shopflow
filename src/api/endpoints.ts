@@ -52,6 +52,8 @@ export const API_ENDPOINTS = {
     LEDGER: (id: number) => `/api/customers/${id}/ledger/`,
     SETTLE_CREDIT: (id: number) => `/api/customers/${id}/settle-credit/`,
     WALLET_TOPUP: (id: number) => `/api/customers/${id}/wallet-topup/`,
+    SHIPPING_ADDRESSES: (id: number) => `/api/customers/${id}/shipping-addresses/`,
+    SHIPPING_ADDRESS_DETAIL: (id: number, addrId: number) => `/api/customers/${id}/shipping-addresses/${addrId}/`,
   },
 
   // Suppliers
