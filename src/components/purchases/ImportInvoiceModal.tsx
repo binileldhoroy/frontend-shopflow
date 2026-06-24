@@ -34,6 +34,7 @@ interface ReviewItem {
   unit: string;
   unit_price: number;
   tax_rate: number;
+  taxIncluded: boolean;
   matchedProductId: number | null;
   matchedProductName: string;
   matches: { id: number; name: string; sku: string; cost_price: number }[];
@@ -62,6 +63,16 @@ function formatINR(v: number) {
   return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', minimumFractionDigits: 2 }).format(v);
 }
 
+// unit_price on the invoice can be quoted either tax-inclusive or tax-exclusive.
+// basePrice = tax-exclusive rate, finalPrice = the actual landed (tax-inclusive) price.
+function getEffectivePrices(ri: ReviewItem): { basePrice: number; finalPrice: number } {
+  if (ri.taxIncluded) {
+    const basePrice = ri.tax_rate > 0 ? ri.unit_price / (1 + ri.tax_rate / 100) : ri.unit_price;
+    return { basePrice, finalPrice: ri.unit_price };
+  }
+  return { basePrice: ri.unit_price, finalPrice: ri.unit_price * (1 + ri.tax_rate / 100) };
+}
+
 function buildReviewItems(items: ParsedInvoiceItem[]): ReviewItem[] {
   return items.map((item) => ({
     invoiceName: item.name,
@@ -69,6 +80,7 @@ function buildReviewItems(items: ParsedInvoiceItem[]): ReviewItem[] {
     unit: item.unit || '',
     unit_price: item.unit_price || 0,
     tax_rate: item.tax_rate || 0,
+    taxIncluded: false,
     matchedProductId: item.matches?.[0]?.id ?? null,
     matchedProductName: item.matches?.[0]?.name ?? '',
     matches: item.matches ?? [],
@@ -198,6 +210,10 @@ const ImportInvoiceModal: React.FC<ImportInvoiceModalProps> = ({
 
       for (let i = 0; i < reviewItems.length; i++) {
         const ri = reviewItems[i];
+        // unit_price stored on the order is always the final landed (tax-inclusive)
+        // price, since the checkbox already accounts for tax either way. tax_rate
+        // is sent as 0 so the backend doesn't add tax on top a second time.
+        const { finalPrice } = getEffectivePrices(ri);
         if (ri.createNew) {
           log(`Creating product: ${ri.newProduct.name}…`);
           const fd = new FormData();
@@ -206,23 +222,23 @@ const ImportInvoiceModal: React.FC<ImportInvoiceModalProps> = ({
           if (ri.newProduct.sku) fd.append('sku', ri.newProduct.sku);
           if (ri.newProduct.category) fd.append('category', String(ri.newProduct.category));
           if (ri.newProduct.brand) fd.append('brand', String(ri.newProduct.brand));
-          fd.append('cost_price', String(ri.unit_price || 0));
-          fd.append('selling_price', String(ri.unit_price || 0));
+          fd.append('cost_price', String(finalPrice || 0));
+          fd.append('selling_price', String(finalPrice || 0));
           const created = await productService.create(fd);
           finalItems.push({
             product: created.id,
             product_name: created.name,
             quantity: ri.quantity,
-            unit_price: ri.unit_price,
-            tax_rate: ri.tax_rate,
+            unit_price: finalPrice,
+            tax_rate: 0,
           });
         } else {
           finalItems.push({
             product: ri.matchedProductId,
             product_name: ri.matchedProductName || ri.invoiceName,
             quantity: ri.quantity,
-            unit_price: ri.unit_price,
-            tax_rate: ri.tax_rate,
+            unit_price: finalPrice,
+            tax_rate: 0,
           });
         }
       }
@@ -251,9 +267,9 @@ const ImportInvoiceModal: React.FC<ImportInvoiceModalProps> = ({
 
   const totals = reviewItems.reduce(
     (acc, item) => {
-      const base = item.quantity * item.unit_price;
-      acc.subtotal += base;
-      acc.tax += (base * item.tax_rate) / 100;
+      const { basePrice, finalPrice } = getEffectivePrices(item);
+      acc.subtotal += item.quantity * basePrice;
+      acc.tax += item.quantity * (finalPrice - basePrice);
       return acc;
     },
     { subtotal: 0, tax: 0 }
@@ -459,13 +475,17 @@ const ImportInvoiceModal: React.FC<ImportInvoiceModalProps> = ({
                   <th className="px-3 py-3 w-20">Qty</th>
                   <th className="px-3 py-3 w-24">Unit Price</th>
                   <th className="px-3 py-3 w-16">Tax %</th>
+                  <th className="px-3 py-3 w-20 text-center">Tax Incl?</th>
+                  <th className="px-3 py-3 w-28 text-right">Price incl. Tax</th>
                   <th className="px-3 py-3 w-28 text-right">Total</th>
                   <th className="px-3 py-3 w-8" />
                 </tr>
               </thead>
               <tbody>
                 {reviewItems.map((ri, idx) => {
-                  const lineTotal = ri.quantity * ri.unit_price * (1 + ri.tax_rate / 100);
+                  const { finalPrice } = getEffectivePrices(ri);
+                  const lineTotal = ri.quantity * finalPrice;
+                  const priceInclTax = finalPrice;
                   return (
                     <React.Fragment key={idx}>
                       <tr className={`border-b border-gray-100 ${idx % 2 === 1 ? 'bg-gray-50/40' : ''}`}>
@@ -578,6 +598,22 @@ const ImportInvoiceModal: React.FC<ImportInvoiceModalProps> = ({
                           />
                         </td>
 
+                        {/* Tax included in unit price? */}
+                        <td className="px-3 py-2.5 text-center">
+                          <input
+                            type="checkbox"
+                            className="w-4 h-4"
+                            checked={ri.taxIncluded}
+                            onChange={(e) => updateItem(idx, { taxIncluded: e.target.checked })}
+                            title="Check if the unit price on the invoice already includes tax"
+                          />
+                        </td>
+
+                        {/* Price incl. Tax (derived; this is the value stored on the order) */}
+                        <td className="px-3 py-2.5 text-right text-gray-600 tabular-nums">
+                          {formatINR(priceInclTax)}
+                        </td>
+
                         {/* Total */}
                         <td className="px-3 py-2.5 text-right font-semibold text-gray-800 tabular-nums">
                           {formatINR(lineTotal)}
@@ -601,7 +637,7 @@ const ImportInvoiceModal: React.FC<ImportInvoiceModalProps> = ({
                       {ri.createNew && (
                         <tr className="bg-primary-50/40 border-b border-primary-100">
                           <td />
-                          <td colSpan={7} className="px-4 py-3">
+                          <td colSpan={9} className="px-4 py-3">
                             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                               <div>
                                 <label className="label text-xs">Product Name</label>
@@ -667,6 +703,7 @@ const ImportInvoiceModal: React.FC<ImportInvoiceModalProps> = ({
               unit: '',
               unit_price: 0,
               tax_rate: 0,
+              taxIncluded: false,
               matchedProductId: null,
               matchedProductName: '',
               matches: [],
