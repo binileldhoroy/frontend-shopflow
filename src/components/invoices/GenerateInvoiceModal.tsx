@@ -286,6 +286,31 @@ const GenerateInvoiceModal: React.FC<GenerateInvoiceModalProps> = ({
     if (!selectedSale || !validateForm()) return;
     try {
       setCreating(true);
+
+      // Persist the customer: reuse whichever existing customer is already
+      // known (linked on the sale, or picked from the "load from existing"
+      // dropdown); only create a new record when neither is set, i.e. the
+      // user typed fresh details manually.
+      let linkedCustomerId: number | null = selectedSale.customer ?? selectedCustomer ?? null;
+      if (!linkedCustomerId) {
+        const customerPayload: any = {
+          name: customerDetails.customer_name!.trim(),
+          country_code: customerDetails.customer_country_code || '91',
+        };
+        if (customerDetails.customer_phone?.trim()) customerPayload.phone = customerDetails.customer_phone.trim();
+        if (customerDetails.customer_email?.trim()) customerPayload.email = customerDetails.customer_email.trim();
+        if (customerDetails.customer_address?.trim()) customerPayload.address_line1 = customerDetails.customer_address.trim();
+        if (customerDetails.customer_city?.trim()) customerPayload.city = customerDetails.customer_city.trim();
+        if (customerDetails.customer_state) customerPayload.state = Number(customerDetails.customer_state);
+        if (customerDetails.customer_pincode?.trim()) customerPayload.pincode = customerDetails.customer_pincode.trim();
+        if (customerDetails.customer_gstin?.trim()) customerPayload.gstin = customerDetails.customer_gstin.trim();
+        const newCustomer = await customerService.create(customerPayload);
+        linkedCustomerId = newCustomer.id;
+      }
+      if (linkedCustomerId !== selectedSale.customer) {
+        await saleService.update(selectedSale.id, { customer: linkedCustomerId });
+      }
+
       const invoiceData: TaxInvoiceCreate = { sale_order_id: selectedSale.id };
       if (customerDetails.customer_name?.trim()) invoiceData.customer_name = customerDetails.customer_name.trim();
       if (customerDetails.customer_gstin?.trim()) invoiceData.customer_gstin = customerDetails.customer_gstin.trim();
