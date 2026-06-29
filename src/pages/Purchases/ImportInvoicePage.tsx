@@ -54,27 +54,12 @@ interface ReviewItem {
     cost_price: number | '';
     selling_price: number | '';
     gst_rate: number | '';
-    taxIncluded: boolean;
+    tax_included: boolean;
     stock_quantity: number | '';
     reorder_level: number | '';
     barcode: string;
     attributes: { name: string; value: string }[];
   };
-}
-
-// cost_price/selling_price entered above can be quoted either GST-inclusive or
-// GST-exclusive. When excluded, the GST % must be added on top before the
-// amount is persisted as the product's cost/selling price.
-function round2(v: number): number {
-  return Math.round(v * 100) / 100;
-}
-
-function getEffectiveProductPrices(np: ReviewItem['newProduct']): { cost: number; selling: number } {
-  const gst = Number(np.gst_rate) || 0;
-  const cost = Number(np.cost_price) || 0;
-  const selling = Number(np.selling_price) || 0;
-  if (np.taxIncluded) return { cost, selling };
-  return { cost: round2(cost * (1 + gst / 100)), selling: round2(selling * (1 + gst / 100)) };
 }
 
 interface CategoryOption { id: number; name: string; }
@@ -135,9 +120,9 @@ function buildReviewItems(items: ParsedInvoiceItem[]): ReviewItem[] {
       sku: autoSku(item.name),
       hsn_code: item.hsn_code || '',
       cost_price: item.unit_price || '',
-      selling_price: item.unit_price || '',
+      selling_price: '',
       gst_rate: item.tax_rate || '',
-      taxIncluded: false,
+      tax_included: true,
       stock_quantity: item.quantity || '',
       reorder_level: '',
       barcode: '',
@@ -345,10 +330,10 @@ const ImportInvoicePage: React.FC = () => {
           if (ri.newProduct.brand) fd.append('brand', String(ri.newProduct.brand));
           if (ri.newProduct.hsn_code) fd.append('hsn_code', ri.newProduct.hsn_code);
           if (ri.newProduct.barcode) fd.append('barcode', ri.newProduct.barcode);
-          const { cost: effectiveCost, selling: effectiveSelling } = getEffectiveProductPrices(ri.newProduct);
-          fd.append('cost_price', String(effectiveCost || 0));
-          fd.append('selling_price', String(effectiveSelling || 0));
+          fd.append('cost_price', String(ri.newProduct.cost_price || 0));
+          fd.append('selling_price', String(ri.newProduct.selling_price || 0));
           fd.append('gst_rate', String(ri.newProduct.gst_rate || 0));
+          fd.append('tax_included', String(ri.newProduct.tax_included));
           fd.append('stock_quantity', String(ri.newProduct.stock_quantity || 0));
           fd.append('reorder_level', String(ri.newProduct.reorder_level || 0));
           if (ri.newProduct.attributes.length) {
@@ -825,7 +810,7 @@ const ImportInvoicePage: React.FC = () => {
                     createNew: false, updateStock: true,
                     newProduct: {
                       name: '', category: '', brand: '', unit: 'piece', sku: '',
-                      hsn_code: '', cost_price: '', selling_price: '', gst_rate: '', taxIncluded: false,
+                      hsn_code: '', cost_price: '', selling_price: '', gst_rate: '', tax_included: true,
                       stock_quantity: '', reorder_level: '', barcode: '', attributes: [],
                     },
                   }])}
@@ -1206,63 +1191,49 @@ const ImportInvoicePage: React.FC = () => {
                               </div>
 
                               {/* Row 3: Cost ₹ | Price ₹ | GST % */}
-                              {(() => {
-                                const { cost: effectiveCost, selling: effectiveSelling } = getEffectiveProductPrices(ri.newProduct);
-                                const showPreview = !ri.newProduct.taxIncluded && Number(ri.newProduct.gst_rate) > 0;
-                                return (
-                                  <>
-                                    <div>
-                                      <label className="label text-xs">Cost ₹ *</label>
-                                      <input
-                                        type="number"
-                                        className={`input-field text-sm ${errs?.cost_price ? 'border-red-400 ring-1 ring-red-300' : ''}`}
-                                        value={ri.newProduct.cost_price}
-                                        min="0" step="0.01"
-                                        onChange={e => updateNewProduct(idx, { cost_price: e.target.value !== '' ? parseFloat(e.target.value) : '' })}
-                                      />
-                                      {errs?.cost_price && <p className="text-xs text-red-600 mt-0.5">{errs.cost_price}</p>}
-                                      {showPreview && (
-                                        <p className="text-xs text-primary-600 mt-0.5">→ {formatINR(effectiveCost)} incl. GST (stored)</p>
-                                      )}
-                                    </div>
+                              <div>
+                                <label className="label text-xs">Cost ₹ *</label>
+                                <input
+                                  type="number"
+                                  className={`input-field text-sm ${errs?.cost_price ? 'border-red-400 ring-1 ring-red-300' : ''}`}
+                                  value={ri.newProduct.cost_price}
+                                  min="0" step="0.01"
+                                  onChange={e => updateNewProduct(idx, { cost_price: e.target.value !== '' ? parseFloat(e.target.value) : '' })}
+                                />
+                                {errs?.cost_price && <p className="text-xs text-red-600 mt-0.5">{errs.cost_price}</p>}
+                              </div>
 
-                                    <div>
-                                      <label className="label text-xs">Price ₹ *</label>
-                                      <input
-                                        type="number"
-                                        className={`input-field text-sm ${errs?.selling_price ? 'border-red-400 ring-1 ring-red-300' : ''}`}
-                                        value={ri.newProduct.selling_price}
-                                        min="0" step="0.01"
-                                        onChange={e => updateNewProduct(idx, { selling_price: e.target.value !== '' ? parseFloat(e.target.value) : '' })}
-                                      />
-                                      {errs?.selling_price && <p className="text-xs text-red-600 mt-0.5">{errs.selling_price}</p>}
-                                      {showPreview && (
-                                        <p className="text-xs text-primary-600 mt-0.5">→ {formatINR(effectiveSelling)} incl. GST (stored)</p>
-                                      )}
-                                    </div>
+                              <div>
+                                <label className="label text-xs">Price ₹ *</label>
+                                <input
+                                  type="number"
+                                  className={`input-field text-sm ${errs?.selling_price ? 'border-red-400 ring-1 ring-red-300' : ''}`}
+                                  value={ri.newProduct.selling_price}
+                                  min="0" step="0.01"
+                                  onChange={e => updateNewProduct(idx, { selling_price: e.target.value !== '' ? parseFloat(e.target.value) : '' })}
+                                />
+                                {errs?.selling_price && <p className="text-xs text-red-600 mt-0.5">{errs.selling_price}</p>}
+                              </div>
 
-                                    <div>
-                                      <label className="label text-xs">GST %</label>
-                                      <input
-                                        type="number"
-                                        className="input-field text-sm"
-                                        value={ri.newProduct.gst_rate}
-                                        min="0" step="0.01"
-                                        onChange={e => updateNewProduct(idx, { gst_rate: e.target.value !== '' ? parseFloat(e.target.value) : '' })}
-                                      />
-                                      <label className="flex items-center gap-1.5 mt-1.5 cursor-pointer select-none w-fit">
-                                        <input
-                                          type="checkbox"
-                                          className="w-3.5 h-3.5 rounded accent-primary-600"
-                                          checked={ri.newProduct.taxIncluded}
-                                          onChange={e => updateNewProduct(idx, { taxIncluded: e.target.checked })}
-                                        />
-                                        <span className="text-xs font-medium text-gray-500">Cost/Price above already includes GST</span>
-                                      </label>
-                                    </div>
-                                  </>
-                                );
-                              })()}
+                              <div>
+                                <label className="label text-xs">GST %</label>
+                                <input
+                                  type="number"
+                                  className="input-field text-sm"
+                                  value={ri.newProduct.gst_rate}
+                                  min="0" step="0.01"
+                                  onChange={e => updateNewProduct(idx, { gst_rate: e.target.value !== '' ? parseFloat(e.target.value) : '' })}
+                                />
+                                <label className="flex items-center gap-1.5 mt-1.5 cursor-pointer select-none w-fit">
+                                  <input
+                                    type="checkbox"
+                                    className="w-3.5 h-3.5 rounded"
+                                    checked={ri.newProduct.tax_included}
+                                    onChange={e => updateNewProduct(idx, { tax_included: e.target.checked })}
+                                  />
+                                  <span className="text-xs text-gray-600">Tax Included in Price</span>
+                                </label>
+                              </div>
 
                               {/* Row 4: Stock | Reorder | Barcode */}
                               <div>
