@@ -23,7 +23,7 @@ const STATUS_TRANSITIONS: Record<string, string[]> = {
 };
 
 interface QuoteItem { product_id: number | null; product_name: string; hsn_code: string; quantity: string; unit_price: string; gst_rate: string; }
-const emptyItem = (): QuoteItem => ({ product_id: null, product_name: '', hsn_code: '', quantity: '1', unit_price: '', gst_rate: '18' });
+const emptyItem = (): QuoteItem => ({ product_id: null, product_name: '', hsn_code: '', quantity: '1', unit_price: '', gst_rate: '' });
 
 const Quotations: React.FC = () => {
   const dispatch = useAppDispatch();
@@ -161,7 +161,7 @@ const Quotations: React.FC = () => {
       : parseFloat(product.selling_price);
     setItems(p => {
       const n = [...p];
-      n[rowIdx] = { product_id: product.id, product_name: product.name, hsn_code: product.hsn_code || '', quantity: '1', unit_price: base.toFixed(2), gst_rate: String(product.gst_rate) };
+      n[rowIdx] = { product_id: product.id, product_name: product.name, hsn_code: product.hsn_code || '', quantity: '1', unit_price: base.toFixed(2), gst_rate: String(Math.round(parseFloat(product.gst_rate))) };
       return n;
     });
     setProductSearch(p => { const n = [...p]; n[rowIdx] = product.name; return n; });
@@ -374,7 +374,7 @@ const Quotations: React.FC = () => {
                     <th className="px-3 py-2 text-left w-24">HSN</th>
                     <th className="px-3 py-2 text-right w-20">Qty</th>
                     <th className="px-3 py-2 text-right w-28">Unit Price (₹)</th>
-                    <th className="px-3 py-2 text-right w-20">GST%</th>
+                    <th className="px-3 py-2 text-right w-28">GST%</th>
                     <th className="px-3 py-2 text-right w-28">Total (₹)</th>
                     <th className="px-3 py-2 w-8"></th>
                   </tr>
@@ -403,7 +403,8 @@ const Quotations: React.FC = () => {
                       <td className="px-3 py-2"><input type="number" min="0" step="0.01" className="input-field w-full text-sm py-1 text-right" value={item.unit_price} onChange={e => updateItem(i, 'unit_price', e.target.value)} /></td>
                       <td className="px-3 py-2">
                         <select className="input-field w-full text-sm py-1" value={item.gst_rate} onChange={e => updateItem(i, 'gst_rate', e.target.value)}>
-                          {[0,5,12,18,28].map(r => <option key={r} value={r}>{r}%</option>)}
+                          <option value="">GST%</option>
+                          {[0,5,12,18,28].map(r => <option key={r} value={String(r)}>{r}%</option>)}
                         </select>
                       </td>
                       <td className="px-3 py-2 text-right font-medium">₹{lineTotal(item).toFixed(2)}</td>
