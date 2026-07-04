@@ -11,7 +11,7 @@ import { fetchCurrentSession } from '@store/slices/sessionSlice';
 import {
   Search, LayoutGrid, ShoppingCart, Plus, Minus, Trash2, Package,
   Tag, Lock, Flag, Wallet, X, Banknote, CreditCard, Smartphone,
-  Building2, BookOpenCheck, ChevronDown, ChevronUp, User,
+  Building2, BookOpenCheck, ChevronDown, ChevronUp, User, ChevronLeft, ChevronRight,
 } from 'lucide-react';
 import PhoneInput from '../../components/common/PhoneInput/PhoneInput';
 import InvoicePreview from '../../components/pos/InvoicePreview';
@@ -95,6 +95,7 @@ const POS: React.FC = () => {
   const [completedSale, setCompletedSale] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [pendingMethod, setPendingMethod] = useState<string | null>(null);
+  const [cartCollapsed, setCartCollapsed] = useState(false);
 
   // ── Company (for UPI QR) ──────────────────────────────────────────────────
   const currentCompany = useAppSelector((s) => s.company.currentCompany);
@@ -851,196 +852,337 @@ const POS: React.FC = () => {
       {/* ══ MAIN CONTENT ════════════════════════════════════════════════════ */}
       <div className="flex-1 flex gap-4 overflow-hidden px-4 pt-4 pb-2 min-h-0">
 
-        {/* ── LEFT PANEL ─────────────────────────────────────────────────── */}
-        <div className="flex-1 flex flex-col min-h-0 overflow-hidden gap-3">
+      {mode === 'search' ? (
+        /* ── SEARCH MODE: full-width layout ─────────────────────────────── */
+        <div className="flex-1 flex flex-col min-h-0 gap-3">
 
-          {/* Mode toggle + controls */}
-          <div className="shrink-0 bg-white rounded-xl border border-gray-100 shadow-sm p-3 space-y-2.5">
-            <div className="flex items-center gap-3">
-              {/* Browse / Search toggle */}
+          {/* Search bar card */}
+          <div className="shrink-0 bg-white rounded-xl border border-gray-100 shadow-sm p-3">
+            <div className="flex items-center gap-3 mb-2.5">
               <div className="relative flex bg-gray-100 rounded-full p-1">
-                <div
-                  className={`absolute top-1 bottom-1 rounded-full bg-white shadow-sm transition-all duration-200 ${
-                    mode === 'browse' ? 'left-1 right-[calc(50%+2px)]' : 'left-[calc(50%+2px)] right-1'
-                  }`}
-                />
-                <button
-                  onClick={() => setMode('browse')}
-                  className={`relative z-10 flex items-center gap-1.5 px-4 py-1.5 rounded-full text-sm font-semibold transition-colors duration-200 ${
-                    mode === 'browse' ? 'text-[#0F1F18]' : 'text-gray-400'
-                  }`}
-                >
-                  <LayoutGrid className="w-3.5 h-3.5" />
-                  Browse
+                <div className="absolute top-1 bottom-1 left-[calc(50%+2px)] right-1 rounded-full bg-white shadow-sm transition-all duration-200" />
+                <button onClick={() => setMode('browse')} className="relative z-10 flex items-center gap-1.5 px-4 py-1.5 rounded-full text-sm font-semibold text-gray-400 transition-colors duration-200">
+                  <LayoutGrid className="w-3.5 h-3.5" />Browse
                 </button>
-                <button
-                  onClick={() => setMode('search')}
-                  className={`relative z-10 flex items-center gap-1.5 px-4 py-1.5 rounded-full text-sm font-semibold transition-colors duration-200 ${
-                    mode === 'search' ? 'text-[#0F1F18]' : 'text-gray-400'
-                  }`}
-                >
-                  <Search className="w-3.5 h-3.5" />
-                  Search
+                <button onClick={() => setMode('search')} className="relative z-10 flex items-center gap-1.5 px-4 py-1.5 rounded-full text-sm font-semibold text-[#0F1F18] transition-colors duration-200">
+                  <Search className="w-3.5 h-3.5" />Search
                 </button>
               </div>
-
               {totalItems > 0 && (
                 <span className="text-xs text-gray-500 bg-gray-100 rounded-full px-3 py-1 font-medium shrink-0">
                   {cart.items.length} item{cart.items.length !== 1 ? 's' : ''} in cart
                 </span>
               )}
             </div>
-
-            {/* Browse mode: category chips + product filter */}
-            {mode === 'browse' && (
-              <div className="space-y-2">
-                {categories.length > 0 && (
-                  <div className="flex gap-2 overflow-x-auto pb-1" style={{ scrollbarWidth: 'none' }}>
-                    <button
-                      onClick={() => setSelectedCategory(null)}
-                      className={`shrink-0 rounded-full px-3.5 py-1 text-xs font-semibold border transition-all ${
-                        !selectedCategory
-                          ? 'bg-[#0d9158] text-white border-[#0d9158] shadow-sm'
-                          : 'bg-white text-gray-600 border-gray-200 hover:border-[#0d9158] hover:text-[#0d9158]'
-                      }`}
-                    >
-                      All
-                    </button>
-                    {categories.slice(0, 20).map((cat) => (
-                      <button
-                        key={cat.id}
-                        onClick={() => setSelectedCategory(selectedCategory?.id === cat.id ? null : cat)}
-                        className={`shrink-0 rounded-full px-3.5 py-1 text-xs font-semibold border transition-all whitespace-nowrap ${
-                          selectedCategory?.id === cat.id
-                            ? 'bg-[#0d9158] text-white border-[#0d9158] shadow-sm'
-                            : 'bg-white text-gray-600 border-gray-200 hover:border-[#0d9158] hover:text-[#0d9158]'
-                        }`}
-                      >
-                        {cat.name}
-                      </button>
-                    ))}
-                  </div>
+            <div className="relative z-20">
+              <div className="relative">
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" />
+                <input
+                  ref={searchInputRef}
+                  type="text"
+                  placeholder="Scan barcode or type product name..."
+                  value={searchTerm}
+                  onChange={(e) => { setSearchTerm(e.target.value); setShowSearchResults(true); }}
+                  onFocus={() => { if (searchTerm || scanProducts.length > 0) setShowSearchResults(true); }}
+                  onKeyDown={handleScanKeyDown}
+                  className="w-full pl-12 pr-10 py-3 text-base border-2 border-gray-200 rounded-xl bg-white outline-none focus:border-[#0d9158] focus:ring-4 focus:ring-[#0d9158]/10 transition-all"
+                />
+                {searchTerm && (
+                  <button onClick={() => { setSearchTerm(''); setScanProducts([]); setShowSearchResults(false); }} className="absolute right-3.5 top-1/2 -translate-y-1/2 p-1.5 text-gray-400 hover:text-gray-600 rounded-full hover:bg-gray-100">
+                    <X className="w-4 h-4" />
+                  </button>
                 )}
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
-                  <input
-                    type="text"
-                    placeholder="Filter products..."
-                    value={productSearch}
-                    onChange={(e) => setProductSearch(e.target.value)}
-                    className="w-full pl-9 pr-3 py-2 text-sm border border-gray-200 rounded-lg bg-gray-50 outline-none focus:border-[#0d9158] focus:ring-2 focus:ring-[#0d9158]/10 transition-all"
-                  />
-                </div>
               </div>
-            )}
+              {showSearchResults && (searchTerm || scanProducts.length > 0) && (
+                <div ref={dropdownRef} className="absolute left-0 right-0 top-full mt-2 bg-white rounded-xl shadow-xl border border-gray-100 max-h-[55vh] overflow-y-auto z-50">
+                  {isSearchLoading ? (
+                    <div className="p-8 flex flex-col items-center gap-2 text-gray-400">
+                      <div className="w-5 h-5 border-2 border-gray-200 border-t-[#0d9158] rounded-full animate-spin" />
+                      <span className="text-sm">Searching...</span>
+                    </div>
+                  ) : scanProducts.length > 0 ? (
+                    <div className="p-2">
+                      {scanProducts.map((product) => {
+                        const effectivePrice = calculateEffectivePrice(product);
+                        const isDiscounted = effectivePrice < parseFloat(product.selling_price);
+                        const isPremium = effectivePrice > parseFloat(product.selling_price);
+                        return (
+                          <button
+                            key={product.id}
+                            onClick={() => { handleAddToCart(product); setSearchTerm(''); setScanProducts([]); setShowSearchResults(false); if (searchInputRef.current) searchInputRef.current.focus(); }}
+                            className="w-full flex items-center justify-between p-3 hover:bg-green-50 active:bg-green-100 rounded-xl transition-colors text-left"
+                          >
+                            <div className="flex-1 min-w-0 pr-3">
+                              <div className="font-semibold text-gray-800 text-sm">{product.name}</div>
+                              <div className="flex items-center gap-2 mt-0.5">
+                                <span className="text-[10px] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded border border-gray-200">{product.sku}</span>
+                                {product.barcode && <span className="text-[10px] text-gray-400">{product.barcode}</span>}
+                              </div>
+                            </div>
+                            <div className="text-right shrink-0">
+                              <div className={`font-bold text-base leading-none ${isDiscounted ? 'text-green-600' : isPremium ? 'text-amber-600' : 'text-blue-600'}`}>₹{effectivePrice.toFixed(2)}</div>
+                              <div className="text-[10px] text-green-600 font-medium mt-1 bg-green-50 inline-block px-1.5 py-0.5 rounded-full border border-green-100">{product.stock_quantity} in stock</div>
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  ) : searchTerm && !isSearchLoading ? (
+                    <div className="p-10 text-center">
+                      <Package className="w-8 h-8 text-gray-200 mx-auto mb-2" />
+                      <p className="text-gray-400 text-sm">No products found for "{searchTerm}"</p>
+                    </div>
+                  ) : null}
+                </div>
+              )}
+            </div>
+          </div>
 
-            {/* Search mode: barcode / name input */}
-            {mode === 'search' && (
-              <div className="relative z-20">
-                <div className="relative">
-                  <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" />
-                  <input
-                    ref={searchInputRef}
-                    type="text"
-                    placeholder="Scan barcode or type product name..."
-                    value={searchTerm}
-                    onChange={(e) => {
-                      setSearchTerm(e.target.value);
-                      setShowSearchResults(true);
-                    }}
-                    onFocus={() => {
-                      if (searchTerm || scanProducts.length > 0) setShowSearchResults(true);
-                    }}
-                    onKeyDown={handleScanKeyDown}
-                    className="w-full pl-12 pr-10 py-3 text-base border-2 border-gray-200 rounded-xl bg-white outline-none focus:border-[#0d9158] focus:ring-4 focus:ring-[#0d9158]/10 transition-all"
-                  />
-                  {searchTerm && (
-                    <button
-                      onClick={() => {
-                        setSearchTerm('');
-                        setScanProducts([]);
-                        setShowSearchResults(false);
-                      }}
-                      className="absolute right-3.5 top-1/2 -translate-y-1/2 p-1.5 text-gray-400 hover:text-gray-600 rounded-full hover:bg-gray-100"
-                    >
-                      <X className="w-4 h-4" />
-                    </button>
+          {/* Two-column split below */}
+          {needsSessionSetup ? (
+            <div className="flex-1"><OpeningBalanceModal /></div>
+          ) : (
+            <div className="flex-1 flex gap-4 min-h-0">
+
+              {/* Cart items (60%) */}
+              <div className="flex-[3] flex flex-col min-h-0 bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+                <div className="shrink-0 px-4 py-2.5 bg-gradient-to-r from-[#0d9158] to-[#0b7347] flex items-center justify-between">
+                  <h3 className="font-semibold text-white flex items-center gap-2 text-sm">
+                    <ShoppingCart className="w-4 h-4" />Current Sale
+                  </h3>
+                  {cart.items.length > 0 && (
+                    <span className="text-[10px] font-bold bg-white/20 text-white px-2 py-0.5 rounded-full border border-white/30">
+                      {cart.items.length} items · ₹{totals.grandTotal.toFixed(0)}
+                    </span>
                   )}
                 </div>
-
-                {/* Floating results */}
-                {showSearchResults && (searchTerm || scanProducts.length > 0) && (
-                  <div
-                    ref={dropdownRef}
-                    className="absolute left-0 right-0 top-full mt-2 bg-white rounded-xl shadow-xl border border-gray-100 max-h-[55vh] overflow-y-auto z-50"
-                  >
-                    {isSearchLoading ? (
-                      <div className="p-8 flex flex-col items-center gap-2 text-gray-400">
-                        <div className="w-5 h-5 border-2 border-gray-200 border-t-[#0d9158] rounded-full animate-spin" />
-                        <span className="text-sm">Searching...</span>
-                      </div>
-                    ) : scanProducts.length > 0 ? (
-                      <div className="p-2">
-                        {scanProducts.map((product) => {
-                          const effectivePrice = calculateEffectivePrice(product);
-                          const isDiscounted = effectivePrice < parseFloat(product.selling_price);
-                          const isPremium = effectivePrice > parseFloat(product.selling_price);
-                          return (
-                            <button
-                              key={product.id}
-                              onClick={() => {
-                                handleAddToCart(product);
-                                setSearchTerm('');
-                                setScanProducts([]);
-                                setShowSearchResults(false);
-                                if (searchInputRef.current) searchInputRef.current.focus();
-                              }}
-                              className="w-full flex items-center justify-between p-3 hover:bg-green-50 active:bg-green-100 rounded-xl transition-colors text-left"
-                            >
-                              <div className="flex-1 min-w-0 pr-3">
-                                <div className="font-semibold text-gray-800 text-sm">{product.name}</div>
-                                <div className="flex items-center gap-2 mt-0.5">
-                                  <span className="text-[10px] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded border border-gray-200">
-                                    {product.sku}
-                                  </span>
-                                  {product.barcode && (
-                                    <span className="text-[10px] text-gray-400">{product.barcode}</span>
-                                  )}
-                                </div>
+                <div className="flex-1 overflow-y-auto min-h-0">
+                  {cart.items.length === 0 ? (
+                    <div className="h-full flex flex-col items-center justify-center text-gray-400 py-16">
+                      <ShoppingCart className="w-12 h-12 text-gray-200 mb-3" />
+                      <p className="text-sm font-medium">Scan a barcode or type a product name</p>
+                      <p className="text-xs mt-1">Press Enter on exact barcode to add instantly</p>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="sticky top-0 -mb-4 h-4 bg-gradient-to-b from-white to-transparent pointer-events-none z-10" />
+                      <div className="divide-y divide-gray-50">
+                        {cart.items.map((item) => (
+                          <div key={item.id} className="flex items-center gap-3 px-4 py-2.5 bg-white hover:bg-gray-50/60 transition-colors">
+                            <div className="flex-1 min-w-0">
+                              <div className="font-semibold text-sm text-gray-800 leading-tight" title={item.name}>{item.name}</div>
+                              <div className="flex items-center gap-1.5 text-[10px] text-gray-400 mt-0.5">
+                                <span className="shrink-0">₹{item.unit_price.toFixed(2)}/{getUnitLabel(item.unit) || 'unit'}</span>
+                                {item.gst_rate > 0 && <span className="text-orange-500 shrink-0">· GST {item.gst_rate}%</span>}
+                                {item.stock_quantity != null && (() => {
+                                  const remaining = item.stock_quantity - item.quantity;
+                                  const isLow = item.reorder_level != null ? remaining <= item.reorder_level : remaining <= 10;
+                                  const colorClass = remaining > 10 && !isLow ? 'text-green-600' : remaining > 0 ? 'text-yellow-600' : 'text-red-500';
+                                  return <span className={`font-semibold shrink-0 ${colorClass}`}>· {remaining > 0 ? `${remaining}${isLow ? ' low' : ''}` : 'Out'}</span>;
+                                })()}
                               </div>
-                              <div className="text-right shrink-0">
-                                <div
-                                  className={`font-bold text-base leading-none ${
-                                    isDiscounted ? 'text-green-600' : isPremium ? 'text-amber-600' : 'text-blue-600'
-                                  }`}
-                                >
-                                  ₹{effectivePrice.toFixed(2)}
-                                </div>
-                                <div className="text-[10px] text-green-600 font-medium mt-1 bg-green-50 inline-block px-1.5 py-0.5 rounded-full border border-green-100">
-                                  {product.stock_quantity} in stock
-                                </div>
-                              </div>
+                            </div>
+                            <div className="flex items-center border border-gray-200 rounded-lg overflow-hidden shrink-0">
+                              <button onClick={() => updateQuantity(item.id, -1)} className="w-8 h-8 flex items-center justify-center hover:bg-gray-100 active:bg-gray-200 text-gray-500 transition-colors"><Minus className="w-3 h-3" /></button>
+                              <input
+                                type="number"
+                                inputMode={isContinuousUnit(item.unit) ? 'decimal' : 'numeric'}
+                                min={isContinuousUnit(item.unit) ? '0.001' : '1'}
+                                step={isContinuousUnit(item.unit) ? '0.5' : '1'}
+                                value={editingQtyId === item.id ? editingQtyValue : item.quantity}
+                                className="w-9 h-8 text-center text-sm font-bold text-gray-800 border-x border-gray-200 bg-white outline-none focus:bg-blue-50 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                onFocus={() => { setEditingQtyId(item.id); setEditingQtyValue(String(item.quantity)); }}
+                                onChange={(e) => setEditingQtyValue(e.target.value)}
+                                onBlur={() => { setQuantityDirect(item.id, editingQtyValue); setEditingQtyId(null); setEditingQtyValue(''); }}
+                                onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
+                              />
+                              <button onClick={() => updateQuantity(item.id, 1)} className="w-8 h-8 flex items-center justify-center hover:bg-gray-100 active:bg-gray-200 text-gray-500 transition-colors"><Plus className="w-3 h-3" /></button>
+                            </div>
+                            <div className="shrink-0 text-right w-[70px]">
+                              <div className="text-sm font-bold text-gray-800">₹{(item.selling_price * item.quantity).toFixed(2)}</div>
+                            </div>
+                            <button onClick={() => removeItem(item.id)} className="shrink-0 p-1.5 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-full transition-all">
+                              <Trash2 className="w-3.5 h-3.5" />
                             </button>
-                          );
-                        })}
+                          </div>
+                        ))}
                       </div>
-                    ) : searchTerm && !isSearchLoading ? (
-                      <div className="p-10 text-center">
-                        <Package className="w-8 h-8 text-gray-200 mx-auto mb-2" />
-                        <p className="text-gray-400 text-sm">No products found for "{searchTerm}"</p>
+                      <div className="sticky bottom-0 -mt-4 h-4 bg-gradient-to-t from-white to-transparent pointer-events-none z-10" />
+                    </>
+                  )}
+                </div>
+                {cart.items.length > 0 && (
+                  <div className="shrink-0 border-t border-gray-100 px-4 py-2.5 bg-gray-50 flex items-center justify-between gap-4">
+                    <div className="text-center">
+                      <div className="text-[10px] text-gray-400 uppercase tracking-wide">Subtotal</div>
+                      <div className="text-sm font-bold text-gray-700">₹{totals.subtotal.toFixed(2)}</div>
+                    </div>
+                    {totals.totalGst > 0 && (
+                      <div className="text-center">
+                        <div className="text-[10px] text-orange-400 uppercase tracking-wide">GST</div>
+                        <div className="text-sm font-bold text-orange-600">₹{totals.totalGst.toFixed(2)}</div>
                       </div>
-                    ) : null}
-                  </div>
-                )}
-
-                {!searchTerm && (
-                  <div className="flex flex-col items-center justify-center pt-8 pb-2 text-gray-400">
-                    <p className="text-sm font-medium">Scan a barcode or type a product name</p>
-                    <p className="text-xs mt-1">Press Enter on exact barcode to add instantly</p>
+                    )}
+                    {totals.discount > 0 && (
+                      <div className="text-center">
+                        <div className="text-[10px] text-green-500 uppercase tracking-wide">Discount</div>
+                        <div className="text-sm font-bold text-green-600">-₹{totals.discount.toFixed(2)}</div>
+                      </div>
+                    )}
+                    <div className="text-center ml-auto">
+                      <div className="text-[10px] text-blue-500 uppercase tracking-wide font-semibold">Grand Total</div>
+                      <div className="text-lg font-extrabold text-blue-600">₹{totals.grandTotal.toFixed(2)}</div>
+                    </div>
                   </div>
                 )}
               </div>
+
+              {/* Checkout column (40%) */}
+              <div className="flex-[2] flex flex-col gap-3 min-h-0 overflow-y-auto">
+                {/* Customer widget */}
+                <div className="shrink-0 bg-white rounded-xl border border-gray-100 shadow-sm p-3">
+                  <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Customer</h3>
+                  {cart.customer_id ? (
+                    <div className="flex items-center gap-2.5 p-2.5 bg-[#0d9158]/5 border border-[#0d9158]/20 rounded-xl">
+                      <div className="w-9 h-9 rounded-full bg-[#0d9158] flex items-center justify-center shrink-0">
+                        {currentCustomerObj?.name ? <span className="text-white text-sm font-bold">{currentCustomerObj.name.charAt(0).toUpperCase()}</span> : <User className="w-4 h-4 text-white" />}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="font-semibold text-sm text-gray-800 truncate">{currentCustomerObj?.name}</div>
+                        <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
+                          <span className="text-[10px] text-gray-400">{currentCustomerObj?.phone}</span>
+                          {outstandingBalance > 0 && <span className="text-[10px] font-semibold text-red-500 bg-red-50 px-1.5 py-0.5 rounded-full border border-red-100">Bal: ₹{outstandingBalance.toFixed(0)}</span>}
+                          {walletBalance > 0 && <span className="text-[10px] font-semibold text-purple-600 bg-purple-50 px-1.5 py-0.5 rounded-full border border-purple-100 flex items-center gap-0.5"><Wallet className="w-2.5 h-2.5" />₹{walletBalance.toFixed(0)}</span>}
+                        </div>
+                      </div>
+                      <button onClick={() => updateActiveSession((s) => ({ ...s, cart: { ...s.cart, customer_id: null }, currentCustomerObj: null }))} className="p-1.5 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-full transition-colors">
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col gap-2">
+                      <div className="relative">
+                        <PhoneInput phone={guestPhone} countryCode={guestCountryCode} onPhoneChange={(v) => updateActiveSession((s) => ({ ...s, guestPhone: v }))} onCountryCodeChange={(v) => updateActiveSession((s) => ({ ...s, guestCountryCode: v }))} placeholder="Phone No." hasError={guestPhone.length > 0 && guestPhone.length !== 10} />
+                        {isLoading && <div className="absolute right-2.5 top-1/2 -translate-y-1/2"><div className="w-3.5 h-3.5 border border-gray-300 border-t-[#0d9158] rounded-full animate-spin" /></div>}
+                      </div>
+                      <input type="text" placeholder="Name (opt)" value={guestName} onChange={(e) => updateActiveSession((s) => ({ ...s, guestName: e.target.value }))} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-xl outline-none focus:border-[#0d9158] focus:ring-2 focus:ring-[#0d9158]/10 transition-all bg-gray-50" />
+                    </div>
+                  )}
+                </div>
+                {/* Checkout panel */}
+                {cart.items.length > 0 && (
+                  <div className="shrink-0 bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+                    <div className="px-3 pt-3 pb-1 space-y-2">
+                      <div className="flex justify-between items-center text-sm">
+                        <span className="text-gray-500">Subtotal</span>
+                        <span className="font-semibold text-gray-700">₹{totals.subtotal.toFixed(2)}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm text-gray-500 shrink-0">Discount</span>
+                        <div className="flex bg-gray-100 rounded-lg p-0.5 border border-gray-200 ml-auto">
+                          <button onClick={() => updateActiveSession((s) => ({ ...s, cart: { ...s.cart, discount_type: 'percentage' } }))} className={`px-2 py-0.5 text-[11px] font-bold rounded transition-all ${cart.discount_type === 'percentage' ? 'bg-white shadow-sm text-blue-700' : 'text-gray-400 hover:text-gray-600'}`}>%</button>
+                          <button onClick={() => updateActiveSession((s) => ({ ...s, cart: { ...s.cart, discount_type: 'amount' } }))} className={`px-2 py-0.5 text-[11px] font-bold rounded transition-all ${cart.discount_type === 'amount' ? 'bg-white shadow-sm text-blue-700' : 'text-gray-400 hover:text-gray-600'}`}>₹</button>
+                        </div>
+                        <input
+                          type="number" inputMode="decimal" min="0"
+                          value={cart.discount_type === 'percentage' ? cart.discount_percentage || '' : cart.discount_amount || ''}
+                          onChange={(e) => { const val = parseFloat(e.target.value) || 0; if (cart.discount_type === 'percentage') { updateActiveSession((s) => ({ ...s, cart: { ...s.cart, discount_percentage: val > 100 ? 100 : val } })); } else { updateActiveSession((s) => ({ ...s, cart: { ...s.cart, discount_amount: val } })); } }}
+                          className="w-20 text-right px-2 py-1 border border-gray-200 rounded-lg text-sm outline-none focus:border-[#0d9158] focus:ring-1 focus:ring-[#0d9158]/20 font-medium text-gray-700 bg-white" placeholder="0"
+                        />
+                        {totals.discount > 0 && <span className="text-sm font-semibold text-green-600 shrink-0">-₹{totals.discount.toFixed(2)}</span>}
+                      </div>
+                      {(totals.totalGst > 0 || totals.exemptedAmount > 0) && (
+                        <div className="rounded-xl border border-orange-100 overflow-hidden">
+                          <button onClick={() => setShowGstDetails((v) => !v)} className="w-full flex items-center justify-between px-3 py-2 bg-orange-50 hover:bg-orange-100 transition-colors">
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-[11px] font-bold text-orange-700 uppercase tracking-wide">GST</span>
+                              {showGstDetails ? <ChevronUp className="w-3 h-3 text-orange-400" /> : <ChevronDown className="w-3 h-3 text-orange-400" />}
+                              <span className="text-[10px] text-orange-400">{showGstDetails ? 'hide' : 'details'}</span>
+                            </div>
+                            <span className="text-sm font-bold text-orange-700">₹{totals.totalGst.toFixed(2)}</span>
+                          </button>
+                          {showGstDetails && (
+                            <div className="bg-orange-50/60 px-3 pb-2 pt-1.5 space-y-1.5 border-t border-orange-100">
+                              {Object.entries(totals.taxBreakdown).sort(([a], [b]) => Number(a) - Number(b)).map(([rate, data]) => (
+                                <div key={rate} className="space-y-0.5">
+                                  <div className="flex justify-between text-[11px] text-orange-600 font-semibold"><span>GST {rate}%</span><span className="text-orange-400">₹{data.taxableAmount.toFixed(2)}</span></div>
+                                  <div className="flex justify-between text-[10px] text-orange-500 pl-3"><span>CGST {(parseFloat(rate) / 2).toFixed(1)}%</span><span>₹{data.cgst.toFixed(2)}</span></div>
+                                  <div className="flex justify-between text-[10px] text-orange-500 pl-3"><span>SGST {(parseFloat(rate) / 2).toFixed(1)}%</span><span>₹{data.sgst.toFixed(2)}</span></div>
+                                </div>
+                              ))}
+                              {totals.exemptedAmount > 0 && <div className="flex justify-between text-[10px] text-gray-500 border-t border-orange-100 pt-1"><span>Exempted (0%)</span><span>₹{totals.exemptedAmount.toFixed(2)}</span></div>}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                      {totals.roundOff !== 0 && <div className="flex justify-between items-center text-xs text-gray-400"><span>Round Off</span><span>{totals.roundOff > 0 ? '+' : ''}₹{totals.roundOff.toFixed(2)}</span></div>}
+                    </div>
+                    <div className="mx-3 mt-1 mb-2 flex justify-between items-center bg-blue-600 text-white rounded-xl px-4 py-2.5 shadow-sm">
+                      <div>
+                        <div className="font-bold text-sm leading-none">Grand Total</div>
+                        {totals.roundOff !== 0 && <div className="text-[10px] text-blue-200 mt-0.5">Round off {totals.roundOff > 0 ? '+' : ''}₹{totals.roundOff.toFixed(2)}</div>}
+                      </div>
+                      <span className="text-2xl font-extrabold tracking-tight">₹{totals.grandTotal.toFixed(2)}</span>
+                    </div>
+                    <div className="px-3 pb-3">
+                      <div className="flex gap-2 flex-wrap">
+                        <button disabled={isProcessing} onClick={() => setPendingMethod('cash')} className="flex-none flex items-center gap-1.5 px-3 py-2 bg-white border-2 border-green-500 hover:bg-green-50 active:bg-green-100 text-green-700 rounded-full shadow-sm transition-all active:scale-[0.96] disabled:opacity-40 disabled:border-gray-200 disabled:text-gray-400"><Banknote className="w-4 h-4 flex-none" /><span className="font-bold text-[11px] tracking-wide whitespace-nowrap">CASH</span></button>
+                        <button disabled={isProcessing} onClick={() => setPendingMethod('upi')} className="flex-none flex items-center gap-1.5 px-3 py-2 bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white rounded-full shadow-md transition-all active:scale-[0.96] disabled:opacity-40"><Smartphone className="w-4 h-4 flex-none" /><span className="font-bold text-[11px] tracking-wide whitespace-nowrap">UPI</span></button>
+                        <button disabled={isProcessing} onClick={() => setPendingMethod('card')} className="flex-none flex items-center gap-1.5 px-3 py-2 bg-slate-800 hover:bg-slate-900 active:bg-slate-950 text-white rounded-full shadow-md transition-all active:scale-[0.96] disabled:opacity-40"><CreditCard className="w-4 h-4 flex-none" /><span className="font-bold text-[11px] tracking-wide whitespace-nowrap">CARD</span></button>
+                        <button disabled={isProcessing || !isEligibleForCredit || !canAffordCredit} onClick={() => setPendingMethod('credit')} title={!isEligibleForCredit ? 'Only for registered customers' : !canAffordCredit ? 'Credit limit exceeded' : 'Pay via Credit'} className="flex-none flex items-center gap-1.5 px-3 py-2 bg-orange-500 hover:bg-orange-600 active:bg-orange-700 text-white rounded-full shadow-md transition-all active:scale-[0.96] disabled:opacity-40"><BookOpenCheck className="w-4 h-4 flex-none" /><span className="font-bold text-[11px] tracking-wide whitespace-nowrap">CREDIT</span></button>
+                        <button disabled={isProcessing || !isEligibleForCredit || !hasWalletBalance} onClick={() => setPendingMethod('wallet')} title={!isEligibleForCredit ? 'Only for registered customers' : !hasWalletBalance ? 'No wallet balance' : `Pay from wallet (₹${walletBalance.toFixed(2)})`} className="flex-none flex items-center gap-1.5 px-3 py-2 bg-purple-600 hover:bg-purple-700 active:bg-purple-800 text-white rounded-full shadow-md transition-all active:scale-[0.96] disabled:opacity-40"><Wallet className="w-4 h-4 flex-none" /><span className="font-bold text-[11px] tracking-wide whitespace-nowrap">{hasWalletBalance && isEligibleForCredit ? `WALLET ₹${walletBalance.toFixed(0)}` : 'WALLET'}</span></button>
+                        <button disabled={isProcessing} onClick={() => setPendingMethod('net_banking')} className="flex-none flex items-center gap-1.5 px-3 py-2 bg-white border border-gray-200 hover:bg-gray-50 active:bg-gray-100 text-gray-600 rounded-full shadow-sm transition-all active:scale-[0.96] disabled:opacity-40"><Building2 className="w-4 h-4 flex-none" /><span className="font-bold text-[11px] tracking-wide whitespace-nowrap">NET</span></button>
+                      </div>
+                      {isProcessing && (
+                        <div className="flex items-center justify-center gap-2 text-gray-500 pt-2">
+                          <div className="w-3.5 h-3.5 border-2 border-gray-300 border-t-[#0d9158] rounded-full animate-spin" />
+                          <span className="text-xs font-medium">Processing payment...</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+            </div>
+          )}
+        </div>
+      ) : (
+        /* ── BROWSE MODE ─────────────────────────────────────────────────── */
+        <>
+        {/* ── LEFT PANEL ─────────────────────────────────────────────────── */}
+        <div className="flex-1 flex flex-col min-h-0 overflow-hidden gap-3">
+
+          {/* Mode toggle + browse controls */}
+          <div className="shrink-0 bg-white rounded-xl border border-gray-100 shadow-sm p-3 space-y-2.5">
+            <div className="flex items-center gap-3">
+              <div className="relative flex bg-gray-100 rounded-full p-1">
+                <div className="absolute top-1 bottom-1 left-1 right-[calc(50%+2px)] rounded-full bg-white shadow-sm transition-all duration-200" />
+                <button onClick={() => setMode('browse')} className="relative z-10 flex items-center gap-1.5 px-4 py-1.5 rounded-full text-sm font-semibold text-[#0F1F18] transition-colors duration-200">
+                  <LayoutGrid className="w-3.5 h-3.5" />Browse
+                </button>
+                <button onClick={() => setMode('search')} className="relative z-10 flex items-center gap-1.5 px-4 py-1.5 rounded-full text-sm font-semibold text-gray-400 transition-colors duration-200">
+                  <Search className="w-3.5 h-3.5" />Search
+                </button>
+              </div>
+              {totalItems > 0 && (
+                <span className="text-xs text-gray-500 bg-gray-100 rounded-full px-3 py-1 font-medium shrink-0">
+                  {cart.items.length} item{cart.items.length !== 1 ? 's' : ''} in cart
+                </span>
+              )}
+            </div>
+            {categories.length > 0 && (
+              <div className="flex gap-2 overflow-x-auto pb-1" style={{ scrollbarWidth: 'none' }}>
+                <button onClick={() => setSelectedCategory(null)} className={`shrink-0 rounded-full px-3.5 py-1 text-xs font-semibold border transition-all ${!selectedCategory ? 'bg-[#0d9158] text-white border-[#0d9158] shadow-sm' : 'bg-white text-gray-600 border-gray-200 hover:border-[#0d9158] hover:text-[#0d9158]'}`}>All</button>
+                {categories.slice(0, 20).map((cat) => (
+                  <button key={cat.id} onClick={() => setSelectedCategory(selectedCategory?.id === cat.id ? null : cat)} className={`shrink-0 rounded-full px-3.5 py-1 text-xs font-semibold border transition-all whitespace-nowrap ${selectedCategory?.id === cat.id ? 'bg-[#0d9158] text-white border-[#0d9158] shadow-sm' : 'bg-white text-gray-600 border-gray-200 hover:border-[#0d9158] hover:text-[#0d9158]'}`}>{cat.name}</button>
+                ))}
+              </div>
             )}
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+              <input type="text" placeholder="Filter products..." value={productSearch} onChange={(e) => setProductSearch(e.target.value)} className="w-full pl-9 pr-3 py-2 text-sm border border-gray-200 rounded-lg bg-gray-50 outline-none focus:border-[#0d9158] focus:ring-2 focus:ring-[#0d9158]/10 transition-all" />
+            </div>
           </div>
 
           {/* Product grid (browse mode) */}
@@ -1163,6 +1305,21 @@ const POS: React.FC = () => {
           <div className="w-[340px] lg:w-[400px] shrink-0">
             <OpeningBalanceModal />
           </div>
+        ) : cartCollapsed ? (
+          <div className="w-12 shrink-0 flex flex-col items-center pt-2 gap-3">
+            <button onClick={() => setCartCollapsed(false)} title="Expand cart" className="w-9 h-9 flex items-center justify-center rounded-full bg-white border border-gray-200 shadow-sm hover:bg-gray-50 text-gray-500 transition-all">
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+            <div className="flex flex-col items-center gap-1">
+              <ShoppingCart className="w-5 h-5 text-[#0d9158]" />
+              {cart.items.length > 0 && (
+                <>
+                  <span className="text-[11px] font-bold text-[#0d9158] bg-green-50 rounded-full w-6 h-6 flex items-center justify-center border border-green-200">{cart.items.length}</span>
+                  <span className="text-[9px] font-bold text-blue-600 text-center">₹{totals.grandTotal.toFixed(0)}</span>
+                </>
+              )}
+            </div>
+          </div>
         ) : (
           <div className="w-[340px] lg:w-[400px] shrink-0 flex flex-col gap-3 min-h-0">
 
@@ -1170,6 +1327,9 @@ const POS: React.FC = () => {
             <div className="shrink-0 bg-white rounded-xl border border-gray-100 shadow-sm p-3">
               <div className="flex items-center justify-between mb-2">
                 <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider">Customer</h3>
+                <button onClick={() => setCartCollapsed(true)} title="Collapse panel" className="p-1 text-gray-300 hover:text-gray-500 rounded-full hover:bg-gray-100 transition-colors">
+                  <ChevronRight className="w-4 h-4" />
+                </button>
               </div>
 
               {cart.customer_id ? (
@@ -1587,6 +1747,8 @@ const POS: React.FC = () => {
             </div>
           </div>
         )}
+        </>
+      )}
       </div>
 
       {/* ══ MODALS ══════════════════════════════════════════════════════════ */}
