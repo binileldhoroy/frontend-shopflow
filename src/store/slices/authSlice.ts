@@ -11,6 +11,13 @@ interface AuthState {
   error: string | null;
 }
 
+const POS_DRAFT_KEY_PREFIX = 'shopflow_pos_draft_'; // keep in sync with pages/POS/usePosSessionDraft.ts
+const clearPosDrafts = () => {
+  Object.keys(localStorage)
+    .filter((k) => k.startsWith(POS_DRAFT_KEY_PREFIX))
+    .forEach((k) => localStorage.removeItem(k));
+};
+
 const getUserFromStorage = (): User | null => {
   const userStr = localStorage.getItem('user');
   if (userStr) {
@@ -64,6 +71,7 @@ export const logout = createAsyncThunk(
       localStorage.removeItem('accessToken');
       localStorage.removeItem('refreshToken');
       localStorage.removeItem('user');
+      clearPosDrafts();
 
       return null;
     } catch (error: any) {
@@ -71,6 +79,7 @@ export const logout = createAsyncThunk(
       localStorage.removeItem('accessToken');
       localStorage.removeItem('refreshToken');
       localStorage.removeItem('user');
+      clearPosDrafts();
       return rejectWithValue(error.response?.data?.message || 'Logout failed');
     }
   }

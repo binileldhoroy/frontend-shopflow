@@ -21,64 +21,8 @@ import CloseRegisterModal from '../../components/pos/CloseRegisterModal';
 import Modal from '../../components/common/Modal/Modal';
 import PaymentConfirmModal from '../../components/pos/PaymentConfirmModal';
 import { isContinuousUnit, getUnitLabel } from '@utils/units';
-
-// ─── Types ────────────────────────────────────────────────────────────────────
-
-interface CartItem {
-  id: number;
-  product_id: number;
-  name: string;
-  sku: string;
-  unit_price: number;
-  selling_price: number;
-  quantity: number;
-  unit?: string;
-  gst_rate: number;
-  hsn_code: string;
-  tax_included: boolean;
-  stock_quantity?: number;
-  reorder_level?: number;
-  original_selling_price: number;
-  cost_price: number;
-}
-
-interface CartState {
-  items: CartItem[];
-  customer_id: number | null;
-  billing_state: number | null;
-  discount_percentage: number;
-  discount_amount: number;
-  discount_type: 'percentage' | 'amount';
-}
-
-interface CustomerSession {
-  id: string;
-  label: string;
-  cart: CartState;
-  currentCustomerObj: any | null;
-  guestName: string;
-  guestCountryCode: string;
-  guestPhone: string;
-}
-
-const MAX_SESSIONS = 5;
-
-const createEmptySession = (index: number): CustomerSession => ({
-  id: Date.now().toString() + Math.random().toString(36).slice(2),
-  label: `Customer ${index}`,
-  cart: {
-    items: [],
-    customer_id: null,
-    billing_state: null,
-    discount_percentage: 0,
-    discount_amount: 0,
-    discount_type: 'amount',
-  },
-  currentCustomerObj: null,
-  guestName: '',
-  guestCountryCode: '91',
-  guestPhone: '',
-});
+import { CartItem, CustomerSession, MAX_SESSIONS, createEmptySession } from './posSession.types';
+import { usePosSessionDraft } from './usePosSessionDraft';
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
@@ -99,6 +43,9 @@ const POS: React.FC = () => {
 
   // ── Company (for UPI QR) ──────────────────────────────────────────────────
   const currentCompany = useAppSelector((s) => s.company.currentCompany);
+
+  // ── Auth (for scoping the saved-sale draft) ──────────────────────────────
+  const user = useAppSelector((s) => s.auth.user);
 
   // ── Session ───────────────────────────────────────────────────────────────
   const { needsSessionSetup, currentSession } = useAppSelector((s) => s.session);
@@ -150,6 +97,14 @@ const POS: React.FC = () => {
   // ── Quantity inline editing ───────────────────────────────────────────────
   const [editingQtyId, setEditingQtyId] = useState<number | null>(null);
   const [editingQtyValue, setEditingQtyValue] = useState<string>('');
+
+  const { markSessionSold } = usePosSessionDraft({
+    userId: user?.id ?? null,
+    sessions,
+    setSessions,
+    activeSessionId,
+    setActiveSessionId,
+  });
 
   // ─── Session helpers ─────────────────────────────────────────────────────
 
@@ -716,6 +671,7 @@ const POS: React.FC = () => {
       };
 
       const sale = await saleService.create(saleData);
+      markSessionSold(sessionId);
       const printCustomer = snapCustomerObj || { name: snapGuestName || 'Walk-in Customer', phone: snapGuestPhone };
       sale.customer = printCustomer;
 
